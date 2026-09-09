@@ -1,0 +1,9 @@
+need a project to predict rain in a tea plantation.
+
+see if lora wan technology is useful
+
+can use something like STM32WLE5 as the main controller
+
+we can use good branded sensors for the measurments
+
+use a simple dependable prediction algorithm for the prediction of the rain 
