@@ -143,9 +143,9 @@ flowchart TD
 | :---: | :--- | :--- | :--- | :---: |
 | **Phase 1** | **System & Hardware Architecture** | `docs-roadmap.md`<br>`system-architecture.md`<br>`schematics-and-pinout.md`<br>`bill-of-materials.md`<br>`power-supply-and-solar.md` | Establish hardware foundations, STM32WLE5 pinout, solar budget, and BOM. | **Completed** |
 | **Phase 2** | **Sensors & Prediction Math** | `bme280-integration.md`<br>`opt3001-solar-irradiance.md`<br>`rain-gauge-pulse.md`<br>`zambretti-algorithm.md`<br>`meteorological-formulas.md`<br>`trend-detection-and-nowcasting.md` | Sensor driver registers, Dew-point Magnus formulas, Zambretti logic, and trend calculations. | **Completed** |
-| **Phase 3** | **Firmware & Telemetry Protocols** | `firmware-architecture.md`<br>`telemetry-protocol.md`<br>`remote-bus-modbus-sdi12.md` | Layered firmware state machine, binary bit-packing codec, RS-485 Modbus / SDI-12 drivers. | Planned |
-| **Phase 4** | **Power, Hardening & Mechanical** | `power-architecture.md`<br>`surge-protection-and-pcb.md`<br>`radiation-shield-design.md`<br>`enclosure-and-mounting.md` | Ultra-low power states, lightning surge TVS clamps, Stevenson screen mechanical specs. | Planned |
-| **Phase 5** | **Field Validation & Calibration** | `algorithm-validation-and-tuning.md` | Ground-truth verification, historical dataset tuning, and field operational procedures. | Planned |
+| **Phase 3** | **Firmware & Telemetry Protocols** | `firmware-architecture.md`<br>`telemetry-protocol.md`<br>`remote-bus-modbus-sdi12.md` | Layered firmware state machine, binary bit-packing codec, RS-485 Modbus / SDI-12 drivers. | **Completed** |
+| **Phase 4** | **Power, Hardening & Mechanical** | `power-architecture.md`<br>`surge-protection-and-pcb.md`<br>`radiation-shield-design.md`<br>`enclosure-and-mounting.md` | Ultra-low power states, lightning surge TVS clamps, Stevenson screen mechanical specs. | **Completed** |
+| **Phase 5** | **Field Validation & Calibration** | `algorithm-validation-and-tuning.md` | Ground-truth verification, historical dataset tuning, and field operational procedures. | **Completed** |
 
 ---
 
