@@ -2,7 +2,7 @@
 
 ## Status
 
-Specification Phase - Sprint 5 In Progress (Sprint 1..4 Complete)
+Specification Phase - Sprint 6 Complete (Sprint 1..6 Complete)
 
 ## Goals
 
@@ -47,3 +47,14 @@ Specification Phase - Sprint 5 In Progress (Sprint 1..4 Complete)
 - 2026-09-09: Created and linked Sprint 5 task specification S5-T4.1 covering STM32WL monolithic Sub-GHz LoRaWAN Class A network service (lorawan_service) with OTAA activation, AES-128 session keys, 3-pin RF switch control (PC3..PC5), unconfirmed/confirmed uplinks, and FPort 10 downlink dispatching.
 - 2026-09-09: Created and linked Sprint 5 task specification S5-T4.2 covering LoRaWAN regional sub-band selection (IN865/EU868/US915), 1% duty-cycle tracking with exact Time-on-Air math, and End-Device Adaptive Data Rate (ADR) fallback state machine (lorawan_regional).
 - 2026-09-09: Created and linked Sprint 5 task specification S5-T4.3 covering LoRaWAN multi-tier priority transmission queue manager (lorawan_tx_queue) with Tier 0 urgent storm alert preemption, Tier 1 periodic deduplication, Tier 2 historical playback throttling, and confirmed retry handling.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T1.1 covering adaptive multi-rate measurement scheduler (measurement_scheduler) with 15-min nominal, 5-min storm watch, 2-min active rain modes, 30-minute anti-chatter hold-down hysteresis, active-time sleep compensation, and FPort 10 remote downlink interval overrides.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T1.2 covering battery preservation throttling (measurement_scheduler) with 30-min Conservation and 60-min Critical tiers, 100mV recovery hysteresis, buzzer/siren mute suppression, auxiliary bus gating, and LoRa RF power capping (+14dBm) guaranteeing > 130 days darkness survival.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T2.1 covering status LED flash patterns & visual alert engine (alert_manager) with Green pulse (5%), Amber watch blink (50%), Red warning blink (50%), Red storm strobe (10 Hz), Red active rain double-flash, alternating hardware fault beacon, and battery conservation micro-pulsing (8 uA).
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T2.2 covering audible buzzer burst & estate siren relay trigger (alert_manager) with single/double chirps, 200ms storm bursts, 10s hardware/software auto-cutoff siren pulse, 30-minute anti-chatter cooldown guard, night quiet hours, and low-battery acoustic muting.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T2.3 covering the Alert Manager unit test suite (test_alert_manager.c) with 24 Unity test cases spanning visual LED waveforms, acoustic buzzer cadences, siren auto-cutoff timing, 30-min cooldown enforcement, night quiet hours, and low-battery priority gating.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T3.1 covering 8-state application state machine and lifecycle flow (app_state_machine) with non-blocking step dispatcher (WAKE -> POWER_ON -> SAMPLE -> FILTER -> PREDICT -> TRANSMIT -> ALERT -> SLEEP), active-time sleep compensation, < 1.2s processing budget, and main.c reset entry dispatcher.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T3.2 covering graceful degradation and fault tolerance paths (app_fault_handler) with 9-clock I2C bus lockup recovery, BME280/OPT3001 algorithmic fallbacks, LoRa TX timeout Flash buffering, rain gauge chatter clamping, and self-healing telemetry health tracking.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T3.3 covering watchdog checkpoint servicing and boot reset diagnostics (watchdog / app_state_machine) with 8 explicit state kick points, anti-masking single-state 200ms duration limits, Stop 2 sleep counter freeze, and telemetry unexpected reset reporting.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T4.1 covering full system state machine end-to-end integration tests (test_state_machine.c) with 16 Unity test cases validating nominal 15-min cycles, storm watch 5-min acceleration, 10s siren relay pulses, 2-min active rain rapid sampling, 30-min calm hold-down, 24-hour continuous missions, and < 1.2s processing budget compliance.
+- 2026-09-09: Created and linked Sprint 6 task specification S6-T4.2 covering system fault injection & resilience integration tests (test_fault_injection.c) with 16 Unity test cases validating I2C lockup recovery, BME280/OPT3001 fallbacks, low battery brownout throttling, 72-hour Flash logging during gateway outage, rain gauge chatter clamping, and compound multi-fault survival.
+- 2026-09-09: Completed all 10 task specifications for Sprint 6 (Application Orchestration, Scheduler & Local Alerts).

@@ -344,35 +344,35 @@ Legend:
   - **Dependencies**: `S3-T4`
   - **Description**: RTC measurement scheduler in [`firmware/app/src/measurement_scheduler.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/measurement_scheduler.c).
   - **Subtasks**:
-    - `S6-T1.1`: Implement default 15-minute measurement interval and adaptive 5-minute sampling during active convective storm alerts.
-    - `S6-T1.2`: Implement battery preservation throttling (extend interval to 30–60 min when $V_{bat} < 3.0\text{ V}$).
+    - [`S6-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t1.1-adaptive-measurement-scheduler.md): Implement default 15-minute measurement interval and adaptive 5-minute sampling during active convective storm alerts.
+    - [`S6-T1.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t1.2-battery-preservation-throttling.md): Implement battery preservation throttling (extend interval to 30–60 min when $V_{bat} < 3.10\text{ V}$).
 
 - [ ] **S6-T2: Implement Local Alert Manager & Actuation**
   - **Dependencies**: `S3-T3`, `S2-T5`
   - **Description**: Alert dispatcher in [`firmware/app/src/alert_manager.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/alert_manager.c).
   - **Subtasks**:
-    - `S6-T2.1`: Implement status LED flash patterns:
+    - [`S6-T2.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t2.1-status-led-patterns.md): Implement status LED flash patterns:
       - Green pulse: System healthy, rain unlikely.
       - Amber blink: Rain possible ($30–60\%$).
       - Red rapid flash: Rain imminent ($>80\%$).
-    - `S6-T2.2`: Implement audible buzzer burst and estate siren relay trigger ($10\text{s}$ timed pulse).
-    - `S6-T2.3`: Create [`tests/unit/test_alert_manager.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_alert_manager.c).
+    - [`S6-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t2.2-audible-buzzer-siren.md): Implement audible buzzer burst and estate siren relay trigger ($10\text{s}$ timed pulse).
+    - [`S6-T2.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t2.3-test-alert-manager.md): Create [`tests/unit/test_alert_manager.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_alert_manager.c).
 
 - [ ] **S6-T3: Implement Main System State Machine & Lifecycle Flow**
   - **Dependencies**: `S2-T5`, `S3-T4`, `S4-T1` through `S4-T5`, `S5-T1`, `S5-T4`, `S6-T1`, `S6-T2`
   - **Description**: Top-level state engine in [`firmware/app/src/app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_state_machine.c) and [`firmware/core/src/main.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/main.c) according to [`firmware-architecture.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/architecture/firmware-architecture.md).
   - **Subtasks**:
-    - `S6-T3.1`: Implement non-blocking state transition loop:
+    - [`S6-T3.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t3.1-app-state-machine.md): Implement non-blocking state transition loop:
       `STATE_WAKE` $\rightarrow$ `STATE_POWER_ON` $\rightarrow$ `STATE_SAMPLE` $\rightarrow$ `STATE_FILTER` $\rightarrow$ `STATE_PREDICT` $\rightarrow$ `STATE_TRANSMIT` $\rightarrow$ `STATE_ALERT` $\rightarrow$ `STATE_SLEEP`.
-    - `S6-T3.2`: Implement graceful degradation paths for sensor failure, bus NACK, or LoRa transmission timeout.
-    - `S6-T3.3`: Implement watchdog kick points at start of each state execution.
+    - [`S6-T3.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t3.2-graceful-degradation.md): Implement graceful degradation paths for sensor failure, bus NACK, or LoRa transmission timeout.
+    - [`S6-T3.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t3.3-watchdog-kick-points.md): Implement watchdog kick points at start of each state execution.
 
 - [ ] **S6-T4: Develop Full System State Machine Integration Tests**
   - **Dependencies**: `S6-T3`
   - **Description**: Integration test suite [`tests/integration/test_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/integration/test_state_machine.c).
   - **Subtasks**:
-    - `S6-T4.1`: Test end-to-end wake-sample-predict-transmit-sleep cycles.
-    - `S6-T4.2`: Test fault injection scenarios: I2C disconnect, low battery, and LoRa packet drop.
+    - [`S6-T4.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t4.1-end-to-end-integration-tests.md): Test end-to-end wake-sample-predict-transmit-sleep cycles.
+    - [`S6-T4.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t4.2-fault-injection-tests.md): Test fault injection scenarios: I2C disconnect, low battery, and LoRa packet drop.
 
 #### Definition of Done (Sprint 6)
 1. Complete state machine transitions through all 8 states deterministically in simulated execution.
