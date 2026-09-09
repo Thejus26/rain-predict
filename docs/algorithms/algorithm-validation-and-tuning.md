@@ -113,11 +113,12 @@ Prediction   No Alert (CPI<70%)     [ False Negative (FN) ]   [ True Negative (T
 
 | Metric Name | Mathematical Formula | Target Threshold | Physical Significance in Estate Operations |
 | :--- | :---: | :---: | :--- |
-| **Probability of Detection ($\text{POD}$)** | $\text{POD} = \frac{\text{TP}}{\text{TP} + \text{FN}}$ | **$\ge 85.0\%$** | Percentage of rain events correctly warned in advance. |
-| **False Alarm Ratio ($\text{FAR}$)** | $\text{FAR} = \frac{\text{FP}}{\text{TP} + \text{FP}}$ | **$\le 20.0\%$** | Percentage of issued alarms where no rain occurred. |
-| **Critical Success Index ($\text{CSI}$)** | $\text{CSI} = \frac{\text{TP}}{\text{TP} + \text{FP} + \text{FN}}$ | **$\ge 70.0\%$** | Overall balanced skill score across events. |
-| **Heidke Skill Score ($\text{HSS}$)** | $\text{HSS} = \frac{2(\text{TP}\cdot\text{TN} - \text{FP}\cdot\text{FN})}{(\text{TP}+\text{FN})(\text{FN}+\text{TN}) + (\text{TP}+\text{FP})(\text{FP}+\text{TN})}$ | **$\ge 0.65$** | Skill relative to random chance ($1.0 = \text{perfect}$). |
-| **Warning Lead Time ($\text{LT}$)** | $\text{LT} = t_{\text{rain\_start}} - t_{\text{alert\_issued}}$ | **$45\text{–}120\text{ min}$** | Time available for field management action. |
+| **Probability of Detection (POD)** | $\text{POD} = \frac{\text{TP}}{\text{TP} + \text{FN}}$ | **≥ 85.0%** | Percentage of rain events correctly warned in advance. |
+| **False Alarm Ratio (FAR)** | $\text{FAR} = \frac{\text{FP}}{\text{TP} + \text{FP}}$ | **≤ 20.0%** | Percentage of issued alarms where no rain occurred. |
+| **Critical Success Index (CSI)** | $\text{CSI} = \frac{\text{TP}}{\text{TP} + \text{FP} + \text{FN}}$ | **≥ 70.0%** | Overall balanced skill score across events. |
+| **Heidke Skill Score (HSS)** | $\text{HSS} = \frac{2(\text{TP}\cdot\text{TN} - \text{FP}\cdot\text{FN})}{(\text{TP}+\text{FN})(\text{FN}+\text{TN}) + (\text{TP}+\text{FP})(\text{FP}+\text{TN})}$ | **≥ 0.65** | Skill relative to random chance ($1.0 = \text{perfect}$). |
+| **Warning Lead Time (LT)** | $\text{LT} = t_{\text{rain}} - t_{\text{alert}}$ | **45–120 min** | Time available for field management action. |
+
 
 ---
 
