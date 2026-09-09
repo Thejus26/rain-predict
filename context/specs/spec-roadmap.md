@@ -133,49 +133,49 @@ Legend:
   - **Dependencies**: `S1-T1`, `S1-T2`
   - **Description**: Create static circular buffers and moving average filters in firmware middleware.
   - **Subtasks**:
-    - `S2-T1.1`: Implement [`firmware/middleware/inc/ring_buffer.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/ring_buffer.h) and `ring_buffer.c` (generic byte/struct circular FIFO buffer, static allocation, zero dynamic memory).
-    - `S2-T1.2`: Implement [`firmware/middleware/inc/moving_avg_filter.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/moving_avg_filter.h) and `moving_avg_filter.c` supporting window sizes of 3, 6, and 12 samples with outlier filtering.
-    - `S2-T1.3`: Create [`tests/unit/test_ring_buffer.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_ring_buffer.c) and `test_moving_avg.c`.
+    - [`S2-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t1.1-static-ring-buffer.md): Implement [`firmware/middleware/inc/ring_buffer.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/ring_buffer.h) and `ring_buffer.c` (generic byte/struct circular FIFO buffer, static allocation, zero dynamic memory).
+    - [`S2-T1.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t1.2-moving-average-filter.md): Implement [`firmware/middleware/inc/moving_avg_filter.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/moving_avg_filter.h) and `moving_avg_filter.c` supporting window sizes of 3, 6, and 12 samples with outlier filtering.
+    - [`S2-T1.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t1.3-ring-buffer-moving-avg-tests.md): Create [`tests/unit/test_ring_buffer.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_ring_buffer.c) and `test_moving_avg.c`.
 
 - [ ] **S2-T2: Implement Magnus-Tetens Dew Point & Psychrometric Formulas**
   - **Dependencies**: `S1-T2`
   - **Description**: Implement psychrometric derivations in [`firmware/middleware/src/dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c) according to [`meteorological-formulas.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/algorithms/meteorological-formulas.md).
   - **Subtasks**:
-    - `S2-T2.1`: Implement saturation vapor pressure $e_s(T) = 6.112 \exp\left(\frac{17.67 \cdot T}{T + 243.5}\right)$ and actual vapor pressure $e = e_s \cdot \frac{RH}{100}$.
-    - `S2-T2.2`: Implement dew point calculation $T_{dew} = \frac{243.5 \cdot \ln(e / 6.112)}{17.67 - \ln(e / 6.112)}$ and relative humidity depression $\Delta T_{dep} = T - T_{dew}$.
-    - `S2-T2.3`: Implement barometric altitude sea-level reduction formula $P_0 = P \cdot \left(1 - \frac{0.0065 \cdot h}{T + 0.0065 \cdot h + 273.15}\right)^{-5.257}$.
-    - `S2-T2.4`: Create [`tests/unit/test_dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_dew_point.c) testing standard meteorological test points (error $< 0.1^\circ\text{C}$).
+    - [`S2-T2.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.1-vapor-pressure.md): Implement saturation vapor pressure $e_s(T) = 6.112 \exp\left(\frac{17.67 \cdot T}{T + 243.5}\right)$ and actual vapor pressure $e = e_s \cdot \frac{RH}{100}$.
+    - [`S2-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.2-dew-point-depression.md): Implement dew point calculation $T_{dew} = \frac{243.5 \cdot \ln(e / 6.112)}{17.67 - \ln(e / 6.112)}$ and relative humidity depression $\Delta T_{dep} = T - T_{dew}$.
+    - [`S2-T2.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.3-barometric-reduction.md): Implement barometric altitude sea-level reduction formula $P_0 = P \cdot \left(1 - \frac{0.0065 \cdot h}{T + 0.0065 \cdot h + 273.15}\right)^{-5.257}$.
+    - [`S2-T2.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.4-dew-point-tests.md): Create [`tests/unit/test_dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_dew_point.c) testing standard meteorological test points (error $< 0.1^\circ\text{C}$).
 
 - [ ] **S2-T3: Implement Zambretti Barometric Heuristic Forecaster**
   - **Dependencies**: `S2-T1`, `S2-T2`
   - **Description**: Implement the 26-state Zambretti heuristic algorithm in [`firmware/app/src/zambretti.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/zambretti.c) according to [`zambretti-algorithm.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/algorithms/zambretti-algorithm.md).
   - **Subtasks**:
-    - `S2-T3.1`: Implement pressure trend classifier (falling $> 1.5\text{ hPa/3h}$, steady $\pm 1.5\text{ hPa/3h}$, rising $> 1.5\text{ hPa/3h}$).
-    - `S2-T3.2`: Implement altitude-adjusted pressure range mapping (985–1050 hPa sea-level equivalent).
-    - `S2-T3.3`: Implement seasonal wind and monsoon heuristic weighting lookups.
-    - `S2-T3.4`: Create [`tests/unit/test_zambretti.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_zambretti.c) validating all 26 Zambretti output letters against reference cases.
+    - [`S2-T3.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t3.1-zambretti-trend.md): Implement pressure trend classifier (falling $> 1.5\text{ hPa/3h}$, steady $\pm 1.5\text{ hPa/3h}$, rising $> 1.5\text{ hPa/3h}$).
+    - [`S2-T3.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t3.2-zambretti-pressure-mapping.md): Implement altitude-adjusted pressure range mapping (985–1050 hPa sea-level equivalent).
+    - [`S2-T3.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t3.3-zambretti-seasonal-weighting.md): Implement seasonal wind and monsoon heuristic weighting lookups.
+    - [`S2-T3.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t3.4-zambretti-tests.md): Create [`tests/unit/test_zambretti.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_zambretti.c) validating all 26 Zambretti output letters against reference cases.
 
 - [ ] **S2-T4: Implement Multi-Variable Gradient Trend Detector**
   - **Dependencies**: `S2-T1`
   - **Description**: Track moving gradients in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) according to [`trend-detection-and-nowcasting.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/algorithms/trend-detection-and-nowcasting.md).
   - **Subtasks**:
-    - `S2-T4.1`: Calculate 1-hour and 3-hour differentials: $\Delta P/\Delta t$, $\Delta RH/\Delta t$, $\Delta T/\Delta t$, and $\Delta Lux/\Delta t$.
-    - `S2-T4.2`: Classify pressure trend states: `PRESSURE_RAPID_DROP`, `PRESSURE_MODERATE_DROP`, `PRESSURE_STEADY`, `PRESSURE_RISING`.
-    - `S2-T4.3`: Classify solar irradiance cloud attenuation states: `SOLAR_CLEAR`, `SOLAR_SCATTERED`, `SOLAR_STORM_CLOUD_DROP`.
-    - `S2-T4.4`: Create [`tests/unit/test_trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_trend_detector.c).
+    - [`S2-T4.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.1-gradient-differentials.md): Calculate 1-hour and 3-hour differentials: $\Delta P/\Delta t$, $\Delta RH/\Delta t$, $\Delta T/\Delta t$, and $\Delta Lux/\Delta t$.
+    - [`S2-T4.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.2-pressure-trend-states.md): Classify pressure trend states: `PRESSURE_RAPID_DROP`, `PRESSURE_MODERATE_DROP`, `PRESSURE_STEADY`, `PRESSURE_RISING`.
+    - [`S2-T4.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.3-solar-cloud-states.md): Classify solar irradiance cloud attenuation states: `SOLAR_CLEAR`, `SOLAR_SCATTERED`, `SOLAR_STORM_CLOUD_DROP`.
+    - [`S2-T4.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.4-trend-detector-tests.md): Create [`tests/unit/test_trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_trend_detector.c).
 
 - [ ] **S2-T5: Implement Composite Edge Rain Prediction Scoring Engine**
   - **Dependencies**: `S2-T2`, `S2-T3`, `S2-T4`
   - **Description**: Combine heuristic, thermodynamic, and gradient factors into a single composite rain probability score ($0–100\%$) in [`firmware/app/src/rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/rain_algo.c).
   - **Subtasks**:
-    - `S2-T5.1`: Implement weighted composite scoring formula:
+    - [`S2-T5.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t5.1-composite-scoring.md): Implement weighted composite scoring formula:
       $$S_{total} = w_P \cdot S_P + w_Z \cdot S_Z + w_{RH} \cdot S_{RH} + w_{Lux} \cdot S_{Lux}$$
-    - `S2-T5.2`: Implement output state classification:
+    - [`S2-T5.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t5.2-rain-state-classification.md): Implement output state classification:
       - `RAIN_STATE_UNLIKELY` ($S < 30\%$)
       - `RAIN_STATE_POSSIBLE` ($30\% \le S < 60\%$)
       - `RAIN_STATE_LIKELY` ($60\% \le S < 80\%$)
       - `RAIN_STATE_IMMINENT` ($S \ge 80\%$)
-    - `S2-T5.3`: Create [`tests/unit/test_rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_algo.c) and feed simulated storm time series from Sprint 1.
+    - [`S2-T5.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t5.3-nowcaster-tests.md): Create [`tests/unit/test_rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_algo.c) and feed simulated storm time series from Sprint 1.
 
 #### Definition of Done (Sprint 2)
 1. All mathematical and algorithmic functions pass unit tests with 100% code coverage.
