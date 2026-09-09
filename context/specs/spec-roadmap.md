@@ -195,32 +195,32 @@ Legend:
   - **Dependencies**: None
   - **Description**: Configure pinouts and system clock tree for STM32WLE5 SoC in [`firmware/core/inc/board_config.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/board_config.h) according to [`schematics-and-pinout.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/hardware/schematics-and-pinout.md).
   - **Subtasks**:
-    - `S3-T1.1`: Define GPIO pin mappings: I2C1 (PB8/PB9), USART1 RS-485 (PA9/PA10), LPUART1 SDI-12 (PA2/PA3), Sensor Power Rail Gate (PB2), Rain Gauge EXTI (PB0), Status LEDs (PB5/PB6), Buzzer/Relay (PB7).
-    - `S3-T1.2`: Configure clock tree: MSI @ 48 MHz for active processing, LSE @ 32.768 kHz for RTC wakeup and LoRa radio timing.
-    - `S3-T1.3`: Configure STM32CubeWL HAL module definitions in [`firmware/core/inc/stm32wlxx_hal_conf.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/stm32wlxx_hal_conf.h).
+    - [`S3-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t1.1-gpio-pin-mappings.md): Define GPIO pin mappings: I2C1 (PB6/PB7), USART1 RS-485 (PA1/PA2/PA3), LPUART1 SDI-12 (PC0/PC1/PC2), Sensor Power Rail Gate (PA4), Rain Gauge EXTI (PA0), Status LEDs (PB8/PB9), Buzzer (PB2), Relay (PB4), Battery ADC (PB0/PB1), and Sub-GHz RF Switch (PC3/PC4/PC5).
+    - [`S3-T1.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t1.2-clock-tree-config.md): Configure clock tree: MSI @ 48 MHz for active processing, LSE @ 32.768 kHz for RTC wakeup and LoRa radio timing, and HSE/TCXO @ 32 MHz for Sub-GHz radio RF.
+    - [`S3-T1.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t1.3-hal-module-config.md): Configure STM32CubeWL HAL module definitions in [`firmware/core/inc/stm32wlxx_hal_conf.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/stm32wlxx_hal_conf.h).
 
 - [ ] **S3-T2: Implement Bounded Non-Blocking Bus Wrappers**
   - **Dependencies**: `S3-T1`
   - **Description**: Develop robust hardware abstraction wrappers with strict millisecond timeouts.
   - **Subtasks**:
-    - `S3-T2.1`: Implement [`firmware/drivers/src/i2c_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/i2c_bus.c) and `i2c_bus.h` with bus lockup recovery (9-clock pulse cycling) and non-blocking timeout guards.
-    - `S3-T2.2`: Implement [`firmware/drivers/src/uart_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/uart_bus.c) and `uart_bus.h` with DMA/interrupt receive rings and transmission timeouts.
+    - [`S3-T2.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t2.1-i2c-bus-driver.md): Implement [`firmware/drivers/src/i2c_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/i2c_bus.c) and `i2c_bus.h` with bus lockup recovery (9-clock pulse cycling) and non-blocking timeout guards.
+    - [`S3-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t2.2-uart-bus-driver.md): Implement [`firmware/drivers/src/uart_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/uart_bus.c) and `uart_bus.h` with DMA/interrupt receive rings and transmission timeouts.
 
 - [ ] **S3-T3: Implement Switched Sensor Power Rails & Board Indicators**
   - **Dependencies**: `S3-T1`
   - **Description**: Implement high-side load switch controls and visual/audible alert outputs in [`firmware/drivers/`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers).
   - **Subtasks**:
-    - `S3-T3.1`: Implement [`firmware/drivers/src/bsp_power_rails.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_power_rails.c) with high-side P-MOSFET gate enable, discharge resistors, and mandatory $20\text{ms}$ stabilization delays.
-    - `S3-T3.2`: Implement [`firmware/drivers/src/bsp_indicators.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_indicators.c) controlling multi-color status LEDs, piezoelectric buzzer, and estate siren relay.
+    - [`S3-T3.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t3.1-switched-power-rails.md): Implement [`firmware/drivers/src/bsp_power_rails.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_power_rails.c) with high-side P-MOSFET gate enable, discharge resistors, and mandatory $20\text{ms}$ stabilization delays.
+    - [`S3-T3.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t3.2-board-indicators.md): Implement [`firmware/drivers/src/bsp_indicators.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_indicators.c) controlling multi-color status LEDs, piezoelectric buzzer, and estate siren relay.
 
 - [ ] **S3-T4: Implement Ultra-Low Power Sleep Manager & Watchdog Management**
   - **Dependencies**: `S3-T1`, `S3-T3`
   - **Description**: Implement power state transitions and watchdog servicing in [`firmware/middleware/src/power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/power_mgr.c) according to [`power-architecture.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/architecture/power-architecture.md).
   - **Subtasks**:
-    - `S3-T4.1`: Implement pre-sleep GPIO conditioning (floating pins switched to analog/pull-down to eliminate leakage).
-    - `S3-T4.2`: Implement STM32WLE5 Stop 2 mode entry with RTC periodic wake timer ($5–15\text{ min}$).
-    - `S3-T4.3`: Implement Independent Watchdog (IWDG) initialization ($8\text{s}$ timeout) and safe windowed refresh logic.
-    - `S3-T4.4`: Implement battery ADC voltage measurement ($V_{bat}$) and solar harvesting telemetry.
+    - [`S3-T4.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t4.1-gpio-sleep-conditioning.md): Implement pre-sleep GPIO conditioning (floating pins switched to analog/pull-down to eliminate leakage).
+    - [`S3-T4.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t4.2-stop2-sleep-manager.md): Implement STM32WLE5 Stop 2 mode entry with RTC periodic wake timer ($5–15\text{ min}$).
+    - [`S3-T4.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t4.3-iwdg-watchdog.md): Implement Independent Watchdog (IWDG) initialization ($8\text{s}$ timeout) and safe windowed refresh logic.
+    - [`S3-T4.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t4.4-battery-adc-telemetry.md): Implement battery ADC voltage measurement ($V_{bat}$) and solar harvesting telemetry.
 
 #### Definition of Done (Sprint 3)
 1. Power rail sequencing strictly enforces $20\text{ms}$ stabilization time before bus traffic and discharges rails after acquisition.
