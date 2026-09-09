@@ -20,6 +20,7 @@ Not Started
 - 2026-09-09: Implemented Phase 4 documentation deliverables (Power, Hardening & Mechanical).
 - 2026-09-09: Implemented Phase 5 documentation deliverables (Field Validation & Calibration).
 - 2026-09-09: Completed full Technical Documentation Roadmap across all 5 architecture, hardware, sensor, and algorithm phases.
+- 2026-09-09: Created and linked all Sprint 1 task specifications (S1-T1.1 through S1-T3.4) covering CMake, Makefile, .clang-format, Unity test harness, Mock I2C/UART/GPIO drivers, and Python microclimate simulator.
 
 
 
