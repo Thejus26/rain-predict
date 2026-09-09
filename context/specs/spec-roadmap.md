@@ -298,34 +298,34 @@ Legend:
   - **Dependencies**: None
   - **Description**: Binary encoder/decoder in [`firmware/middleware/src/telemetry_codec.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/telemetry_codec.c) according to [`telemetry-protocol.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/architecture/telemetry-protocol.md).
   - **Subtasks**:
-    - `S5-T1.1`: Implement standard 11-byte periodic telemetry packet serializer ($T, RH, P, Lux, Rain, Trend, State, V_{bat}$).
-    - `S5-T1.2`: Implement 4-byte urgent alert packet serializer (`MSG_TYPE_ALERT`).
-    - `S5-T1.3`: Create [`tests/unit/test_telemetry_codec.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_telemetry_codec.c) verifying bit-packing, big-endian byte order, and scaling factors.
+    - [`S5-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t1.1-periodic-telemetry-serializer.md): Implement standard 12-byte periodic telemetry packet serializer ($T, RH, P, Lux, Rain, Trend, State, V_{bat}$).
+    - [`S5-T1.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t1.2-urgent-alert-serializer.md): Implement 4-byte urgent alert packet serializer (`MSG_TYPE_ALERT`).
+    - [`S5-T1.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t1.3-test-telemetry-codec.md): Create [`tests/unit/test_telemetry_codec.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_telemetry_codec.c) verifying bit-packing, big-endian byte order, and scaling factors.
 
 - [ ] **S5-T2: Implement JavaScript Gateway Payload Decoders**
   - **Dependencies**: `S5-T1`
   - **Description**: JavaScript decoders for local estate gateways and public LoRaWAN network servers in [`tools/decoders/`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders).
   - **Subtasks**:
-    - `S5-T2.1`: Create [`tools/decoders/chirpstack_codec.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/chirpstack_codec.js) (ChirpStack v3 & v4 compatible `decodeUplink`).
-    - `S5-T2.2`: Create [`tools/decoders/ttn_decoder.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/ttn_decoder.js) (The Things Network v3 compatible `decodeUplink`).
-    - `S5-T2.3`: Write automated test script [`tools/decoders/test_decoders.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/test_decoders.js) to verify JSON output against raw hexadecimal packet vectors.
+    - [`S5-T2.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t2.1-chirpstack-codec.md): Create [`tools/decoders/chirpstack_codec.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/chirpstack_codec.js) (ChirpStack v3 & v4 compatible `decodeUplink`).
+    - [`S5-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t2.2-ttn-decoder.md): Create [`tools/decoders/ttn_decoder.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/ttn_decoder.js) (The Things Network v3 compatible `decodeUplink`).
+    - [`S5-T2.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t2.3-test-decoders.md): Write automated test script [`tools/decoders/test_decoders.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/test_decoders.js) to verify JSON output against raw hexadecimal packet vectors.
 
 - [ ] **S5-T3: Implement On-Chip Flash Circular Ring-Buffer Logging**
   - **Dependencies**: `S2-T1`, `S3-T1`
   - **Description**: Non-volatile storage driver in [`firmware/middleware/src/flash_storage.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/flash_storage.c).
   - **Subtasks**:
-    - `S5-T3.1`: Implement sector erase and page-write management targeting dedicated STM32WLE5 flash sectors.
-    - `S5-T3.2`: Implement wear-leveling circular record pointer holding up to 72 hours of offline telemetry records (11 bytes each).
-    - `S5-T3.3`: Implement record playback / re-transmission queue on LoRaWAN reconnect.
-    - `S5-T3.4`: Create [`tests/unit/test_flash_storage.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_flash_storage.c).
+    - [`S5-T3.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t3.1-flash-page-manager.md): Implement sector erase and page-write management targeting dedicated STM32WLE5 flash sectors.
+    - [`S5-T3.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t3.2-flash-ring-buffer.md): Implement wear-leveling circular record pointer holding up to 72 hours of offline telemetry records (16 bytes each).
+    - [`S5-T3.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t3.3-flash-playback.md): Implement record playback / re-transmission queue on LoRaWAN reconnect.
+    - [`S5-T3.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t3.4-test-flash-storage.md): Create [`tests/unit/test_flash_storage.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_flash_storage.c).
 
 - [ ] **S5-T4: Implement LoRaWAN Network Service & State Machine**
   - **Dependencies**: `S5-T1`, `S3-T1`
   - **Description**: LoRaWAN communication manager in [`firmware/middleware/src/lorawan_service.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/lorawan_service.c).
   - **Subtasks**:
-    - `S5-T4.1`: Integrate STM32WL Sub-GHz LoRaWAN stack (OTAA join procedure, unconfirmed/confirmed uplinks).
-    - `S5-T4.2`: Implement duty-cycle backoff, adaptive data rate (ADR), and regional sub-band selection (IN865 / EU868 / US915).
-    - `S5-T4.3`: Implement transmission queue for immediate alert messages and buffered historical packets.
+    - [`S5-T4.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t4.1-lorawan-service.md): Integrate STM32WL Sub-GHz LoRaWAN stack (OTAA join procedure, unconfirmed/confirmed uplinks).
+    - [`S5-T4.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t4.2-lorawan-regional-adr.md): Implement duty-cycle backoff, adaptive data rate (ADR), and regional sub-band selection (IN865 / EU868 / US915).
+    - [`S5-T4.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t4.3-lorawan-tx-queue.md): Implement transmission queue for immediate alert messages and buffered historical packets.
 
 #### Definition of Done (Sprint 5)
 1. Binary telemetry codec packs environmental data into exactly 11 bytes with zero padding discrepancies.
