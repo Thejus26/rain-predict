@@ -239,46 +239,46 @@ Legend:
   - **Dependencies**: `S3-T2`
   - **Description**: Interfacing driver in [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) according to [`bme280-integration.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/bme280-integration.md).
   - **Subtasks**:
-    - `S4-T1.1`: Implement factory trimming parameter readout (`0x88–0xA1`, `0xE1–0xF0`).
-    - `S4-T1.2`: Implement forced-mode single-shot trigger and measurement readout ($T, P, RH$).
-    - `S4-T1.3`: Implement 32-bit integer/float compensation routines matching Bosch official formulas.
-    - `S4-T1.4`: Implement humidity saturation detection ($RH > 98\%$) and condensation recovery routines.
-    - `S4-T1.5`: Create [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) with mock I2C register injection.
+    - [`S4-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t1.1-bme280-calibration-readout.md): Implement factory trimming parameter readout (`0x88–0xA1`, `0xE1–0xF0`).
+    - [`S4-T1.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t1.2-bme280-forced-mode-readout.md): Implement forced-mode single-shot trigger and measurement readout ($T, P, RH$).
+    - [`S4-T1.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t1.3-bme280-compensation-math.md): Implement 32-bit integer/float compensation routines matching Bosch official formulas.
+    - [`S4-T1.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t1.4-bme280-saturation-recovery.md): Implement humidity saturation detection ($RH > 98\%$) and condensation recovery routines.
+    - [`S4-T1.5`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t1.5-test-bme280.md): Create [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) with mock I2C register injection.
 
 - [ ] **S4-T2: Implement TI OPT3001 Ambient Light & Solar Irradiance Driver**
   - **Dependencies**: `S3-T2`
   - **Description**: Interfacing driver in [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c) according to [`opt3001-solar-irradiance.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/opt3001-solar-irradiance.md).
   - **Subtasks**:
-    - `S4-T2.1`: Implement single-shot conversion trigger and register readout (`0x00`).
-    - `S4-T2.2`: Implement exponential lux conversion: $\text{Lux} = 0.01 \cdot 2^{E[3:0]} \cdot R[11:0]$.
-    - `S4-T2.3`: Implement auto-range scaling and night/day threshold classification ($< 10\text{ Lux}$).
-    - `S4-T2.4`: Create [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c).
+    - [`S4-T2.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t2.1-opt3001-single-shot-readout.md): Implement single-shot conversion trigger and register readout (`0x00`).
+    - [`S4-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t2.2-opt3001-lux-conversion.md): Implement exponential lux conversion: $\text{Lux} = 0.01 \cdot 2^{E[3:0]} \cdot R[11:0]$.
+    - [`S4-T2.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t2.3-opt3001-day-night-classification.md): Implement auto-range scaling and night/day threshold classification ($< 10\text{ Lux}$).
+    - [`S4-T2.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t2.4-test-opt3001.md): Create [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c).
 
 - [ ] **S4-T3: Implement Tipping-Bucket Rain Gauge Pulse Counter Driver**
   - **Dependencies**: `S3-T1`
   - **Description**: Pulse interrupt driver in [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c) according to [`rain-gauge-pulse.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/rain-gauge-pulse.md).
   - **Subtasks**:
-    - `S4-T3.1`: Configure EXTI GPIO interrupt with hardware/software debounce filter ($50\text{ms}$).
-    - `S4-T3.2`: Implement atomic pulse count accumulator and rolling hourly/daily rainfall registers ($0.2\text{ mm/tip}$).
-    - `S4-T3.3`: Implement rain rate intensity calculation ($\text{mm/hr}$).
-    - `S4-T3.4`: Create [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c).
+    - [`S4-T3.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.1-rain-gauge-exti-debounce.md): Configure EXTI GPIO interrupt with hardware/software debounce filter ($50\text{ms}$).
+    - [`S4-T3.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.2-rain-gauge-accumulation.md): Implement atomic pulse count accumulator and rolling hourly/daily rainfall registers ($0.2\text{ mm/tip}$).
+    - [`S4-T3.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.3-rain-rate-intensity.md): Implement rain rate intensity calculation ($\text{mm/hr}$).
+    - [`S4-T3.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.4-test-rain-gauge.md): Create [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c).
 
 - [ ] **S4-T4: Implement RS-485 Modbus RTU Master Protocol Driver**
   - **Dependencies**: `S3-T2`
   - **Description**: Master polling driver in [`firmware/drivers/src/modbus_rtu.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/modbus_rtu.c) according to [`remote-bus-modbus-sdi12.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/remote-bus-modbus-sdi12.md).
   - **Subtasks**:
-    - `S4-T4.1`: Implement Modbus RTU frame generator for Function Code `0x03` (Read Holding Registers).
-    - `S4-T4.2`: Implement standard CRC-16 calculation (`0xA001` polynomial) and frame validation.
-    - `S4-T4.3`: Implement RS-485 transceiver DE/RE direction pin toggling with pre/post transmission guard times.
-    - `S4-T4.4`: Create [`tests/unit/test_modbus_rtu.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_modbus_rtu.c).
+    - [`S4-T4.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t4.1-modbus-frame-generator.md): Implement Modbus RTU frame generator for Function Code `0x03` (Read Holding Registers).
+    - [`S4-T4.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t4.2-modbus-crc16.md): Implement standard CRC-16 calculation (`0xA001` polynomial) and frame validation.
+    - [`S4-T4.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t4.3-rs485-direction-control.md): Implement RS-485 transceiver DE/RE direction pin toggling with pre/post transmission guard times.
+    - [`S4-T4.4`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t4.4-test-modbus-rtu.md): Create [`tests/unit/test_modbus_rtu.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_modbus_rtu.c).
 
 - [ ] **S4-T5: Implement SDI-12 1200-Baud Half-Duplex Bus Driver**
   - **Dependencies**: `S3-T2`
   - **Description**: SDI-12 master driver in [`firmware/drivers/src/sdi12_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/sdi12_driver.c) according to [`remote-bus-modbus-sdi12.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/remote-bus-modbus-sdi12.md).
   - **Subtasks**:
-    - `S4-T5.1`: Implement SDI-12 break timing ($>12\text{ms}$ spacing) and mark sequence ($>8.3\text{ms}$).
-    - `S4-T5.2`: Implement SDI-12 command formatting (`?!`, `aM!`, `aD0!`) and ASCII response parser.
-    - `S4-T5.3`: Create [`tests/unit/test_sdi12.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sdi12.c).
+    - [`S4-T5.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t5.1-sdi12-break-mark-timing.md): Implement SDI-12 break timing ($>12\text{ms}$ spacing) and mark sequence ($>8.3\text{ms}$).
+    - [`S4-T5.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t5.2-sdi12-parser.md): Implement SDI-12 command formatting (`?!`, `aM!`, `aD0!`) and ASCII response parser.
+    - [`S4-T5.3`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t5.3-test-sdi12.md): Create [`tests/unit/test_sdi12.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sdi12.c).
 
 #### Definition of Done (Sprint 4)
 1. BME280 compensation routines produce identical results to Bosch official C reference vectors.
