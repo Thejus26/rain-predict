@@ -1,16 +1,27 @@
-# Current Feature
+# Current Feature: S1-T1.3 - Automated Code Formatting Configuration (.clang-format)
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Create root [`.clang-format`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/.clang-format) configuration file enforcing embedded C99 coding standards from [`context/coding-standards.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/coding-standards.md).
+- Configure core formatting rules:
+  - 4-space indentation (`IndentWidth: 4`, `UseTab: Never`, `TabWidth: 4`).
+  - 100-character column limit (`ColumnLimit: 100`).
+  - 1TBS / K&R variant brace wrapping (functions break on new line, control blocks/structs/enums on same line).
+  - Pointer right-alignment (`PointerAlignment: Right`, `uint8_t *p_data`).
+  - Control-statement space before parens (`SpaceBeforeParens: ControlStatements`).
+- Implement 8-tier include sorting and categorization priority rules (Standard C -> System -> Vendor/HAL/Unity -> BSP/Config -> Drivers -> Middleware -> Application -> Local).
+- Configure IDE integration parameters for VS Code and pre-commit checks.
+- Validate configuration against verification test cases TC-S1-T1.3-01 through TC-S1-T1.3-05.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Specification reference: [`context/specs/s1-t1.3-clang-format.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t1.3-clang-format.md).
+- Enforces standards defined in [`context/coding-standards.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/coding-standards.md) (Section 9).
+- Target file: [`.clang-format`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/.clang-format).
 
 ## History
 
