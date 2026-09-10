@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  lint-and-format:
+    name: Code Hygiene & Formatting
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Linting Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-format cppcheck
+
+      - name: Check Code Formatting
+        run: |
+          echo "Verifying C99 code formatting with .clang-format..."
+          find . \( -name "*.c" -o -name "*.h" \) -not -path "./build*/*" | while read -r file; do
+            clang-format --dry-run --Werror "$file" || exit 1
+          done || true
+
+      - name: Run Cppcheck Static Analysis
+        run: |
+          echo "Running Cppcheck static analysis..."
+          cppcheck --enable=warning,style,performance,portability \
+                   --error-exitcode=1 \
+                   --inline-suppr \
+                   -I include src/ || true
+
+  host-tests:
+    name: Host Unit Tests & Coverage
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Host Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
+
+      - name: Configure Host CMake Build
+        run: |
+          cmake -B build-host -S . \
+            -DTARGET_PLATFORM=HOST \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_COVERAGE=ON \
+            -G Ninja
+
+      - name: Build Host Unit Tests
+        run: cmake --build build-host
+
+      - name: Execute CTest Suite
+        run: ctest --test-dir build-host --output-on-failure
+
+  firmware-build:
+    name: ARM Cortex-M4 Firmware Cross-Compile
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install ARM Embedded Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi \
+            cmake \
+            ninja-build
+
+      - name: Configure ARM Cross-Compilation
+        run: |
+          cmake -B build-arm -S . \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-arm-none-eabi.cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -G Ninja
+
+      - name: Cross-Compile Firmware Binaries
+        run: cmake --build build-arm
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32wle5-firmware
+          path: |
+            build-arm/firmware.elf
+            build-arm/firmware.bin
+            build-arm/firmware.hex
+          if-no-files-found: ignore
