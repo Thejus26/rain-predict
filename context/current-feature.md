@@ -1,27 +1,16 @@
-# Current Feature: S1-T1.3 - Automated Code Formatting Configuration (.clang-format)
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Create root [`.clang-format`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/.clang-format) configuration file enforcing embedded C99 coding standards from [`context/coding-standards.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/coding-standards.md).
-- Configure core formatting rules:
-  - 4-space indentation (`IndentWidth: 4`, `UseTab: Never`, `TabWidth: 4`).
-  - 100-character column limit (`ColumnLimit: 100`).
-  - 1TBS / K&R variant brace wrapping (functions break on new line, control blocks/structs/enums on same line).
-  - Pointer right-alignment (`PointerAlignment: Right`, `uint8_t *p_data`).
-  - Control-statement space before parens (`SpaceBeforeParens: ControlStatements`).
-- Implement 8-tier include sorting and categorization priority rules (Standard C -> System -> Vendor/HAL/Unity -> BSP/Config -> Drivers -> Middleware -> Application -> Local).
-- Configure IDE integration parameters for VS Code and pre-commit checks.
-- Validate configuration against verification test cases TC-S1-T1.3-01 through TC-S1-T1.3-05.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Specification reference: [`context/specs/s1-t1.3-clang-format.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t1.3-clang-format.md).
-- Enforces standards defined in [`context/coding-standards.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/coding-standards.md) (Section 9).
-- Target file: [`.clang-format`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/.clang-format).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -41,3 +30,4 @@ In Progress
 - 2026-09-09: Completed the entire 7-Sprint Engineering Specification Roadmap for the Tea Plantation Rain Prediction System (80+ tasks across 93 spec files).
 - 2026-09-10: S1-T1.1 - Implemented Root CMake build system (CMakeLists.txt, cmake/CompilerFlags.cmake, cmake/toolchain-arm-none-eabi.cmake) with dual-target host/embedded support, strict C99 diagnostics, ASan/UBSan, coverage profiling, and Cortex-M4 toolchain.
 - 2026-09-10: S1-T1.2 - Implemented root Makefile with high-level developer orchestration targets (all, test, sim, firmware, coverage, asan, format, check-format, lint, clean, help) and cross-platform OS detection.
+- 2026-09-10: S1-T1.3 - Configured root .clang-format enforcing C99 4-space indent, 100-col width, 1TBS/K&R braces, right-aligned pointers, and 8-tier include sorting.
