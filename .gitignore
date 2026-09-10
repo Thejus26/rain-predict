@@ -1,0 +1,50 @@
+# Build directories
+build/
+build_*/
+bin/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Makefile
+
+# Object and library files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+
+# Embedded firmware artifacts
+*.elf
+*.bin
+*.hex
+*.map
+*.d
+
+# Coverage & Profiling
+*.gcno
+*.gcda
+*.gcov
+coverage/
+htmlcov/
+.coverage
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.cache/
+
+# Test outputs & temporary files
+Testing/
+*.log
+*.tmp

@@ -1,16 +1,35 @@
-# Current Feature
+# Current Feature: S1-T1.1 - Root CMake Build System Configuration
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Create top-level [`CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/CMakeLists.txt) supporting dual-target execution:
+  - **Host Mode**: x86_64 / ARM64 native builds for Unity unit testing, mock sensor HAL, and algorithmic simulations (C99, strict warnings, ASan/UBSan, code coverage).
+  - **Embedded Firmware Mode**: STM32WLE5CC ARM Cortex-M4 bare-metal cross-compilation (`.elf`, `.hex`, `.bin`, `.map`).
+- Create [`cmake/CompilerFlags.cmake`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/cmake/CompilerFlags.cmake) with strict diagnostic flags:
+  - `-Wall -Wextra -Wpedantic -Wshadow -Wstrict-prototypes -Wpointer-arith -Wundef -Wmissing-prototypes -Wredundant-decls -Wformat=2 -Wwrite-strings`
+  - Zero-warning tolerance enforcement via `-Werror` (`ENABLE_WARNINGS_AS_ERRORS`).
+  - Sanitizer support (`-fsanitize=address,undefined`) and code coverage flags (`--coverage`).
+- Create [`cmake/toolchain-arm-none-eabi.cmake`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/cmake/toolchain-arm-none-eabi.cmake) for bare-metal cross-compilation:
+  - Cortex-M4 architecture & FPU flags: `-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard`.
+  - Linker optimizations: `-Wl,--gc-sections --specs=nano.specs --specs=nosys.specs`.
+  - Static library try-compile configuration (`CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY`).
+- Structure 4-layer architectural targets (`firmware_core`, `firmware_drivers`, `firmware_middleware`, `firmware_app`) and executable `rain_predict.elf`.
+- Integrate host test builds under `tests/` when `BUILD_TESTING=ON` and `CMAKE_CROSSCOMPILING=FALSE`.
+- Add custom build targets/commands for `.hex`/`.bin` generation and memory footprint sizing via `arm-none-eabi-size`.
+- Validate against test cases TC-S1-T1.1-01 through TC-S1-T1.1-06.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Target MCU**: STMicroelectronics STM32WLE5CC (ARM Cortex-M4 @ 48 MHz, Single-Precision FPU, 256 KB Flash, 64 KB SRAM).
+- **Standards Compliance**: Strict ISO C99 (`CMAKE_C_STANDARD 99`, `CMAKE_C_STANDARD_REQUIRED ON`, `CMAKE_C_EXTENSIONS OFF`).
+- **Dependencies**: Foundational root build infrastructure; no upstream dependencies.
+- **Downstream Tasks**: `S1-T1.2` (Makefile wrapper), `S1-T2.1` (Unity host test harness), `S2-T1` through `S7-T3` (all firmware modules).
+- **Linker Script**: [`firmware/core/src/STM32WLE5XX_FLASH.ld`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/STM32WLE5XX_FLASH.ld).
+- **Spec Reference**: [`context/specs/s1-t1.1-root-cmake.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t1.1-root-cmake.md).
 
 ## History
 
