@@ -1,35 +1,16 @@
-# Current Feature: S1-T1.1 - Root CMake Build System Configuration
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Create top-level [`CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/CMakeLists.txt) supporting dual-target execution:
-  - **Host Mode**: x86_64 / ARM64 native builds for Unity unit testing, mock sensor HAL, and algorithmic simulations (C99, strict warnings, ASan/UBSan, code coverage).
-  - **Embedded Firmware Mode**: STM32WLE5CC ARM Cortex-M4 bare-metal cross-compilation (`.elf`, `.hex`, `.bin`, `.map`).
-- Create [`cmake/CompilerFlags.cmake`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/cmake/CompilerFlags.cmake) with strict diagnostic flags:
-  - `-Wall -Wextra -Wpedantic -Wshadow -Wstrict-prototypes -Wpointer-arith -Wundef -Wmissing-prototypes -Wredundant-decls -Wformat=2 -Wwrite-strings`
-  - Zero-warning tolerance enforcement via `-Werror` (`ENABLE_WARNINGS_AS_ERRORS`).
-  - Sanitizer support (`-fsanitize=address,undefined`) and code coverage flags (`--coverage`).
-- Create [`cmake/toolchain-arm-none-eabi.cmake`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/cmake/toolchain-arm-none-eabi.cmake) for bare-metal cross-compilation:
-  - Cortex-M4 architecture & FPU flags: `-mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard`.
-  - Linker optimizations: `-Wl,--gc-sections --specs=nano.specs --specs=nosys.specs`.
-  - Static library try-compile configuration (`CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY`).
-- Structure 4-layer architectural targets (`firmware_core`, `firmware_drivers`, `firmware_middleware`, `firmware_app`) and executable `rain_predict.elf`.
-- Integrate host test builds under `tests/` when `BUILD_TESTING=ON` and `CMAKE_CROSSCOMPILING=FALSE`.
-- Add custom build targets/commands for `.hex`/`.bin` generation and memory footprint sizing via `arm-none-eabi-size`.
-- Validate against test cases TC-S1-T1.1-01 through TC-S1-T1.1-06.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Target MCU**: STMicroelectronics STM32WLE5CC (ARM Cortex-M4 @ 48 MHz, Single-Precision FPU, 256 KB Flash, 64 KB SRAM).
-- **Standards Compliance**: Strict ISO C99 (`CMAKE_C_STANDARD 99`, `CMAKE_C_STANDARD_REQUIRED ON`, `CMAKE_C_EXTENSIONS OFF`).
-- **Dependencies**: Foundational root build infrastructure; no upstream dependencies.
-- **Downstream Tasks**: `S1-T1.2` (Makefile wrapper), `S1-T2.1` (Unity host test harness), `S2-T1` through `S7-T3` (all firmware modules).
-- **Linker Script**: [`firmware/core/src/STM32WLE5XX_FLASH.ld`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/STM32WLE5XX_FLASH.ld).
-- **Spec Reference**: [`context/specs/s1-t1.1-root-cmake.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t1.1-root-cmake.md).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -47,3 +28,4 @@ In Progress
 - 2026-09-09: Completed all 10 task specifications for Sprint 6 (Application Orchestration, Scheduler & Local Alerts) covering measurement scheduler, battery throttling, visual/audible alert manager, 8-state application state machine, fault tolerance handlers, watchdog checkpoints, and integration test suites.
 - 2026-09-09: Created and linked all 8 task specifications for Sprint 7 (System Integration, Synthetic Validation & Field SOPs) covering 30-day multi-scenario synthetic climate simulation (S7-T1.1), meteorological contingency table metrics verification (S7-T1.2), Stop 2 deep sleep & active cycle energy profiling (S7-T2.1), 24-hour daily energy budget verification (S7-T2.2), 14-day zero-sunlight battery survivability simulation (S7-T2.3), on-site barometric altitude offset calibration SOP (S7-T3.1), tipping-bucket rain gauge dynamic water calibration SOP (S7-T3.2), and estate agronomic operational response guidelines & field safety protocols (S7-T3.3).
 - 2026-09-09: Completed the entire 7-Sprint Engineering Specification Roadmap for the Tea Plantation Rain Prediction System (80+ tasks across 93 spec files).
+- 2026-09-10: S1-T1.1 - Implemented Root CMake build system (CMakeLists.txt, cmake/CompilerFlags.cmake, cmake/toolchain-arm-none-eabi.cmake) with dual-target host/embedded support, strict C99 diagnostics, ASan/UBSan, coverage profiling, and Cortex-M4 toolchain.
