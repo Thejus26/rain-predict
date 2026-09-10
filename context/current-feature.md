@@ -1,33 +1,16 @@
-# Current Feature: S1-T1.2 - Root Makefile Build Target Configuration
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Create unified root [`Makefile`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/Makefile) acting as a high-level developer orchestration interface.
-- Implement developer target aliases:
-  - `all` (default): CMake host build in `build/` (`Debug` mode).
-  - `test`: Build and execute all host unit test suites using `ctest --test-dir $(BUILD_DIR) --output-on-failure --verbose`.
-  - `sim`: Run Python synthetic tea plantation weather simulation (`tools/simulation/simulate_plantation_weather.py --output data/simulated_weather.csv`).
-  - `firmware`: Cross-compile STM32WLE5 target binary via ARM toolchain (`cmake/toolchain-arm-none-eabi.cmake`, `Release` mode).
-  - `coverage`: Generate `gcov`/`lcov` filtered line and branch coverage HTML reports in `coverage_html/`.
-  - `asan`: Build and run host tests under AddressSanitizer and UndefinedBehaviorSanitizer (`ENABLE_ASAN=ON`).
-  - `format`: In-place code formatting for all `.c` and `.h` source files using `clang-format -i`.
-  - `check-format`: CI/pre-commit non-mutating format validation using `clang-format --dry-run --Werror`.
-  - `lint`: Static analysis on `firmware/` using `cppcheck --enable=all --suppress=missingIncludeSystem --inline-suppr --error-exitcode=1`.
-  - `clean`: Remove build directories (`build/`, `build_target/`, `build_cov/`, `build_asan/`, `coverage_html/`) and generated data artifacts.
-  - `help`: Self-documenting ANSI colorized target reference menu.
-- Ensure cross-platform compatibility across Windows (PowerShell/MinGW/MSYS2) and POSIX (Linux/macOS) with safe shell/tool detection.
-- Validate against verification test cases TC-S1-T1.2-01 through TC-S1-T1.2-07.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Specification reference: [`context/specs/s1-t1.2-root-makefile.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t1.2-root-makefile.md).
-- Enforce strict out-of-source builds to keep repository clean (`build/`, `build_target/`, `build_cov/`, `build_asan/`, `coverage_html/`).
-- Target file: [`Makefile`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/Makefile).
-- Prerequisite: S1-T1.1 (Root CMakeLists.txt & ARM Toolchain completed).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -46,3 +29,4 @@ In Progress
 - 2026-09-09: Created and linked all 8 task specifications for Sprint 7 (System Integration, Synthetic Validation & Field SOPs) covering 30-day multi-scenario synthetic climate simulation (S7-T1.1), meteorological contingency table metrics verification (S7-T1.2), Stop 2 deep sleep & active cycle energy profiling (S7-T2.1), 24-hour daily energy budget verification (S7-T2.2), 14-day zero-sunlight battery survivability simulation (S7-T2.3), on-site barometric altitude offset calibration SOP (S7-T3.1), tipping-bucket rain gauge dynamic water calibration SOP (S7-T3.2), and estate agronomic operational response guidelines & field safety protocols (S7-T3.3).
 - 2026-09-09: Completed the entire 7-Sprint Engineering Specification Roadmap for the Tea Plantation Rain Prediction System (80+ tasks across 93 spec files).
 - 2026-09-10: S1-T1.1 - Implemented Root CMake build system (CMakeLists.txt, cmake/CompilerFlags.cmake, cmake/toolchain-arm-none-eabi.cmake) with dual-target host/embedded support, strict C99 diagnostics, ASan/UBSan, coverage profiling, and Cortex-M4 toolchain.
+- 2026-09-10: S1-T1.2 - Implemented root Makefile with high-level developer orchestration targets (all, test, sim, firmware, coverage, asan, format, check-format, lint, clean, help) and cross-platform OS detection.
