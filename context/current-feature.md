@@ -1,26 +1,16 @@
-# Current Feature: S1-T1.4 - Cloud-Native Dev Container & GitHub Codespaces Configuration
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Create `.devcontainer/Dockerfile` based on `mcr.microsoft.com/devcontainers/base:ubuntu-22.04` including host compilation tools (`build-essential`, `make`, `cmake`, `ninja-build`), ARM cross-compiler (`gcc-arm-none-eabi`, `libnewlib-arm-none-eabi`, `gdb-multiarch`), code hygiene tools (`clang-format`, `cppcheck`), and Python scientific stack (`numpy`, `pandas`, `matplotlib`, `scipy`).
-- Create `.devcontainer/devcontainer.json` defining VS Code remote container settings (`editor.formatOnSave`, `C_Cpp.default.cStandard: c99`, `cmake.configureOnOpen`), required extensions (`cpptools`, `cmake-tools`, `cortex-debug`, `python`, `clang-format`), remote user `vscode`, and `postCreateCommand`.
-- Create `.devcontainer/post-create.sh` initializing build environment diagnostics and checking toolchain versions.
-- Create `.github/workflows/ci.yml` CI/CD workflow mirroring Dev Container tools to automate code formatting validation, static analysis (`cppcheck`), host unit testing (`ctest`), simulation regressions, and ARM Cortex-M4 firmware cross-compilation with artifact upload.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Target Files:
-  - `.devcontainer/Dockerfile`
-  - `.devcontainer/devcontainer.json`
-  - `.devcontainer/post-create.sh`
-  - `.github/workflows/ci.yml`
-- Container optimizations: `apt-get clean`, `rm -rf /var/lib/apt/lists/*`, and `--no-install-recommends` to keep image footprint lean.
-- Dependencies: `S1-T1.1` (Root CMake), `S1-T1.2` (Root Makefile), `S1-T1.3` (.clang-format).
-- Downstream Impact: Provides baseline zero-install environment for all desktop unit tests, simulation runs, and STM32WLE5 firmware builds across Sprints 1–7.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -41,3 +31,5 @@ In Progress
 - 2026-09-10: S1-T1.1 - Implemented Root CMake build system (CMakeLists.txt, cmake/CompilerFlags.cmake, cmake/toolchain-arm-none-eabi.cmake) with dual-target host/embedded support, strict C99 diagnostics, ASan/UBSan, coverage profiling, and Cortex-M4 toolchain.
 - 2026-09-10: S1-T1.2 - Implemented root Makefile with high-level developer orchestration targets (all, test, sim, firmware, coverage, asan, format, check-format, lint, clean, help) and cross-platform OS detection.
 - 2026-09-10: S1-T1.3 - Configured root .clang-format enforcing C99 4-space indent, 100-col width, 1TBS/K&R braces, right-aligned pointers, and 8-tier include sorting.
+- 2026-09-10: S1-T1.4 - Configured cloud-native Dev Container (.devcontainer/Dockerfile, devcontainer.json, post-create.sh) and GitHub Actions CI workflow (.github/workflows/ci.yml) for automated linting, host testing, and ARM cross-compilation.
+
