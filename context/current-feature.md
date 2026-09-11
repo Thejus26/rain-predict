@@ -1,16 +1,32 @@
-# Current Feature
+# Current Feature: S1-T2.4 - Mock GPIO & EXTI Pulse Driver
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement production GPIO abstraction interface header ([`firmware/drivers/inc/gpio_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/gpio_driver.h)) with port/pin definitions, logic states, pin manipulation prototypes (`gpio_init_pin`, `gpio_write_pin`, `gpio_read_pin`, `gpio_toggle_pin`), and EXTI callback registration (`gpio_register_exti_callback`).
+- Implement host mock GPIO control header ([`tests/mocks/mock_gpio.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_gpio.h)) and source ([`tests/mocks/mock_gpio.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_gpio.c)) providing virtual pin states across Ports A, B, C and up to 16 pins per port.
+- Implement pin transition logging and edge accounting (`mock_gpio_get_toggle_count`, `mock_gpio_get_rising_edge_count`, `mock_gpio_get_falling_edge_count`).
+- Implement EXTI interrupt dispatching and tipping-bucket simulation functions: single trigger (`mock_gpio_trigger_exti`), pulse train (`mock_gpio_inject_pulse_train`), and rapid contact bounce chatter glitches (`mock_gpio_inject_contact_bounce`).
+- Implement high-side P-MOSFET sensor power rail monitor helper (`mock_gpio_is_power_rail_energized`) tracking active-low gate state on PB2.
+- Register `mock_gpio.c` under the `test_mocks` target in [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
+- Implement comprehensive Unity test suite [`tests/unit/test_mock_gpio.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_mock_gpio.c) verifying all acceptance criteria (TC-S1-T2.4-01 to TC-S1-T2.4-06) with 100% test pass rate.
+- Enforce strict C99 compliance, `-Wall -Wextra -Werror -Wpedantic`, and zero dynamic memory allocation.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Hardware pin allocations:
+  - `PB0` (`PIN_RAIN_GAUGE_EXTI`): Tipping-bucket rain gauge reed switch input (EXTI0, default pulled HIGH).
+  - `PB2` (`PIN_SENSOR_PWR_GATE`): High-side P-MOSFET sensor power gate (Active LOW: 0 = ON / Energized, 1 = OFF / De-energized).
+  - `PB5` (`PIN_LED_GREEN`): Status OK Green LED (Active HIGH).
+  - `PB6` (`PIN_LED_RED`): Alert Storm Red LED (Active HIGH).
+  - `PB7` (`PIN_BUZZER_RELAY`): Piezo Buzzer & Siren Relay trigger (Active HIGH).
+  - `PA4` (`PIN_RS485_DE_RE`): RS-485 Transceiver Direction Enable (1 = TX Driver, 0 = RX Receiver).
+- `mock_gpio_reset()` must restore default idle states: PB2 HIGH (power off), PB0 HIGH (pulled up), edge counters cleared, all registered EXTI callbacks cleared.
+- Zero dynamic memory allocation (`malloc`/`free` strictly forbidden).
+- Host tests execute via `ctest` or `make test`.
 
 ## History
 
