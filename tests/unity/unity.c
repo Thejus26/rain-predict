@@ -7,6 +7,7 @@
 #include "unity.h"
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Global state singleton */
 struct UNITY_STORAGE_T Unity;
@@ -156,7 +157,7 @@ void UnityPrintMask(const UNITY_UINT_TYPE mask, const UNITY_UINT_TYPE number)
 void UnityPrintFloat(const double number)
 {
     char buffer[64];
-    snprintf(buffer, sizeof(buffer), "%.6f", number);
+    (void)snprintf(buffer, sizeof(buffer), "%.6f", number);
     UnityPrint(buffer);
 }
 #endif
@@ -220,7 +221,13 @@ void UnityFail(const char* msg, const UNITY_UINT_TYPE line)
 void UnityIgnore(const char* msg, const UNITY_UINT_TYPE line)
 {
     UnityTestResultsBegin(Unity.TestFile, line);
+#ifdef UNITY_OUTPUT_COLOR
+    UnityPrint(UnityStrColorYellow);
+#endif
     UnityPrint(UnityStrIgnore);
+#ifdef UNITY_OUTPUT_COLOR
+    UnityPrint(UnityStrColorReset);
+#endif
     UnityAddMsgIfSpecified(msg);
     UNITY_PRINT_EOL();
     Unity.CurrentTestIgnored = 1;
