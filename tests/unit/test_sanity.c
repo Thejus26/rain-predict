@@ -39,7 +39,7 @@ void tearDown(void) {
 /**
  * @brief Test basic Unity framework assertion macros.
  */
-void test_sanity_unity_assertions(void) {
+static void test_sanity_unity_assertions(void) {
     TEST_ASSERT_TRUE(true);
     TEST_ASSERT_FALSE(false);
     TEST_ASSERT_EQUAL_INT(42, 42);
@@ -51,7 +51,7 @@ void test_sanity_unity_assertions(void) {
 /**
  * @brief Test Mock I2C bus register injection and retrieval.
  */
-void test_sanity_mock_i2c_loopback(void) {
+static void test_sanity_mock_i2c_loopback(void) {
     const uint8_t bme280_addr = 0x76;
     const uint8_t chip_id_reg = 0xD0;
     const uint8_t expected_id = 0x60;
@@ -73,7 +73,7 @@ void test_sanity_mock_i2c_loopback(void) {
 /**
  * @brief Test Mock UART bus FIFO injection and transceiver direction guards.
  */
-void test_sanity_mock_uart_loopback(void) {
+static void test_sanity_mock_uart_loopback(void) {
     const uint8_t test_frame[] = { 0x01, 0x03, 0x04, 0x01, 0xF4, 0x00, 0x64, 0x8A, 0x12 };
     uint8_t rx_buffer[16] = { 0 };
     uint16_t bytes_read = 0;
@@ -104,7 +104,7 @@ void test_sanity_mock_uart_loopback(void) {
 /**
  * @brief Test Mock GPIO outputs, power gate tracking, and EXTI pulse interrupt dispatch.
  */
-void test_sanity_mock_gpio_and_exti(void) {
+static void test_sanity_mock_gpio_and_exti(void) {
     /* 1. Test LED Output Write & Read */
     gpio_write_pin(GPIO_PORT_B, PIN_LED_GREEN, GPIO_PIN_SET);
     TEST_ASSERT_EQUAL(GPIO_PIN_SET, gpio_read_pin(GPIO_PORT_B, PIN_LED_GREEN));
@@ -130,7 +130,7 @@ void test_sanity_mock_gpio_and_exti(void) {
 /**
  * @brief Test single-precision floating point mathematical operations (psychrometric foundation).
  */
-void test_sanity_floating_point_math(void) {
+static void test_sanity_floating_point_math(void) {
     /* Test standard Magnus formula exponential saturation vapor pressure at 25.0 C */
     float temp_c = 25.0f;
     float es = 6.112f * expf((17.67f * temp_c) / (temp_c + 243.5f));
