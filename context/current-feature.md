@@ -38,6 +38,7 @@ Complete
 - 2026-09-11: S1-T2.4 - Implemented Mock GPIO & EXTI Pulse Driver (tests/mocks/mock_gpio.h/.c), production GPIO interface (firmware/drivers/inc/gpio_driver.h), power rail gate monitoring, contact bounce/pulse train injection, and Unity test suite (tests/unit/test_mock_gpio.c).
 - 2026-09-11: S1-T2.5 - Implemented initial host sanity unit test suite (tests/unit/test_sanity.c) validating Unity assertions, Mock I2C/UART/GPIO loopbacks, EXTI pulse delivery, power rail gating, and single-precision floating-point psychrometric math.
 - 2026-09-11: S1-T3.1 - Implemented Python microclimate weather simulator core engine (tools/simulation/simulate_plantation_weather.py) with configurable temporal resolution, WMO hypsometric barometric reduction, CLI parser, and unit test suite (tests/unit/test_simulator.py).
+- 2026-09-11: S1-T3.2 - Implemented diurnal physical microclimate curves (tools/simulation/simulate_plantation_weather.py) with clear-sky solar irradiance, asymmetric temperature, Magnus-Tetens psychrometric humidity anti-correlation, 12h semi-diurnal barometric solar tide, sensor noise models, and unit test suite (tests/unit/test_simulator.py).
 
 
 
