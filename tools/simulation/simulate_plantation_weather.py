@@ -37,6 +37,105 @@ class EnvironmentalState:
     scenario_tag: str
 
 
+class DiurnalProfileGenerator:
+    """Encapsulates meteorological formulas for fair-weather diurnal physical baselines."""
+
+    def __init__(
+        self,
+        elevation_m: float = 1500.0,
+        base_sea_level_p: float = 1013.25,
+        seed: Optional[int] = None,
+    ):
+        self.elevation_m = elevation_m
+        self.base_sea_level_p = base_sea_level_p
+        self.rng = random.Random(seed) if seed is not None else random
+
+        # Standard elevation lapse adjustment
+        self.elevation_lapse = 0.0065 * (elevation_m - 500.0)
+        self.base_temp_mean = 23.0 - self.elevation_lapse
+        self.base_temp_amp = 6.5
+
+        # Atmospheric tide parameters (12-hour period, peaks at 10:00 and 22:00)
+        self.tide_amp_hpa = 1.50
+
+        # Calculate nominal station barometric pressure using hypsometric formula
+        t_mean_k = self.base_temp_mean + 273.15 + (0.0065 * elevation_m / 2.0)
+        self.nominal_station_p = base_sea_level_p * math.pow(
+            1.0 - (0.0065 * elevation_m) / t_mean_k, 5.257
+        )
+
+        # Base dew point at 1500m (dew point ~15.0 C at 500m gives realistic RH swings)
+        self.nominal_dew_point_c = max(5.0, 15.0 - self.elevation_lapse)
+        self.e_baseline = 6.112 * math.exp(
+            (17.67 * self.nominal_dew_point_c) / (self.nominal_dew_point_c + 243.5)
+        )
+
+    def compute_solar_lux(self, hour_of_day: float, add_noise: bool = True) -> float:
+        """Calculates clear-sky solar irradiance in Lux (6:00 to 18:00 daylight window)."""
+        if 6.0 <= hour_of_day <= 18.0:
+            # Insolation elevation factor (+2% per 300m above sea level)
+            elevation_factor = 1.0 + 0.02 * (self.elevation_m / 300.0)
+            max_lux = 110000.0 * elevation_factor
+
+            solar_angle = math.pi * (hour_of_day - 6.0) / 12.0
+            lux = max_lux * math.pow(math.sin(solar_angle), 1.35)
+            # Add small atmospheric turbulence fluctuation
+            noise = self.rng.gauss(0.0, 150.0) if add_noise else 0.0
+            return max(0.0, lux + noise)
+        return 0.0
+
+    def compute_temperature(self, hour_of_day: float, add_noise: bool = True) -> float:
+        """Calculates ambient temperature in Celsius with peak at 14:00 and pre-dawn minimum at 05:30."""
+        # Asymmetric diurnal curve: warming from 05:30 to 14:00 (8.5h), cooling from 14:00 to 05:30 (15.5h)
+        if 5.5 <= hour_of_day <= 14.0:
+            theta = math.pi * (hour_of_day - 5.5) / 8.5
+            t_amb = self.base_temp_mean - self.base_temp_amp * math.cos(theta)
+        else:
+            elapsed = (hour_of_day - 14.0) if hour_of_day >= 14.0 else (hour_of_day + 10.0)
+            theta = math.pi * elapsed / 15.5
+            t_amb = self.base_temp_mean + self.base_temp_amp * math.cos(theta)
+
+        noise = self.rng.gauss(0.0, 0.10) if add_noise else 0.0
+        return t_amb + noise
+
+    def compute_relative_humidity(self, temp_c: float, add_noise: bool = True) -> float:
+        """Calculates psychrometric relative humidity from saturation vapor pressure."""
+        # Magnus formula for saturation vapor pressure
+        es = 6.112 * math.exp((17.67 * temp_c) / (temp_c + 243.5))
+        rh = (self.e_baseline / es) * 100.0
+        noise = self.rng.gauss(0.0, 0.40) if add_noise else 0.0
+        return min(100.0, max(30.0, rh + noise))
+
+    def compute_barometric_pressure(
+        self, hour_of_day: float, add_noise: bool = True
+    ) -> Tuple[float, float]:
+        """Calculates station pressure and sea-level pressure with semi-diurnal solar tide."""
+        # Semi-diurnal atmospheric tide (12h cycle, peaks at 10:00 and 22:00, troughs at 04:00 and 16:00)
+        tide_angle = math.pi * (hour_of_day - 10.0) / 6.0
+        p_tide = self.tide_amp_hpa * math.cos(tide_angle)
+
+        noise_stn = self.rng.gauss(0.0, 0.06) if add_noise else 0.0
+        noise_slp = self.rng.gauss(0.0, 0.06) if add_noise else 0.0
+
+        station_p = self.nominal_station_p + p_tide + noise_stn
+        sea_level_p = self.base_sea_level_p + p_tide + noise_slp
+
+        return round(station_p, 2), round(sea_level_p, 2)
+
+    def generate_step(
+        self, hour_of_day: float, add_noise: bool = True
+    ) -> Tuple[float, float, float, float, float]:
+        """Returns tuple of (temp_c, rh_pct, station_p, sea_level_p, solar_lux)."""
+        temp_c = round(self.compute_temperature(hour_of_day, add_noise=add_noise), 2)
+        rh_pct = round(self.compute_relative_humidity(temp_c, add_noise=add_noise), 2)
+        station_p, sea_level_p = self.compute_barometric_pressure(
+            hour_of_day, add_noise=add_noise
+        )
+        solar_lux = round(self.compute_solar_lux(hour_of_day, add_noise=add_noise), 1)
+
+        return temp_c, rh_pct, station_p, sea_level_p, solar_lux
+
+
 class MicroclimateEngine:
     """Core simulation coordinator managing time-stepping and state history."""
 
@@ -56,6 +155,10 @@ class MicroclimateEngine:
 
         if seed is not None:
             random.seed(seed)
+
+        self.diurnal_generator = DiurnalProfileGenerator(
+            elevation_m=elevation_m, seed=seed
+        )
 
         self.total_steps = int((duration_days * 24 * 60) / interval_min)
         self.dt_hours = interval_min / 60.0
@@ -86,25 +189,17 @@ class MicroclimateEngine:
             elapsed_hours = step * self.dt_hours
             hour_of_day = (current_time.hour + current_time.minute / 60.0) % 24.0
 
-            # 1. Base Diurnal Physical Profile (S1-T3.2 Integration Point)
-            # Default placeholder: diurnal baseline sinusoidal curves
-            t_base = 22.0 - 6.0 * math.cos(2.0 * math.pi * (hour_of_day - 4.0) / 24.0)
-            rh_base = 75.0 + 20.0 * math.cos(2.0 * math.pi * (hour_of_day - 4.0) / 24.0)
-            p_base = 845.0 - (self.elevation_m - 1500.0) * 0.10 + 1.5 * math.sin(2.0 * math.pi * hour_of_day / 12.0)
-
-            # Solar irradiance calculation (Daylight peak at 12:00, 0 at night)
-            if 6.0 <= hour_of_day <= 18.0:
-                solar_factor = math.sin(math.pi * (hour_of_day - 6.0) / 12.0)
-                lux_base = 100000.0 * math.pow(solar_factor, 1.5)
-            else:
-                lux_base = 0.0
+            # 1. Base Diurnal Physical Profile (S1-T3.2)
+            t_base, rh_base, p_base, p0_base, lux_base = self.diurnal_generator.generate_step(
+                hour_of_day, add_noise=True
+            )
 
             # 2. Convective Storm Overlays (S1-T3.3 Integration Point)
             rain_rate = 0.0
             is_raining = 0
             lead_time_min = 0.0
 
-            # Calculate sea-level pressure
+            # Calculate sea-level pressure using hypsometric formula
             p0 = self.calculate_barometric_reduction(p_base, t_base)
 
             state = EnvironmentalState(
