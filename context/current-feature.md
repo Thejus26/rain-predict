@@ -1,16 +1,27 @@
-# Current Feature
+# Current Feature: S1-T2.1 - Unity Test Framework Integration & Test Build Configuration
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Vendor ThrowTheSwitch Unity pure-C99 testing framework under `tests/unity/` (`unity.h`, `unity.c`, `unity_internals.h`).
+- Create custom `tests/unity/unity_config.h` with 32-bit int width, verbose float/double assertions, and ANSI colorized reporting.
+- Create subordinate build configuration `tests/CMakeLists.txt` defining the `unity` static library target with `UNITY_INCLUDE_CONFIG_H`.
+- Define standard helper CMake macro/function `add_firmware_test()` to standardize include paths, test dependencies, and automated CTest discovery.
+- Verify clean CMake discovery, static library compilation, and CTest integration on host platforms with zero heap allocation.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Spec file: [`context/specs/s1-t2.1-unity-test-harness.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t2.1-unity-test-harness.md)
+- Target files:
+  - [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt)
+  - [`tests/unity/unity_config.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity_config.h)
+  - [`tests/unity/unity.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity.h)
+  - [`tests/unity/unity.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity.c)
+  - [`tests/unity/unity_internals.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity_internals.h)
+- Constraints: Zero dynamic memory allocation (`malloc`/`free`), C99 standard, strict warning compliance.
 
 ## History
 
