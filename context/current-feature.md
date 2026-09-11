@@ -1,16 +1,32 @@
-# Current Feature
+# Current Feature: S1-T3.3 - Convective Storm Injection Models
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement `StormEventCoordinator` class in [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py)
+- Implement `pre_monsoon_convective` storm profile with:
+  - Pre-storm build-up: Barometric pressure drop ($\Delta P > 2.0-4.0\text{ hPa} / 3\text{h}$), solar irradiance collapse ($>75-95\%$ drop in 15-30 min), relative humidity surge ($RH \ge 92-98\%$), and evaporative downdraft cooling ($-2.0\text{ to }-6.0^\circ\text{C}$)
+  - Active precipitation phase: Peak rain rate ($35-40\text{ mm/hr}$), discrete tipping-bucket pulses, and `is_raining = 1`
+  - Dissipation phase: Rain cessation and pressure baseline recovery
+- Implement `monsoon_sustained` scenario with continuous high humidity ($95-100\%$), low irradiance ($<10,000\text{ Lux}$), depressed station pressure, and continuous rain ($2-8\text{ mm/hr}$)
+- Implement false-alarm test control models:
+  - `false_alarm_cloud_shadow`: 80% solar collapse without pressure drop or humidity surge
+  - `false_alarm_orographic_fog`: High humidity ($98\%$) and low Lux with rising morning pressure tide
+- Implement discrete tipping-bucket rain pulse accumulator ($0.2\text{ mm/tip}$)
+- Implement ground-truth lead time calculation engine ($t_{\text{rain\_onset}} - t$ in minutes)
+- Implement unit tests in [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py) covering test cases TC-S1-T3.3-01 to TC-S1-T3.3-06
+- Verify 100% test pass rate across simulation engine and unit test suites
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Target File: [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py)
+- Test File: [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py)
+- Specification Reference: [`context/specs/s1-t3.3-convective-storm-models.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t3.3-convective-storm-models.md)
+- Tipping Bucket Resolution: $0.2\text{ mm}$ per tip
+- Dependencies: Standard library only (`math`, `random`, `typing`, `csv`, `json`, `argparse`, `dataclasses`, `unittest`)
 
 ## History
 

@@ -136,6 +136,311 @@ class DiurnalProfileGenerator:
         return temp_c, rh_pct, station_p, sea_level_p, solar_lux
 
 
+class StormEventCoordinator:
+    """Coordinates storm injection models, rainfall generation, and ground-truth lead time tracking."""
+
+    def __init__(
+        self,
+        scenario: str = "pre_monsoon_convective",
+        seed: Optional[int] = None,
+    ):
+        self.scenario = scenario
+        self.rain_bucket_reservoir_mm = 0.0
+        self.rng = random.Random(seed) if seed is not None else random
+
+    def reset(self) -> None:
+        """Resets bucket reservoir state."""
+        self.rain_bucket_reservoir_mm = 0.0
+
+    def process_rain_step(self, rain_rate_mmh: float, dt_hours: float) -> Tuple[int, float]:
+        """
+        Calculates accumulated rain and bucket tips during the discrete time step.
+        Bucket calibration factor = 0.20 mm per tip.
+        """
+        step_rainfall_mm = rain_rate_mmh * dt_hours
+        self.rain_bucket_reservoir_mm += step_rainfall_mm
+        new_tips = int((self.rain_bucket_reservoir_mm + 1e-7) / 0.20)
+        actual_tipped_mm = new_tips * 0.20
+        self.rain_bucket_reservoir_mm -= actual_tipped_mm
+        if self.rain_bucket_reservoir_mm < 1e-7:
+            self.rain_bucket_reservoir_mm = 0.0
+        return new_tips, round(actual_tipped_mm, 2)
+
+    def apply_convective_storm(
+        self,
+        step_time_hours: float,
+        temp_base: float,
+        rh_base: float,
+        p_base: float,
+        p0_base: float,
+        lux_base: float,
+        dt_hours: float,
+    ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
+        """
+        Applies pre-monsoon convective storm event centered at hour 14.0 (2:00 PM).
+        Build-up: 11:30 - 14:00 (150 min lead time).
+        Precipitation: 14:00 - 15:30 (90 min rain).
+        Dissipation: 15:30 - 17:00 (90 min recovery).
+        """
+        storm_start_hour = 14.0
+        storm_duration_hours = 1.5
+        storm_buildup_hours = 2.5  # Build up starts at 11:30 AM
+        storm_dissipation_hours = 1.5  # Dissipation until 17:00 (5:00 PM)
+
+        temp = temp_base
+        rh = rh_base
+        p_station = p_base
+        p0 = p0_base
+        lux = lux_base
+        rain_rate = 0.0
+        is_raining = 0
+        lead_time_min = 0.0
+
+        time_to_storm = storm_start_hour - step_time_hours
+
+        # 1. Pre-Storm Build-Up Window (11:30 to 14:00)
+        if 0.0 < time_to_storm <= storm_buildup_hours:
+            lead_time_min = time_to_storm * 60.0
+            buildup_progress = (storm_buildup_hours - time_to_storm) / storm_buildup_hours
+
+            # Barometric pressure drop: -3.2 hPa maximum drop over 2.5 hours
+            p_drop = 3.2 * math.pow(buildup_progress, 1.4)
+            p_station -= p_drop
+            p0 -= p_drop
+
+            # Relative humidity surge: rises toward 96%
+            rh_surge = (96.0 - rh_base) * math.pow(buildup_progress, 1.2)
+            rh = min(99.0, rh_base + rh_surge)
+
+            # Solar irradiance collapse in last 45 minutes
+            if time_to_storm <= 0.75:
+                cloud_progress = (0.75 - time_to_storm) / 0.75
+                lux_attenuation = 1.0 - 0.88 * math.pow(cloud_progress, 0.8)
+                lux = max(1500.0, lux_base * lux_attenuation)
+
+            # Evaporative downdraft cooling
+            temp -= 3.5 * buildup_progress
+
+        # 2. Active Rain Storm Window (14:00 to 15:30)
+        elif 0.0 <= (step_time_hours - storm_start_hour) <= storm_duration_hours:
+            is_raining = 1
+            rain_elapsed = step_time_hours - storm_start_hour
+            # Bell-shaped rain rate profile peaking at 40 mm/hr
+            rain_rate = 40.0 * math.sin(math.pi * (rain_elapsed / storm_duration_hours))
+            rh = 98.5
+            temp = temp_base - 5.0
+            p_station -= 3.5
+            p0 -= 3.5
+            lux = min(5000.0, lux_base * 0.08)
+
+        # 3. Post-Storm Dissipation Window (15:30 to 17:00)
+        elif storm_duration_hours < (step_time_hours - storm_start_hour) <= (
+            storm_duration_hours + storm_dissipation_hours
+        ):
+            diss_progress = (
+                step_time_hours - (storm_start_hour + storm_duration_hours)
+            ) / storm_dissipation_hours
+            p_recovery = 3.5 * (1.0 - diss_progress)
+            p_station -= p_recovery
+            p0 -= p_recovery
+            temp -= 5.0 * (1.0 - diss_progress)
+            rh = min(99.0, rh_base + (98.5 - rh_base) * (1.0 - diss_progress))
+            lux = lux_base * (0.08 + 0.92 * diss_progress)
+
+        # Process tipping-bucket pulses
+        tips, actual_rain_tipped = self.process_rain_step(rain_rate, dt_hours)
+
+        return (
+            round(temp, 2),
+            round(min(100.0, max(0.0, rh)), 2),
+            round(p_station, 2),
+            round(p0, 2),
+            round(max(0.0, lux), 1),
+            round(rain_rate, 2),
+            tips,
+            round(actual_rain_tipped, 2),
+            is_raining,
+            round(lead_time_min, 1),
+        )
+
+    def apply_monsoon_sustained(
+        self,
+        step_time_hours: float,
+        temp_base: float,
+        rh_base: float,
+        p_base: float,
+        p0_base: float,
+        lux_base: float,
+        dt_hours: float,
+    ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
+        """
+        Applies sustained orographic monsoon rain profile.
+        Continuous high humidity (95-100%), low solar Lux (<10000 Lux), depressed pressure (-6.0 hPa),
+        and continuous rain rate (2.0 to 8.0 mm/hr).
+        """
+        p_station = p_base - 6.0
+        p0 = p0_base - 6.0
+        rh = min(99.5, max(95.0, rh_base + 35.0))
+        temp = temp_base - 3.0
+        lux = min(8000.0, lux_base * 0.10)
+
+        # Low-to-moderate rain rate varying smoothly between 2.5 and 6.5 mm/hr
+        rain_rate = 4.5 + 2.0 * math.sin(math.pi * step_time_hours / 12.0)
+        is_raining = 1
+        lead_time_min = 0.0
+
+        tips, actual_rain_tipped = self.process_rain_step(rain_rate, dt_hours)
+
+        return (
+            round(temp, 2),
+            round(min(100.0, max(0.0, rh)), 2),
+            round(p_station, 2),
+            round(p0, 2),
+            round(max(0.0, lux), 1),
+            round(rain_rate, 2),
+            tips,
+            round(actual_rain_tipped, 2),
+            is_raining,
+            round(lead_time_min, 1),
+        )
+
+    def apply_cloud_shadow_false_alarm(
+        self,
+        step_time_hours: float,
+        temp_base: float,
+        rh_base: float,
+        p_base: float,
+        p0_base: float,
+        lux_base: float,
+    ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
+        """
+        Applies non-rain fair-weather cloud shadow between 13:00 and 13:30.
+        Drops solar Lux by 80%, but pressure and humidity remain unaffected.
+        """
+        lux = lux_base
+        if 13.0 <= step_time_hours <= 13.5:
+            # 80% solar reduction
+            lux = lux_base * 0.20
+
+        return (
+            round(temp_base, 2),
+            round(min(100.0, max(0.0, rh_base)), 2),
+            round(p_base, 2),
+            round(p0_base, 2),
+            round(max(0.0, lux), 1),
+            0.0,
+            0,
+            0.0,
+            0,
+            0.0,
+        )
+
+    def apply_orographic_fog_false_alarm(
+        self,
+        step_time_hours: float,
+        temp_base: float,
+        rh_base: float,
+        p_base: float,
+        p0_base: float,
+        lux_base: float,
+    ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
+        """
+        Applies morning valley fog between 06:00 and 09:00.
+        High RH (>= 98%) and low Lux (< 5000 Lux), but barometric pressure continues normal morning rise.
+        """
+        temp = temp_base
+        rh = rh_base
+        lux = lux_base
+
+        if 6.0 <= step_time_hours <= 9.0:
+            rh = max(rh_base, 98.0)
+            lux = min(lux_base, 4500.0)
+            temp = temp_base - 1.0
+
+        return (
+            round(temp, 2),
+            round(min(100.0, max(0.0, rh)), 2),
+            round(p_base, 2),
+            round(p0_base, 2),
+            round(max(0.0, lux), 1),
+            0.0,
+            0,
+            0.0,
+            0,
+            0.0,
+        )
+
+    def apply_fair_weather(
+        self,
+        step_time_hours: float,
+        temp_base: float,
+        rh_base: float,
+        p_base: float,
+        p0_base: float,
+        lux_base: float,
+    ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
+        """Returns unaltered fair-weather physical baseline."""
+        return (
+            round(temp_base, 2),
+            round(min(100.0, max(0.0, rh_base)), 2),
+            round(p_base, 2),
+            round(p0_base, 2),
+            round(max(0.0, lux_base), 1),
+            0.0,
+            0,
+            0.0,
+            0,
+            0.0,
+        )
+
+    def apply_scenario(
+        self,
+        scenario: str,
+        step_time_hours: float,
+        temp_base: float,
+        rh_base: float,
+        p_base: float,
+        p0_base: float,
+        lux_base: float,
+        dt_hours: float,
+        day_index: int = 0,
+    ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
+        """Routes time step to the appropriate scenario disturbance model."""
+        target_scenario = scenario
+        if scenario == "multi_day_storm_cycle":
+            cycle = [
+                "fair_weather",
+                "pre_monsoon_convective",
+                "false_alarm_cloud_shadow",
+                "false_alarm_orographic_fog",
+                "monsoon_sustained",
+                "pre_monsoon_convective",
+                "fair_weather",
+            ]
+            target_scenario = cycle[day_index % len(cycle)]
+
+        if target_scenario == "pre_monsoon_convective":
+            return self.apply_convective_storm(
+                step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base, dt_hours
+            )
+        elif target_scenario == "monsoon_sustained":
+            return self.apply_monsoon_sustained(
+                step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base, dt_hours
+            )
+        elif target_scenario == "false_alarm_cloud_shadow":
+            return self.apply_cloud_shadow_false_alarm(
+                step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+            )
+        elif target_scenario == "false_alarm_orographic_fog":
+            return self.apply_orographic_fog_false_alarm(
+                step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+            )
+        else:
+            return self.apply_fair_weather(
+                step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+            )
+
+
 class MicroclimateEngine:
     """Core simulation coordinator managing time-stepping and state history."""
 
@@ -158,6 +463,9 @@ class MicroclimateEngine:
 
         self.diurnal_generator = DiurnalProfileGenerator(
             elevation_m=elevation_m, seed=seed
+        )
+        self.coordinator = StormEventCoordinator(
+            scenario=scenario, seed=seed
         )
 
         self.total_steps = int((duration_days * 24 * 60) / interval_min)
@@ -183,10 +491,12 @@ class MicroclimateEngine:
         self.states.clear()
         self.accumulated_rain_mm = 0.0
         self.total_rain_tips = 0
+        self.coordinator.reset()
 
         for step in range(self.total_steps):
             current_time = self.start_time + datetime.timedelta(minutes=step * self.interval_min)
             elapsed_hours = step * self.dt_hours
+            day_index = int(elapsed_hours // 24.0)
             hour_of_day = (current_time.hour + current_time.minute / 60.0) % 24.0
 
             # 1. Base Diurnal Physical Profile (S1-T3.2)
@@ -194,23 +504,45 @@ class MicroclimateEngine:
                 hour_of_day, add_noise=True
             )
 
-            # 2. Convective Storm Overlays (S1-T3.3 Integration Point)
-            rain_rate = 0.0
-            is_raining = 0
-            lead_time_min = 0.0
+            # 2. Convective Storm / Scenario Overlays (S1-T3.3)
+            (
+                temp_c,
+                rh_pct,
+                p_station,
+                _p0_step,
+                lux,
+                rain_rate,
+                tips,
+                actual_rain_tipped,
+                is_raining,
+                lead_time_min,
+            ) = self.coordinator.apply_scenario(
+                scenario=self.scenario,
+                step_time_hours=hour_of_day,
+                temp_base=t_base,
+                rh_base=rh_base,
+                p_base=p_base,
+                p0_base=p0_base,
+                lux_base=lux_base,
+                dt_hours=self.dt_hours,
+                day_index=day_index,
+            )
+
+            self.total_rain_tips += tips
+            self.accumulated_rain_mm += actual_rain_tipped
 
             # Calculate sea-level pressure using hypsometric formula
-            p0 = self.calculate_barometric_reduction(p_base, t_base)
+            p0 = self.calculate_barometric_reduction(p_station, temp_c)
 
             state = EnvironmentalState(
                 timestamp=current_time.isoformat(),
                 step_index=step,
                 elapsed_hours=round(elapsed_hours, 2),
-                temp_c=round(t_base, 2),
-                humidity_pct=round(min(100.0, max(10.0, rh_base)), 2),
-                pressure_hpa=round(p_base, 2),
+                temp_c=round(temp_c, 2),
+                humidity_pct=round(min(100.0, max(0.0, rh_pct)), 2),
+                pressure_hpa=round(p_station, 2),
                 sea_level_pressure_hpa=p0,
-                solar_lux=round(max(0.0, lux_base), 1),
+                solar_lux=round(max(0.0, lux), 1),
                 rain_rate_mmh=round(rain_rate, 2),
                 rain_gauge_tip_count=self.total_rain_tips,
                 accumulated_rain_mm=round(self.accumulated_rain_mm, 2),
@@ -269,6 +601,7 @@ def parse_args() -> argparse.Namespace:
             "pre_monsoon_convective",
             "monsoon_sustained",
             "false_alarm_cloud_shadow",
+            "false_alarm_orographic_fog",
             "multi_day_storm_cycle",
         ],
         help="Weather simulation scenario profile",
