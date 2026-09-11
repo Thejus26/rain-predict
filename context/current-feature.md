@@ -1,32 +1,16 @@
-# Current Feature: S1-T3.3 - Convective Storm Injection Models
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Implement `StormEventCoordinator` class in [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py)
-- Implement `pre_monsoon_convective` storm profile with:
-  - Pre-storm build-up: Barometric pressure drop ($\Delta P > 2.0-4.0\text{ hPa} / 3\text{h}$), solar irradiance collapse ($>75-95\%$ drop in 15-30 min), relative humidity surge ($RH \ge 92-98\%$), and evaporative downdraft cooling ($-2.0\text{ to }-6.0^\circ\text{C}$)
-  - Active precipitation phase: Peak rain rate ($35-40\text{ mm/hr}$), discrete tipping-bucket pulses, and `is_raining = 1`
-  - Dissipation phase: Rain cessation and pressure baseline recovery
-- Implement `monsoon_sustained` scenario with continuous high humidity ($95-100\%$), low irradiance ($<10,000\text{ Lux}$), depressed station pressure, and continuous rain ($2-8\text{ mm/hr}$)
-- Implement false-alarm test control models:
-  - `false_alarm_cloud_shadow`: 80% solar collapse without pressure drop or humidity surge
-  - `false_alarm_orographic_fog`: High humidity ($98\%$) and low Lux with rising morning pressure tide
-- Implement discrete tipping-bucket rain pulse accumulator ($0.2\text{ mm/tip}$)
-- Implement ground-truth lead time calculation engine ($t_{\text{rain\_onset}} - t$ in minutes)
-- Implement unit tests in [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py) covering test cases TC-S1-T3.3-01 to TC-S1-T3.3-06
-- Verify 100% test pass rate across simulation engine and unit test suites
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Target File: [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py)
-- Test File: [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py)
-- Specification Reference: [`context/specs/s1-t3.3-convective-storm-models.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t3.3-convective-storm-models.md)
-- Tipping Bucket Resolution: $0.2\text{ mm}$ per tip
-- Dependencies: Standard library only (`math`, `random`, `typing`, `csv`, `json`, `argparse`, `dataclasses`, `unittest`)
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -55,6 +39,7 @@ In Progress
 - 2026-09-11: S1-T2.5 - Implemented initial host sanity unit test suite (tests/unit/test_sanity.c) validating Unity assertions, Mock I2C/UART/GPIO loopbacks, EXTI pulse delivery, power rail gating, and single-precision floating-point psychrometric math.
 - 2026-09-11: S1-T3.1 - Implemented Python microclimate weather simulator core engine (tools/simulation/simulate_plantation_weather.py) with configurable temporal resolution, WMO hypsometric barometric reduction, CLI parser, and unit test suite (tests/unit/test_simulator.py).
 - 2026-09-11: S1-T3.2 - Implemented diurnal physical microclimate curves (tools/simulation/simulate_plantation_weather.py) with clear-sky solar irradiance, asymmetric temperature, Magnus-Tetens psychrometric humidity anti-correlation, 12h semi-diurnal barometric solar tide, sensor noise models, and unit test suite (tests/unit/test_simulator.py).
+- 2026-09-11: S1-T3.3 - Implemented convective and orographic storm injection models (tools/simulation/simulate_plantation_weather.py) with pre-monsoon convective storm build-up/rain/dissipation, sustained monsoon profiles, false-alarm cumulus shadow and morning valley fog controls, discrete tipping-bucket accumulator (0.2 mm/tip), and ground-truth lead time tracking.
 
 
 
