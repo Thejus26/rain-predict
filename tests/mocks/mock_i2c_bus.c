@@ -20,11 +20,19 @@ static mock_i2c_fault_t s_active_fault = MOCK_I2C_FAULT_NONE;
 static uint32_t s_fault_delay_count = 0;
 static uint32_t s_total_transactions = 0;
 
-static mock_device_t *find_or_create_device(uint8_t dev_addr) {
+static mock_device_t *find_device(uint8_t dev_addr) {
     for (size_t i = 0; i < MOCK_I2C_MAX_DEVICES; i++) {
         if (s_devices[i].is_configured && s_devices[i].address == dev_addr) {
             return &s_devices[i];
         }
+    }
+    return NULL;
+}
+
+static mock_device_t *find_or_create_device(uint8_t dev_addr) {
+    mock_device_t *p_dev = find_device(dev_addr);
+    if (p_dev != NULL) {
+        return p_dev;
     }
     for (size_t i = 0; i < MOCK_I2C_MAX_DEVICES; i++) {
         if (!s_devices[i].is_configured) {
@@ -69,7 +77,7 @@ status_t mock_i2c_set_registers(uint8_t dev_addr, uint8_t start_reg, const uint8
 }
 
 uint8_t mock_i2c_get_register(uint8_t dev_addr, uint8_t reg_addr) {
-    mock_device_t *p_dev = find_or_create_device(dev_addr);
+    mock_device_t *p_dev = find_device(dev_addr);
     if (p_dev == NULL) {
         return 0x00U;
     }
@@ -87,17 +95,17 @@ void mock_i2c_clear_faults(void) {
 }
 
 uint32_t mock_i2c_get_read_count(uint8_t dev_addr) {
-    mock_device_t *p_dev = find_or_create_device(dev_addr);
+    mock_device_t *p_dev = find_device(dev_addr);
     return (p_dev != NULL) ? p_dev->read_count : 0U;
 }
 
 uint32_t mock_i2c_get_write_count(uint8_t dev_addr) {
-    mock_device_t *p_dev = find_or_create_device(dev_addr);
+    mock_device_t *p_dev = find_device(dev_addr);
     return (p_dev != NULL) ? p_dev->write_count : 0U;
 }
 
 uint8_t mock_i2c_get_last_reg(uint8_t dev_addr) {
-    mock_device_t *p_dev = find_or_create_device(dev_addr);
+    mock_device_t *p_dev = find_device(dev_addr);
     return (p_dev != NULL) ? p_dev->last_reg : 0x00U;
 }
 
@@ -135,7 +143,7 @@ status_t i2c_bus_read(uint8_t dev_addr, uint8_t reg_addr, uint8_t *p_data, uint1
         }
     }
 
-    mock_device_t *p_dev = find_or_create_device(dev_addr);
+    mock_device_t *p_dev = find_device(dev_addr);
     if (p_dev == NULL) {
         return STATUS_ERR_SENSOR_NO_RESPONSE;
     }
@@ -200,6 +208,6 @@ status_t i2c_bus_is_device_ready(uint8_t dev_addr, uint32_t timeout_ms) {
     if (s_active_fault == MOCK_I2C_FAULT_NACK_ADDR) {
         return STATUS_ERR_SENSOR_NO_RESPONSE;
     }
-    mock_device_t *p_dev = find_or_create_device(dev_addr);
-    return (p_dev != NULL && p_dev->is_configured) ? STATUS_OK : STATUS_ERR_SENSOR_NO_RESPONSE;
+    mock_device_t *p_dev = find_device(dev_addr);
+    return (p_dev != NULL) ? STATUS_OK : STATUS_ERR_SENSOR_NO_RESPONSE;
 }
