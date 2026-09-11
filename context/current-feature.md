@@ -1,16 +1,27 @@
-# Current Feature
+# Current Feature: S1-T2.5 - Initial Host Sanity Test Suite
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement [`tests/unit/test_sanity.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sanity.c) covering the 5 core test categories:
+  - `test_sanity_unity_assertions`: Verify Unity assertions (`TEST_ASSERT_TRUE`, `TEST_ASSERT_FALSE`, `TEST_ASSERT_EQUAL_INT`, `TEST_ASSERT_EQUAL_HEX8`, `TEST_ASSERT_EQUAL_UINT32`, `TEST_ASSERT_FLOAT_WITHIN`).
+  - `test_sanity_mock_i2c_loopback`: Verify mock I2C register injection (BME280 chip ID `0x60` at `0xD0`), production `i2c_bus_read()` execution, and read counter accounting.
+  - `test_sanity_mock_uart_loopback`: Verify mock UART FIFO injection (Modbus RTU response frame), production `uart_bus_receive()` readout, and RS-485 transceiver direction guards.
+  - `test_sanity_mock_gpio_and_exti`: Verify LED output state manipulation/toggles, high-side sensor power gate monitor helper (`mock_gpio_is_power_rail_energized` on `PB2`), and EXTI interrupt callback dispatch on `PB0`.
+  - `test_sanity_floating_point_math`: Verify single-precision float accuracy for psychrometric formulas (Magnus formula exponential saturation vapor pressure $e_s$ and logarithm calculations).
+- Register `sanity` test executable in [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
+- Verify execution pipeline with 100% test pass rate.
+- Enforce strict C99 standards, `-Wall -Wextra -Werror -Wpedantic`, and zero dynamic memory allocation.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- `setUp()` must explicitly invoke `mock_i2c_reset()`, `mock_uart_reset()`, and `mock_gpio_reset()`.
+- `tearDown()` must clear active faults: `mock_i2c_clear_faults()`, `mock_uart_clear_faults(UART_PORT_RS485)`, `mock_uart_clear_faults(UART_PORT_SDI12)`.
+- Zero dynamic memory allocation (`malloc`/`free` prohibited).
+- Target files: [`tests/unit/test_sanity.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sanity.c).
 
 ## History
 
