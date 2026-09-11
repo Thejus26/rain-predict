@@ -1,27 +1,16 @@
-# Current Feature: S1-T2.1 - Unity Test Framework Integration & Test Build Configuration
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Vendor ThrowTheSwitch Unity pure-C99 testing framework under `tests/unity/` (`unity.h`, `unity.c`, `unity_internals.h`).
-- Create custom `tests/unity/unity_config.h` with 32-bit int width, verbose float/double assertions, and ANSI colorized reporting.
-- Create subordinate build configuration `tests/CMakeLists.txt` defining the `unity` static library target with `UNITY_INCLUDE_CONFIG_H`.
-- Define standard helper CMake macro/function `add_firmware_test()` to standardize include paths, test dependencies, and automated CTest discovery.
-- Verify clean CMake discovery, static library compilation, and CTest integration on host platforms with zero heap allocation.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Spec file: [`context/specs/s1-t2.1-unity-test-harness.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t2.1-unity-test-harness.md)
-- Target files:
-  - [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt)
-  - [`tests/unity/unity_config.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity_config.h)
-  - [`tests/unity/unity.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity.h)
-  - [`tests/unity/unity.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity.c)
-  - [`tests/unity/unity_internals.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity_internals.h)
-- Constraints: Zero dynamic memory allocation (`malloc`/`free`), C99 standard, strict warning compliance.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -43,4 +32,6 @@ In Progress
 - 2026-09-10: S1-T1.2 - Implemented root Makefile with high-level developer orchestration targets (all, test, sim, firmware, coverage, asan, format, check-format, lint, clean, help) and cross-platform OS detection.
 - 2026-09-10: S1-T1.3 - Configured root .clang-format enforcing C99 4-space indent, 100-col width, 1TBS/K&R braces, right-aligned pointers, and 8-tier include sorting.
 - 2026-09-10: S1-T1.4 - Configured cloud-native Dev Container (.devcontainer/Dockerfile, devcontainer.json, post-create.sh) and GitHub Actions CI workflow (.github/workflows/ci.yml) for automated linting, host testing, and ARM cross-compilation.
+- 2026-09-11: S1-T2.1 - Integrated ThrowTheSwitch Unity test framework (v2.5.x) under tests/unity/ and configured tests/CMakeLists.txt with add_firmware_test() helper function.
+
 
