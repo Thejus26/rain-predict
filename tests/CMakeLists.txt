@@ -79,6 +79,7 @@ function(add_firmware_test TEST_NAME)
     target_link_libraries(${EXEC_NAME} PRIVATE
         unity
         $<$<TARGET_EXISTS:test_mocks>:test_mocks>
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
         ${TEST_LIBRARIES}
     )
 
