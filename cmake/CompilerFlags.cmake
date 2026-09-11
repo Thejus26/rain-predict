@@ -26,9 +26,11 @@ if(ENABLE_WARNINGS_AS_ERRORS)
 endif()
 
 # Apply strict flags to all C targets across the project
-add_compile_options(
-    $<$<COMPILE_LANGUAGE:C>:${STRICT_C_FLAGS}>
-)
+foreach(FLAG IN LISTS STRICT_C_FLAGS)
+    add_compile_options(
+        $<$<COMPILE_LANGUAGE:C>:${FLAG}>
+    )
+endforeach()
 
 # AddressSanitizer and UndefinedBehaviorSanitizer (Host builds only)
 if(ENABLE_ASAN AND NOT CMAKE_CROSSCOMPILING)
