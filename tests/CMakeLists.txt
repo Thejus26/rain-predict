@@ -106,3 +106,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_mock_i2c.c")
         SOURCES unit/test_mock_i2c.c
     )
 endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_mock_uart.c")
+    add_firmware_test(mock_uart
+        SOURCES unit/test_mock_uart.c
+    )
+endif()
+

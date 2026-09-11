@@ -1,16 +1,28 @@
-# Current Feature
+# Current Feature: S1-T2.3 - Mock UART Bus Driver & Serial Protocol Injection Engine
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Define production serial bus abstraction interface in [`firmware/drivers/inc/uart_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/uart_bus.h) (`uart_port_t`, `uart_dir_t`, `uart_bus_init`, `uart_bus_set_direction`, `uart_bus_transmit`, `uart_bus_receive`, `uart_bus_flush`).
+- Implement mock UART bus subsystem in [`tests/mocks/mock_uart_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_uart_bus.h) and [`tests/mocks/mock_uart_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_uart_bus.c) with static circular RX FIFOs and TX capture buffers (512 bytes per port, 0 dynamic allocation).
+- Implement Modbus RTU binary frame injection, SDI-12 ASCII response simulation, and RS-485 DE/RE transceiver direction tracking and transmission guards.
+- Implement serial fault simulation engine (`MOCK_UART_FAULT_TIMEOUT`, `FRAMING_ERROR`, `PARITY_ERROR`, `BUFFER_OVERFLOW`, `TX_COLLISION`).
+- Implement ThrowTheSwitch Unity unit test suite in [`tests/unit/test_mock_uart.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_mock_uart.c) validating test cases TC-S1-T2.3-01 through TC-S1-T2.3-06.
+- Integrate `mock_uart_bus.c` and `test_mock_uart.c` into [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt) and verify 100% test pass rate.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Specification**: [`context/specs/s1-t2.3-mock-uart-bus.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t2.3-mock-uart-bus.md)
+- **Ports Supported**:
+  - `UART_PORT_RS485`: USART1 (RS-485 Modbus RTU Master, 9600-115200 baud, 8N1, PA1 DE/RE direction pin).
+  - `UART_PORT_SDI12`: LPUART1 (SDI-12 1200 baud, 7E1, half-duplex single wire).
+- **Constraints**:
+  - Zero dynamic memory allocation (`malloc`/`free` prohibited).
+  - All status codes aligned with [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h).
+  - Transmitting on `UART_PORT_RS485` while direction is `UART_DIR_RX` must return `STATUS_ERR_UART_BUS`.
 
 ## History
 
