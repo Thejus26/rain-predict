@@ -113,3 +113,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_mock_uart.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_mock_gpio.c")
+    add_firmware_test(mock_gpio
+        SOURCES unit/test_mock_gpio.c
+    )
+endif()
+
+
