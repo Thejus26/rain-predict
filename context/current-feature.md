@@ -1,16 +1,26 @@
-# Current Feature
+# Current Feature: S1-T2.2 - Mock I2C Bus Driver & Virtual Register Memory Map
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Create core status definitions [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h) and production I2C bus driver header [`firmware/drivers/inc/i2c_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/i2c_bus.h).
+- Implement mock I2C driver interface [`tests/mocks/mock_i2c_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_i2c_bus.h) with virtual register manipulation and fault injection API.
+- Implement mock I2C driver logic [`tests/mocks/mock_i2c_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_i2c_bus.c) supporting 256-byte virtual register memory maps per device (`0x76`/`0x77` for BME280, `0x44`/`0x45` for OPT3001), auto-incrementing burst read/write, call statistics, and configurable fault simulation (NACK, timeout, bus error).
+- Ensure `test_mocks` static library integrates cleanly in [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
+- Enforce zero dynamic heap allocation (`malloc`/`free` prohibited), strict C99 diagnostic compliance, and full reset isolation.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Spec file: [`context/specs/s1-t2.2-mock-i2c-bus.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t2.2-mock-i2c-bus.md)
+- Target files:
+  - [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h)
+  - [`firmware/drivers/inc/i2c_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/i2c_bus.h)
+  - [`tests/mocks/mock_i2c_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_i2c_bus.h)
+  - [`tests/mocks/mock_i2c_bus.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_i2c_bus.c)
+- Constraints: Zero dynamic memory allocation, C99 standard, deterministic timeouts, MISRA-C pointer guards.
 
 ## History
 

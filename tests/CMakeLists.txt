@@ -93,10 +93,16 @@ function(add_firmware_test TEST_NAME)
 endfunction()
 
 # -----------------------------------------------------------------------------
-# 4. Initial Sanity Test Registration
+# 4. Mock Verification & Sanity Tests
 # -----------------------------------------------------------------------------
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_sanity.c")
     add_firmware_test(sanity
         SOURCES unit/test_sanity.c
+    )
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_mock_i2c.c")
+    add_firmware_test(mock_i2c
+        SOURCES unit/test_mock_i2c.c
     )
 endif()
