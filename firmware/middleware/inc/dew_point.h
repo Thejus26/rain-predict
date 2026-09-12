@@ -55,6 +55,18 @@ typedef struct {
 #define PSYCHRO_RH_MAX_PCT          (100.0f)
 
 /**
+ * @brief Hypsometric barometric reduction constants.
+ */
+#define HYPSO_LAPSE_RATE            (0.0065f)      /**< Standard tropospheric lapse rate (K/m) */
+#define HYPSO_EXPONENT              (-5.257f)      /**< Hypsometric exponent -g*M/(R*Γ) */
+#define HYPSO_EXPONENT_INV          (0.190222f)    /**< 1.0 / 5.257 for inverse altitude */
+#define HYPSO_ALTITUDE_MIN_M        (-100.0f)      /**< Minimum valid station elevation (m) */
+#define HYPSO_ALTITUDE_MAX_M        (5000.0f)      /**< Maximum valid station elevation (m) */
+#define HYPSO_PRESSURE_MIN_HPA      (300.0f)       /**< Minimum physical station pressure (hPa) */
+#define HYPSO_PRESSURE_MAX_HPA      (1100.0f)      /**< Maximum physical station pressure (hPa) */
+#define HYPSO_DENOM_MIN_KELVIN      (200.0f)       /**< Minimum virtual denominator temperature (K) */
+
+/**
  * @brief Computes saturation vapor pressure es(T) over liquid water.
  * 
  * @param[in]  temp_c     Ambient temperature in degrees Celsius.
@@ -131,6 +143,39 @@ status_t dew_point_calc_from_vapor_pressure(float e_hpa, float *p_dew_c);
  * @return status_t       STATUS_OK on success, error code otherwise.
  */
 status_t dew_point_calc_psychrometric_state(float temp_c, float rh_pct, psychrometric_state_t *p_state);
+ 
+/**
+ * @brief Computes sea-level equivalent barometric pressure (P0) from station pressure.
+ * 
+ * @param[in]  station_p_hpa Local measured barometric pressure at sensor mast (hPa).
+ * @param[in]  temp_c        Local measured ambient temperature (°C).
+ * @param[in]  altitude_m    Station elevation above Mean Sea Level (meters).
+ * @param[out] p_p0_hpa      Pointer to store calculated sea-level pressure (hPa).
+ * @return status_t          STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_sea_level_pressure(float station_p_hpa, float temp_c, float altitude_m, float *p_p0_hpa);
+
+/**
+ * @brief Computes estimated station pressure from known sea-level pressure P0.
+ * 
+ * @param[in]  p0_hpa        Reference sea-level barometric pressure (hPa).
+ * @param[in]  temp_c        Local ambient temperature (°C).
+ * @param[in]  altitude_m    Station elevation above Mean Sea Level (meters).
+ * @param[out] p_station_p   Pointer to store calculated station pressure (hPa).
+ * @return status_t          STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_station_pressure_from_p0(float p0_hpa, float temp_c, float altitude_m, float *p_station_p);
+
+/**
+ * @brief Computes estimated pressure altitude from station pressure and reference P0.
+ * 
+ * @param[in]  station_p_hpa Local measured barometric pressure (hPa).
+ * @param[in]  p0_hpa        Sea-level reference pressure (e.g. 1013.25 hPa).
+ * @param[in]  temp_c        Local ambient temperature (°C).
+ * @param[out] p_altitude_m  Pointer to store calculated altitude (meters).
+ * @return status_t          STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_pressure_altitude(float station_p_hpa, float p0_hpa, float temp_c, float *p_altitude_m);
 
 #ifdef __cplusplus
 }

@@ -238,3 +238,100 @@ status_t dew_point_calc_psychrometric_state(float temp_c, float rh_pct, psychrom
 
     return STATUS_OK;
 }
+
+status_t dew_point_calc_sea_level_pressure(float station_p_hpa, float temp_c, float altitude_m, float *p_p0_hpa)
+{
+    if (p_p0_hpa == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(station_p_hpa) || isnan(temp_c) || isnan(altitude_m)) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    if (station_p_hpa < HYPSO_PRESSURE_MIN_HPA || station_p_hpa > HYPSO_PRESSURE_MAX_HPA) {
+        return STATUS_ERR_OUT_OF_RANGE;
+    }
+
+    /* If station is at or below sea level, no reduction needed */
+    if (altitude_m <= 0.0f) {
+        *p_p0_hpa = station_p_hpa;
+        return STATUS_OK;
+    }
+
+    /* Clamp altitude to valid operational domain */
+    float alt = altitude_m;
+    if (alt > HYPSO_ALTITUDE_MAX_M) {
+        alt = HYPSO_ALTITUDE_MAX_M;
+    }
+
+    float t = clamp_temperature(temp_c);
+    float lapse_h = HYPSO_LAPSE_RATE * alt;
+    float t_sea_kelvin = t + lapse_h + KELVIN_OFFSET;
+
+    if (t_sea_kelvin < HYPSO_DENOM_MIN_KELVIN) {
+        t_sea_kelvin = HYPSO_DENOM_MIN_KELVIN;
+    }
+
+    float base = 1.0f - (lapse_h / t_sea_kelvin);
+    *p_p0_hpa = station_p_hpa * powf(base, HYPSO_EXPONENT);
+
+    return STATUS_OK;
+}
+
+status_t dew_point_calc_station_pressure_from_p0(float p0_hpa, float temp_c, float altitude_m, float *p_station_p)
+{
+    if (p_station_p == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(p0_hpa) || isnan(temp_c) || isnan(altitude_m)) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    if (p0_hpa < HYPSO_PRESSURE_MIN_HPA || p0_hpa > HYPSO_PRESSURE_MAX_HPA) {
+        return STATUS_ERR_OUT_OF_RANGE;
+    }
+
+    if (altitude_m <= 0.0f) {
+        *p_station_p = p0_hpa;
+        return STATUS_OK;
+    }
+
+    float alt = altitude_m;
+    if (alt > HYPSO_ALTITUDE_MAX_M) {
+        alt = HYPSO_ALTITUDE_MAX_M;
+    }
+
+    float t = clamp_temperature(temp_c);
+    float lapse_h = HYPSO_LAPSE_RATE * alt;
+    float t_sea_kelvin = t + lapse_h + KELVIN_OFFSET;
+
+    if (t_sea_kelvin < HYPSO_DENOM_MIN_KELVIN) {
+        t_sea_kelvin = HYPSO_DENOM_MIN_KELVIN;
+    }
+
+    float base = 1.0f - (lapse_h / t_sea_kelvin);
+    /* Inversion: P = P0 * powf(base, +5.257) */
+    *p_station_p = p0_hpa * powf(base, -HYPSO_EXPONENT);
+
+    return STATUS_OK;
+}
+
+status_t dew_point_calc_pressure_altitude(float station_p_hpa, float p0_hpa, float temp_c, float *p_altitude_m)
+{
+    if (p_altitude_m == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(station_p_hpa) || isnan(p0_hpa) || isnan(temp_c)) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    if (station_p_hpa <= 0.0f || p0_hpa <= 0.0f) {
+        return STATUS_ERR_OUT_OF_RANGE;
+    }
+
+    float t = clamp_temperature(temp_c);
+    float t_kelvin = t + KELVIN_OFFSET;
+    float p_ratio = p0_hpa / station_p_hpa;
+
+    /* h = (T_kelvin / 0.0065) * (powf(P0 / P, 1/5.257) - 1.0) */
+    *p_altitude_m = (t_kelvin / HYPSO_LAPSE_RATE) * (powf(p_ratio, HYPSO_EXPONENT_INV) - 1.0f);
+
+    return STATUS_OK;
+}

@@ -1,16 +1,37 @@
-# Current Feature
+# Current Feature: S2-T2.3 - Hypsometric Barometric Sea-Level Reduction
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement `dew_point_calc_sea_level_pressure(float station_p_hpa, float temp_c, float altitude_m, float *p_p0_hpa)` utilizing the hypsometric reduction formula $P_0 = P \times \left(1 - \frac{0.0065 \cdot h}{T + 0.0065 \cdot h + 273.15}\right)^{-5.257}$.
+- Implement `dew_point_calc_station_pressure_from_p0(float p0_hpa, float temp_c, float altitude_m, float *p_station_p)` for bidirectional barometric verification and sensor calibration.
+- Implement `dew_point_calc_pressure_altitude(float station_p_hpa, float p0_hpa, float temp_c, float *p_altitude_m)` computing estimated pressure altitude from local and sea-level barometric differential.
+- Include sea-level station direct bypass optimization ($h \le 0.0\text{ m} \implies P_0 = P$).
+- Enforce strict single-precision FPU execution (`powf`, `fabsf`), zero dynamic memory allocation, stack frame $< 40$ bytes, and execution latency $< 320$ CPU cycles @ 48 MHz.
+- Implement numerical singularity, domain, and range protections: altitude clamping ($[-100.0\text{ m}, +5000.0\text{ m}]$), station pressure validation ($[300.0\text{ hPa}, 1100.0\text{ hPa}]$ returning `STATUS_ERR_OUT_OF_RANGE`), denominator safety bound ($T_{sea\_kelvin} \ge 200.0\text{ K}$), and `NULL`/`NaN` input traps.
+- Verify numerical accuracy against ICAO/WMO barometric reduction reference vectors (`TC-HYP-01` through `TC-HYP-10`) within tolerance $\pm 0.05\text{ hPa}$.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Target Files**:
+  - [`firmware/middleware/inc/dew_point.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/dew_point.h)
+  - [`firmware/middleware/src/dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c)
+- **Specification Document**: [`context/specs/s2-t2.3-barometric-reduction.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.3-barometric-reduction.md)
+- **Mathematical Constants**:
+  - Tropospheric lapse rate: $\Gamma = 0.0065\text{f}\text{ K/m}$
+  - Hypsometric exponent: $\kappa = -5.257\text{f}$ (and inverse $\kappa_{inv} = 0.190222\text{f}$)
+  - Kelvin offset: $273.15\text{f}$
+- **Domain Constraints**:
+  - Station Pressure: $P \in [300.0\text{ hPa}, 1100.0\text{ hPa}]$
+  - Station Elevation: $h \in [-100.0\text{ m}, +5000.0\text{ m}]$
+  - Temperature: $T \in [-40.0^\circ\text{C}, +85.0^\circ\text{C}]$
+- **Downstream Consumers**:
+  - Zambretti heuristic forecasting engine (`S2-T3`)
+  - Multi-variable gradient trend detector (`S2-T4`)
+  - LoRaWAN binary telemetry uplink (`S5-T1`)
 
 ## History
 

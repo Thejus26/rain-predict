@@ -28,7 +28,8 @@ typedef enum {
     STATUS_ERR_NULL_PTR,
     STATUS_ERR_NOT_INITIALIZED,
     STATUS_ERR_OVERFLOW,
-    STATUS_ERR_UNDERFLOW
+    STATUS_ERR_UNDERFLOW,
+    STATUS_ERR_OUT_OF_RANGE
 } status_t;
 
 #ifdef __cplusplus
