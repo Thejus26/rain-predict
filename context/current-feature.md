@@ -1,37 +1,16 @@
-# Current Feature: S2-T2.3 - Hypsometric Barometric Sea-Level Reduction
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement `dew_point_calc_sea_level_pressure(float station_p_hpa, float temp_c, float altitude_m, float *p_p0_hpa)` utilizing the hypsometric reduction formula $P_0 = P \times \left(1 - \frac{0.0065 \cdot h}{T + 0.0065 \cdot h + 273.15}\right)^{-5.257}$.
-- Implement `dew_point_calc_station_pressure_from_p0(float p0_hpa, float temp_c, float altitude_m, float *p_station_p)` for bidirectional barometric verification and sensor calibration.
-- Implement `dew_point_calc_pressure_altitude(float station_p_hpa, float p0_hpa, float temp_c, float *p_altitude_m)` computing estimated pressure altitude from local and sea-level barometric differential.
-- Include sea-level station direct bypass optimization ($h \le 0.0\text{ m} \implies P_0 = P$).
-- Enforce strict single-precision FPU execution (`powf`, `fabsf`), zero dynamic memory allocation, stack frame $< 40$ bytes, and execution latency $< 320$ CPU cycles @ 48 MHz.
-- Implement numerical singularity, domain, and range protections: altitude clamping ($[-100.0\text{ m}, +5000.0\text{ m}]$), station pressure validation ($[300.0\text{ hPa}, 1100.0\text{ hPa}]$ returning `STATUS_ERR_OUT_OF_RANGE`), denominator safety bound ($T_{sea\_kelvin} \ge 200.0\text{ K}$), and `NULL`/`NaN` input traps.
-- Verify numerical accuracy against ICAO/WMO barometric reduction reference vectors (`TC-HYP-01` through `TC-HYP-10`) within tolerance $\pm 0.05\text{ hPa}$.
+<!-- Measurable criteria and deliverables for the active feature -->
 
 ## Notes
 
-- **Target Files**:
-  - [`firmware/middleware/inc/dew_point.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/dew_point.h)
-  - [`firmware/middleware/src/dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c)
-- **Specification Document**: [`context/specs/s2-t2.3-barometric-reduction.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.3-barometric-reduction.md)
-- **Mathematical Constants**:
-  - Tropospheric lapse rate: $\Gamma = 0.0065\text{f}\text{ K/m}$
-  - Hypsometric exponent: $\kappa = -5.257\text{f}$ (and inverse $\kappa_{inv} = 0.190222\text{f}$)
-  - Kelvin offset: $273.15\text{f}$
-- **Domain Constraints**:
-  - Station Pressure: $P \in [300.0\text{ hPa}, 1100.0\text{ hPa}]$
-  - Station Elevation: $h \in [-100.0\text{ m}, +5000.0\text{ m}]$
-  - Temperature: $T \in [-40.0^\circ\text{C}, +85.0^\circ\text{C}]$
-- **Downstream Consumers**:
-  - Zambretti heuristic forecasting engine (`S2-T3`)
-  - Multi-variable gradient trend detector (`S2-T4`)
-  - LoRaWAN binary telemetry uplink (`S5-T1`)
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -67,9 +46,4 @@ In Progress
 - 2026-09-12: S2-T1.3 - Implemented comprehensive ThrowTheSwitch Unity test suites (tests/unit/test_ring_buffer.c, tests/unit/test_moving_avg.c, tests/CMakeLists.txt) covering generic FIFO ring buffer ordering, drop/overwrite overflow policies, pointer wrap-around, non-destructive peeking, multi-window moving average math (sizes 3, 4, 6, 12), O(1) stability over 10,000 samples, and outlier spike clamping.
 - 2026-09-12: S2-T2.1 - Implemented saturation vapor pressure (es), actual partial vapor pressure (e), absolute humidity (AH), and vapor pressure deficit (VPD) formulas (firmware/middleware/inc/dew_point.h, firmware/middleware/src/dew_point.c) with single-precision floating point, defensive input bounds clamping, NULL/NaN safety guards, and ThrowTheSwitch Unity test suite (tests/unit/test_dew_point.c).
 - 2026-09-12: S2-T2.2 - Implemented Magnus-Tetens dew point inversion (Tdew), dew point depression (DPD), direct vapor pressure inversion, and complete psychrometric state calculations (firmware/middleware/inc/dew_point.h, firmware/middleware/src/dew_point.c) with single-precision FPU math, singularity/non-positive logarithm guards, physical invariant clamping, and ThrowTheSwitch Unity unit test suite (tests/unit/test_dew_point.c).
-
-
-
-
-
-
+- 2026-09-12: S2-T2.3 - Implemented hypsometric barometric sea-level pressure reduction (P0), inverse station pressure calculation, pressure altitude estimation, sea-level direct bypass, status code range validation (STATUS_ERR_OUT_OF_RANGE), single-precision FPU optimizations, and comprehensive ThrowTheSwitch Unity test suite.
