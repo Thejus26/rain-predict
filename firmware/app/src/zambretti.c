@@ -36,6 +36,44 @@ static const char * const s_zambretti_descriptions[26] = {
     "Severe Storm, Heavy Rain"              /* 26 */
 };
 
+/* Flash-resident monthly seasonal offset LUT (indices 0..11 for months 1..12) */
+static const int8_t s_seasonal_monthly_offsets[12] = {
+    -2, /* Jan: Winter Dry */
+    -2, /* Feb: Winter Dry */
+     0, /* Mar: Early Pre-Monsoon */
+    +1, /* Apr: Peak Pre-Monsoon */
+    +1, /* May: Pre-Monsoon Squall Transition */
+    +2, /* Jun: Southwest Monsoon */
+    +2, /* Jul: Peak Southwest Monsoon */
+    +2, /* Aug: Southwest Monsoon */
+    +1, /* Sep: Southwest Monsoon Weakening */
+    +2, /* Oct: Northeast Monsoon */
+    +1, /* Nov: Northeast Monsoon */
+    -1  /* Dec: Early Winter */
+};
+
+/* Flash-resident wind direction offset LUT (indices match wind_dir_t 0..17) */
+static const int8_t s_wind_direction_offsets[18] = {
+     0, /* WIND_DIR_CALM */
+    -1, /* WIND_DIR_N */
+    -1, /* WIND_DIR_NNE */
+    -1, /* WIND_DIR_NE */
+     0, /* WIND_DIR_ENE */
+     0, /* WIND_DIR_E */
+     0, /* WIND_DIR_ESE */
+    +1, /* WIND_DIR_SE */
+    +1, /* WIND_DIR_SSE */
+    +1, /* WIND_DIR_S */
+    +2, /* WIND_DIR_SSW */
+    +2, /* WIND_DIR_SW */
+    +2, /* WIND_DIR_WSW */
+    +1, /* WIND_DIR_W */
+     0, /* WIND_DIR_WNW */
+     0, /* WIND_DIR_NW */
+    -1, /* WIND_DIR_NNW */
+     0  /* WIND_DIR_UNKNOWN */
+};
+
 int32_t zambretti_classify_trend(float delta_p_3h, baro_trend_t *p_trend)
 {
     if (p_trend == NULL) {
@@ -195,6 +233,125 @@ int32_t zambretti_calculate(float p0_hpa,
     if (p_state != NULL) {
         *p_state = zambretti_map_to_state(z);
     }
+
+    return ZAMBRETTI_OK;
+}
+
+int32_t zambretti_get_seasonal_offset(uint8_t month_1_to_12, int8_t *p_offset)
+{
+    if (p_offset == NULL) {
+        return ZAMBRETTI_ERR_NULL_PTR;
+    }
+    if (month_1_to_12 < 1U || month_1_to_12 > 12U) {
+        return ZAMBRETTI_ERR_INVALID_ARG;
+    }
+
+    *p_offset = s_seasonal_monthly_offsets[month_1_to_12 - 1U];
+    return ZAMBRETTI_OK;
+}
+
+int32_t zambretti_get_monsoon_offset(monsoon_season_t season, int8_t *p_offset)
+{
+    if (p_offset == NULL) {
+        return ZAMBRETTI_ERR_NULL_PTR;
+    }
+
+    switch (season) {
+        case MONSOON_SEASON_DRY:
+            *p_offset = -2;
+            break;
+        case MONSOON_SEASON_PRE_MONSOON:
+            *p_offset = +1;
+            break;
+        case MONSOON_SEASON_SW_MONSOON:
+            *p_offset = +2;
+            break;
+        case MONSOON_SEASON_NE_MONSOON:
+            *p_offset = +2;
+            break;
+        default:
+            return ZAMBRETTI_ERR_INVALID_ARG;
+    }
+
+    return ZAMBRETTI_OK;
+}
+
+int32_t zambretti_get_wind_offset(wind_dir_t dir, float speed_mps, int8_t *p_offset)
+{
+    if (p_offset == NULL) {
+        return ZAMBRETTI_ERR_NULL_PTR;
+    }
+    if (isnan(speed_mps) || speed_mps < 0.0f) {
+        return ZAMBRETTI_ERR_INVALID_ARG;
+    }
+
+    /* If calm or unconfigured, zero offset */
+    if (speed_mps < WIND_CALM_THRESHOLD_MPS || dir == WIND_DIR_CALM || dir >= WIND_DIR_UNKNOWN) {
+        *p_offset = 0;
+        return ZAMBRETTI_OK;
+    }
+
+    *p_offset = s_wind_direction_offsets[(uint8_t)dir];
+    return ZAMBRETTI_OK;
+}
+
+wind_dir_t zambretti_azimuth_to_wind_dir(float azimuth_deg)
+{
+    if (isnan(azimuth_deg)) {
+        return WIND_DIR_UNKNOWN;
+    }
+
+    /* Wrap to [0, 360) */
+    float az = fmodf(azimuth_deg, 360.0f);
+    if (az < 0.0f) {
+        az += 360.0f;
+    }
+
+    /* 16 sectors of 22.5° each, offset by 11.25° for North centering */
+    int32_t sector = (int32_t)floorf((az + 11.25f) / 22.5f) % 16;
+    return (wind_dir_t)(sector + 1); /* +1 because WIND_DIR_CALM = 0 */
+}
+
+int32_t zambretti_calculate_weighted(float p0_hpa,
+                                     float delta_p_3h,
+                                     uint8_t month_1_to_12,
+                                     wind_dir_t wind_dir,
+                                     float wind_speed_mps,
+                                     uint8_t *p_z_index,
+                                     rain_forecast_state_t *p_state)
+{
+    if (p_z_index == NULL || p_state == NULL) {
+        return ZAMBRETTI_ERR_NULL_PTR;
+    }
+
+    uint8_t z_base = 0U;
+    rain_forecast_state_t base_state;
+    int32_t ret = zambretti_calculate(p0_hpa, delta_p_3h, &z_base, &base_state);
+    if (ret != ZAMBRETTI_OK) {
+        return ret;
+    }
+
+    int8_t season_offset = 0;
+    ret = zambretti_get_seasonal_offset(month_1_to_12, &season_offset);
+    if (ret != ZAMBRETTI_OK) {
+        season_offset = 0; /* Fallback to neutral on invalid month */
+    }
+
+    int8_t wind_offset = 0;
+    ret = zambretti_get_wind_offset(wind_dir, wind_speed_mps, &wind_offset);
+    if (ret != ZAMBRETTI_OK) {
+        wind_offset = 0;
+    }
+
+    int32_t z_weighted = (int32_t)z_base + (int32_t)season_offset + (int32_t)wind_offset;
+    if (z_weighted < (int32_t)ZAMBRETTI_INDEX_MIN) {
+        z_weighted = (int32_t)ZAMBRETTI_INDEX_MIN;
+    } else if (z_weighted > (int32_t)ZAMBRETTI_INDEX_MAX) {
+        z_weighted = (int32_t)ZAMBRETTI_INDEX_MAX;
+    }
+
+    *p_z_index = (uint8_t)z_weighted;
+    *p_state = zambretti_map_to_state((uint8_t)z_weighted);
 
     return ZAMBRETTI_OK;
 }
