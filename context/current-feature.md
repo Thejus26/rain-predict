@@ -1,16 +1,32 @@
-# Current Feature
+# Current Feature: S2-T5.1 - Multi-Variable Weighted Composite Precipitation Index (CPI) Scoring
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Define `rain_forecast_t` structure, daytime weight constants (`WEIGHT_PRESSURE_DAY=0.30`, `WEIGHT_HUMIDITY_DAY=0.25`, `WEIGHT_DEW_POINT_DAY=0.20`, `WEIGHT_SOLAR_DAY=0.15`, `WEIGHT_ZAMBRETTI_DAY=0.10`), and nighttime divisor (`WEIGHT_NIGHT_DIVISOR=0.85`) in [`firmware/app/inc/rain_algo.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/rain_algo.h).
+- Implement `rain_algo_score_humidity()` in [`firmware/app/src/rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/rain_algo.c) to calculate $S_{RH} \in [0, 100]$ based on instantaneous RH and 1-hour rate of change $\Delta RH_{1h}$.
+- Implement `rain_algo_score_dew_point()` in [`firmware/app/src/rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/rain_algo.c) to compute $S_{DPD} \in [0, 100]$ from dew point depression $DPD = T - T_{dew}$.
+- Implement `rain_algo_score_zambretti()` in [`firmware/app/src/rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/rain_algo.c) mapping Zambretti index $Z \in [1, 26]$ to macro synoptic sub-score $S_{ZAM} = \min(100, \max(0, (Z - 1) \times 4))$.
+- Implement `rain_algo_compute_composite_score()` in [`firmware/app/src/rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/rain_algo.c) calculating the weighted $CPI \in [0.0\%, 100.0\%]$ with dynamic nighttime re-normalization ($/ 0.85$) when daylight is inactive ($Lux < 5,000\text{ Lux}$).
+- Link `rain_algo.c` into [`firmware/app/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/CMakeLists.txt) build targets.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- **Multi-Variable Sensor Fusion**: Fuses 5 meteorological sub-scores ($S_P$, $S_{RH}$, $S_{DPD}$, $S_{SOL}$, $S_{ZAM}$) into a single composite score $CPI \in [0.0\%, 100.0\%]$.
+- **Dynamic Nighttime Re-Normalization**: During low-light/night conditions ($Lux < 5,000\text{ Lux}$), optical sub-score $S_{SOL} = 0$, and remaining weights ($0.30, 0.25, 0.20, 0.10$) are re-normalized by dividing by $0.85$ to maintain strict $100\%$ scaling.
+- **Formulas**:
+  - $S_{RH}$: $100$ ($RH \ge 95\%$ or $\Delta RH \ge 15\%$), $80$ ($RH \ge 90\%$ or $\Delta RH \ge 10\%$), $50$ ($RH \ge 80\%$ or $\Delta RH \ge 5\%$), $15$ ($RH \ge 65\%$), $0$ otherwise.
+  - $S_{DPD}$: $100$ ($DPD \le 0.5^\circ\text{C}$), $80$ ($DPD \le 1.5^\circ\text{C}$), $50$ ($DPD \le 3.0^\circ\text{C}$), $15$ ($DPD \le 5.0^\circ\text{C}$), $0$ otherwise.
+  - $S_{ZAM}$: $\text{clamp}((Z - 1) \times 4, 0, 100)$.
+  - $CPI_{day} = 0.30 \cdot S_P + 0.25 \cdot S_{RH} + 0.20 \cdot S_{DPD} + 0.15 \cdot S_{SOL} + 0.10 \cdot S_{ZAM}$.
+  - $CPI_{night} = (0.30 \cdot S_P + 0.25 \cdot S_{RH} + 0.20 \cdot S_{DPD} + 0.10 \cdot S_{ZAM}) / 0.85$.
+- **Target Platform**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz) with Hardware FPU (single-precision `float`).
+- **Defensive Design**: Return `STATUS_ERR_NULL_PTR` for NULL pointers, `STATUS_ERR_INVALID_ARG` for NaN inputs or out-of-range Zambretti index ($Z < 1$ or $Z > 26$).
+- **Memory & Latency Constraints**: Zero dynamic memory allocation (`malloc`/`free`), execution latency $< 180$ CPU cycles @ 48 MHz.
+- **Specification Source**: [`context/specs/s2-t5.1-composite-scoring.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t5.1-composite-scoring.md).
 
 ## History
 
