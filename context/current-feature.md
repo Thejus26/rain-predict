@@ -1,16 +1,31 @@
-# Current Feature
+# Current Feature: S2-T4.3 - Solar Irradiance Cloud Attenuation Classification & Scoring
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Define `solar_cloud_state_t` enum (4 discrete states: `SOLAR_NIGHT`, `SOLAR_CLEAR`, `SOLAR_SCATTERED`, `SOLAR_STORM_CLOUD_DROP`) and threshold constants in [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h).
+- Implement `trend_detector_classify_solar()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to categorize optical solar cloud attenuation states.
+- Implement `trend_detector_score_solar()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to compute normalized solar sub-score $S_{SOL} \in [0, 100]$ (15% weight in CPI).
+- Implement `trend_detector_get_solar_state_name()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) returning flash string descriptors.
+- Enforce strict daylight gating ($Lux_{30m\_ago} < 5000\text{ Lux} \implies S_{SOL} = 0$), zero dynamic memory allocation, and defensive NULL/NaN argument validation.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- **State Classification Boundaries**:
+  - `SOLAR_NIGHT`: $Lux_{now} < 50.0\text{ Lux}$ AND $Lux_{30m\_ago} < 50.0\text{ Lux}$
+  - `SOLAR_STORM_CLOUD_DROP`: $Lux_{30m\_ago} \ge 5000.0\text{ Lux}$ AND ($R_{drop\_30m} \ge 50.0\%$ OR ($R_{drop\_30m} \ge 70.0\%$ AND $Lux_{now} < 3000.0\text{ Lux}$))
+  - `SOLAR_SCATTERED`: $R_{drop\_30m} \ge 15.0\%$ OR $Lux_{now} < 20000.0\text{ Lux}$ (when not night or storm drop)
+  - `SOLAR_CLEAR`: Otherwise ($Lux_{now} \ge 20000.0\text{ Lux}$, $R_{drop\_30m} < 15.0\%$)
+- **Sub-Scoring Step Function ($S_{SOL} \in [0, 100]$)**:
+  - If $Lux_{30m\_ago} < 5000.0\text{ Lux} \implies S_{SOL} = 0$ (Night / Twilight suppression)
+  - Else if $R_{drop\_30m} \ge 70.0\%$ AND $Lux_{now} < 3000.0\text{ Lux} \implies S_{SOL} = 100$
+  - Else if $R_{drop\_30m} \ge 50.0\% \implies S_{SOL} = 65$
+  - Else if $R_{drop\_30m} \ge 30.0\% \implies S_{SOL} = 30$
+  - Else $\implies S_{SOL} = 0$
+- **Target Platform & Execution Performance**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz), execution latency $< 120$ CPU cycles.
 
 ## History
 
