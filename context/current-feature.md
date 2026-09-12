@@ -1,16 +1,34 @@
-# Current Feature
+# Current Feature: S2-T4.2 - Barometric Pressure Trend State Classification & Scoring
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Define `pressure_trend_state_t` enum (5 discrete states: `PRESSURE_RAPID_DROP`, `PRESSURE_MODERATE_DROP`, `PRESSURE_SLOW_DROP`, `PRESSURE_STEADY`, `PRESSURE_RISING`) and threshold constants in [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h).
+- Implement `trend_detector_classify_pressure()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to evaluate $\Delta P_{1\text{h}}$ and $\Delta P_{3\text{h}}$ against meteorological thresholds.
+- Implement `trend_detector_score_pressure()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to calculate normalized pressure sub-score $S_P \in [0, 100]$ (with 1-hour fast squall override boost to $\ge 90$ when $\Delta P_{1\text{h}} \le -1.5\text{ hPa/hr}$).
+- Implement `trend_detector_get_pressure_state_name()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) returning flash string descriptors for logging and telemetry.
+- Enforce strict C99 safety, zero dynamic memory allocation, and defensive NULL/NaN argument validation.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- **State Classification Thresholds**:
+  - `PRESSURE_RAPID_DROP`: $\Delta P_{3\text{h}} \le -2.00\text{ hPa}$ OR $\Delta P_{1\text{h}} \le -1.50\text{ hPa/hr}$
+  - `PRESSURE_MODERATE_DROP`: $-2.00\text{ hPa} < \Delta P_{3\text{h}} \le -1.00\text{ hPa}$
+  - `PRESSURE_SLOW_DROP`: $-1.00\text{ hPa} < \Delta P_{3\text{h}} \le 0.00\text{ hPa}$
+  - `PRESSURE_STEADY`: $0.00\text{ hPa} < \Delta P_{3\text{h}} \le +1.00\text{ hPa}$
+  - `PRESSURE_RISING`: $\Delta P_{3\text{h}} > +1.00\text{ hPa}$
+- **Sub-Scoring Step Function ($S_P \in [0, 100]$)**:
+  - $\Delta P_{3\text{h}} \le -3.00\text{ hPa} \implies S_{P\_base} = 100$
+  - $-3.00 < \Delta P_{3\text{h}} \le -2.00\text{ hPa} \implies S_{P\_base} = 80$
+  - $-2.00 < \Delta P_{3\text{h}} \le -1.00\text{ hPa} \implies S_{P\_base} = 50$
+  - $-1.00 < \Delta P_{3\text{h}} \le 0.00\text{ hPa} \implies S_{P\_base} = 20$
+  - $\Delta P_{3\text{h}} > 0.00\text{ hPa} \implies S_{P\_base} = 0$
+  - **1h Fast Squall Override**: If $\Delta P_{1\text{h}} \le -1.50\text{ hPa/hr} \implies S_P = \max(S_{P\_base}, 90)$
+- **Adaptive Sampling Trigger**: `PRESSURE_RAPID_DROP` triggers 2-minute rapid storm tracking mode.
+- **Target Platform & Execution Performance**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz), execution latency $< 150$ CPU cycles.
 
 ## History
 

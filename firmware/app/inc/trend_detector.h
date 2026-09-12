@@ -83,6 +83,57 @@ int32_t trend_detector_compute_gradients(const env_sample_t *p_samples,
                                          uint32_t sample_count,
                                          multi_gradient_t *p_gradients);
 
+/**
+ * @brief Barometric pressure trend state classifications.
+ */
+typedef enum {
+    PRESSURE_RAPID_DROP     = 0, /**< Drop > 2.0 hPa/3h or > 1.5 hPa/1h (Severe storm risk) */
+    PRESSURE_MODERATE_DROP  = 1, /**< Drop 1.0 to 2.0 hPa/3h (Developing low trough) */
+    PRESSURE_SLOW_DROP      = 2, /**< Drop 0.0 to 1.0 hPa/3h (Weak diurnal decrease) */
+    PRESSURE_STEADY         = 3, /**< Pressure change 0.0 to +1.0 hPa/3h (Stable field) */
+    PRESSURE_RISING         = 4  /**< Pressure rise > 1.0 hPa/3h (Building anticyclone/clearing) */
+} pressure_trend_state_t;
+
+/**
+ * @brief Pressure trend threshold constants.
+ */
+#define BARO_THRESH_RAPID_DROP_3H_HPA       (-2.00f)
+#define BARO_THRESH_RAPID_DROP_1H_HPA       (-1.50f)
+#define BARO_THRESH_MOD_DROP_3H_HPA         (-1.00f)
+#define BARO_THRESH_SEVERE_SQUALL_3H_HPA    (-3.00f)
+
+/**
+ * @brief Classifies the discrete barometric pressure trend state.
+ * 
+ * @param[in]  delta_p_1h    1-hour barometric delta in hPa.
+ * @param[in]  delta_p_3h    3-hour barometric delta in hPa.
+ * @param[out] p_state       Pointer to store classified pressure_trend_state_t.
+ * @return int32_t           0 on success, negative error code on failure.
+ */
+int32_t trend_detector_classify_pressure(float delta_p_1h,
+                                         float delta_p_3h,
+                                         pressure_trend_state_t *p_state);
+
+/**
+ * @brief Computes normalized barometric precipitation sub-score (0 to 100).
+ * 
+ * @param[in]  delta_p_1h    1-hour barometric delta in hPa.
+ * @param[in]  delta_p_3h    3-hour barometric delta in hPa.
+ * @param[out] p_score       Pointer to store normalized score (0 to 100).
+ * @return int32_t           0 on success, negative error code on failure.
+ */
+int32_t trend_detector_score_pressure(float delta_p_1h,
+                                      float delta_p_3h,
+                                      uint8_t *p_score);
+
+/**
+ * @brief Returns descriptive name string for a given pressure trend state.
+ * 
+ * @param[in]  state         Classified pressure trend state.
+ * @return const char*       Pointer to flash string descriptor.
+ */
+const char *trend_detector_get_pressure_state_name(pressure_trend_state_t state);
+
 #ifdef __cplusplus
 }
 #endif

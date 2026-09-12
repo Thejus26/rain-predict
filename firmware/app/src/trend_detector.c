@@ -127,3 +127,82 @@ int32_t trend_detector_compute_gradients(const env_sample_t *p_samples,
 
     return STATUS_OK_CODE;
 }
+
+static const char * const s_pressure_state_names[5] = {
+    "Rapid Drop (Storm Imminent)",
+    "Moderate Drop (Trough Developing)",
+    "Slow Drop (Normal Diurnal)",
+    "Steady (Stable Atmosphere)",
+    "Rising (High Anticyclone)"
+};
+
+int32_t trend_detector_classify_pressure(float delta_p_1h,
+                                         float delta_p_3h,
+                                         pressure_trend_state_t *p_state)
+{
+    if (p_state == NULL) {
+        return ERR_NULL_PTR_CODE;
+    }
+    if (isnan(delta_p_1h) || isnan(delta_p_3h) || isinf(delta_p_1h) || isinf(delta_p_3h)) {
+        return ERR_INVALID_ARG_CODE;
+    }
+
+    if (delta_p_3h <= BARO_THRESH_RAPID_DROP_3H_HPA ||
+        delta_p_1h <= BARO_THRESH_RAPID_DROP_1H_HPA) {
+        *p_state = PRESSURE_RAPID_DROP;
+    } else if (delta_p_3h <= BARO_THRESH_MOD_DROP_3H_HPA) {
+        *p_state = PRESSURE_MODERATE_DROP;
+    } else if (delta_p_3h <= 0.0f) {
+        *p_state = PRESSURE_SLOW_DROP;
+    } else if (delta_p_3h <= 1.0f) {
+        *p_state = PRESSURE_STEADY;
+    } else {
+        *p_state = PRESSURE_RISING;
+    }
+
+    return STATUS_OK_CODE;
+}
+
+int32_t trend_detector_score_pressure(float delta_p_1h,
+                                      float delta_p_3h,
+                                      uint8_t *p_score)
+{
+    if (p_score == NULL) {
+        return ERR_NULL_PTR_CODE;
+    }
+    if (isnan(delta_p_1h) || isnan(delta_p_3h) || isinf(delta_p_1h) || isinf(delta_p_3h)) {
+        return ERR_INVALID_ARG_CODE;
+    }
+
+    uint8_t score = 0U;
+
+    if (delta_p_3h <= BARO_THRESH_SEVERE_SQUALL_3H_HPA) {
+        score = 100U;
+    } else if (delta_p_3h <= BARO_THRESH_RAPID_DROP_3H_HPA) {
+        score = 80U;
+    } else if (delta_p_3h <= BARO_THRESH_MOD_DROP_3H_HPA) {
+        score = 50U;
+    } else if (delta_p_3h <= 0.0f) {
+        score = 20U;
+    } else {
+        score = 0U;
+    }
+
+    /* Fast 1-hour squall override */
+    if (delta_p_1h <= BARO_THRESH_RAPID_DROP_1H_HPA) {
+        if (score < 90U) {
+            score = 90U;
+        }
+    }
+
+    *p_score = score;
+    return STATUS_OK_CODE;
+}
+
+const char *trend_detector_get_pressure_state_name(pressure_trend_state_t state)
+{
+    if ((uint32_t)state > (uint32_t)PRESSURE_RISING) {
+        return "Unknown Pressure State";
+    }
+    return s_pressure_state_names[(uint8_t)state];
+}
