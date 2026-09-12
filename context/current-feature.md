@@ -1,34 +1,16 @@
-# Current Feature: S2-T4.2 - Barometric Pressure Trend State Classification & Scoring
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Define `pressure_trend_state_t` enum (5 discrete states: `PRESSURE_RAPID_DROP`, `PRESSURE_MODERATE_DROP`, `PRESSURE_SLOW_DROP`, `PRESSURE_STEADY`, `PRESSURE_RISING`) and threshold constants in [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h).
-- Implement `trend_detector_classify_pressure()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to evaluate $\Delta P_{1\text{h}}$ and $\Delta P_{3\text{h}}$ against meteorological thresholds.
-- Implement `trend_detector_score_pressure()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to calculate normalized pressure sub-score $S_P \in [0, 100]$ (with 1-hour fast squall override boost to $\ge 90$ when $\Delta P_{1\text{h}} \le -1.5\text{ hPa/hr}$).
-- Implement `trend_detector_get_pressure_state_name()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) returning flash string descriptors for logging and telemetry.
-- Enforce strict C99 safety, zero dynamic memory allocation, and defensive NULL/NaN argument validation.
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- **State Classification Thresholds**:
-  - `PRESSURE_RAPID_DROP`: $\Delta P_{3\text{h}} \le -2.00\text{ hPa}$ OR $\Delta P_{1\text{h}} \le -1.50\text{ hPa/hr}$
-  - `PRESSURE_MODERATE_DROP`: $-2.00\text{ hPa} < \Delta P_{3\text{h}} \le -1.00\text{ hPa}$
-  - `PRESSURE_SLOW_DROP`: $-1.00\text{ hPa} < \Delta P_{3\text{h}} \le 0.00\text{ hPa}$
-  - `PRESSURE_STEADY`: $0.00\text{ hPa} < \Delta P_{3\text{h}} \le +1.00\text{ hPa}$
-  - `PRESSURE_RISING`: $\Delta P_{3\text{h}} > +1.00\text{ hPa}$
-- **Sub-Scoring Step Function ($S_P \in [0, 100]$)**:
-  - $\Delta P_{3\text{h}} \le -3.00\text{ hPa} \implies S_{P\_base} = 100$
-  - $-3.00 < \Delta P_{3\text{h}} \le -2.00\text{ hPa} \implies S_{P\_base} = 80$
-  - $-2.00 < \Delta P_{3\text{h}} \le -1.00\text{ hPa} \implies S_{P\_base} = 50$
-  - $-1.00 < \Delta P_{3\text{h}} \le 0.00\text{ hPa} \implies S_{P\_base} = 20$
-  - $\Delta P_{3\text{h}} > 0.00\text{ hPa} \implies S_{P\_base} = 0$
-  - **1h Fast Squall Override**: If $\Delta P_{1\text{h}} \le -1.50\text{ hPa/hr} \implies S_P = \max(S_{P\_base}, 90)$
-- **Adaptive Sampling Trigger**: `PRESSURE_RAPID_DROP` triggers 2-minute rapid storm tracking mode.
-- **Target Platform & Execution Performance**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz), execution latency $< 150$ CPU cycles.
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -71,4 +53,6 @@ In Progress
 - 2026-09-12: S2-T3.3 - Implemented Zambretti seasonal monsoon and 16-point wind direction weighting engine (s_seasonal_monthly_offsets, s_wind_direction_offsets, zambretti_azimuth_to_wind_dir, zambretti_calculate_weighted) with 0.5 m/s calm speed threshold and [1, 26] index bounding.
 - 2026-09-12: S2-T3.4 - Implemented comprehensive ThrowTheSwitch Unity test suite (tests/unit/test_zambretti.c, tests/CMakeLists.txt) covering 3-hour pressure trend classification & startup scaling, Formulas A/B/C polynomial calculations, [1, 26] index clamping, 3-tier operational alert levels, seasonal & 16-point wind direction weighting offsets, realistic tea plantation weather scenarios (monsoon storm, winter dry anticyclone, pre-monsoon convective shower), and defensive NULL/NaN/range safety guards.
 - 2026-09-12: S2-T4.1 - Implemented multi-variable 1-hour and 3-hour atmospheric gradient differentials (delta P, delta RH, delta T, delta Lux), daylight cloud attenuation drop ratio with 5000 Lux threshold, cold-start bootstrap scaling, and zero-dynamic-memory C99 engine (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
+- 2026-09-12: S2-T4.2 - Implemented barometric pressure trend state classification (pressure_trend_state_t: Rapid/Moderate/Slow Drop, Steady, Rising), normalized precipitation sub-scoring (Sp in [0, 100]), 1-hour convective squall override, and telemetry string lookup table (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
+
 
