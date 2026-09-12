@@ -2,8 +2,9 @@
 
 ## Communication
 
-- Be concise and direct
-- Explain non-obvious engineering and design decisions briefly
+- Be concise, direct, and explain concepts simply (like I'm 15) using intuitive, real-world analogies and plain English
+- Note: The local machine does not have CMake/C-compiler installed; all C compilation, linting, and unit test execution take place in GitHub Actions CI
+- Explain non-obvious engineering and design decisions clearly
 - Ask before large refactors or architectural changes
 - Don't add features not specified in the project scope or requirements
 - Never delete files without explicit confirmation
