@@ -1,16 +1,25 @@
-# Current Feature
+# Current Feature: S2-T4.1 - Multi-Variable 1-Hour & 3-Hour Gradient Differentials
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Define `env_sample_t` and `multi_gradient_t` data structures in [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h).
+- Implement `trend_detector_compute_gradients()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to compute 1-hour and 3-hour rates of change for barometric pressure ($\Delta P$), relative humidity ($\Delta RH$), and ambient temperature ($\Delta T$).
+- Calculate 30-minute solar illuminance delta ($\Delta Lux_{30\text{m}}$) and relative solar attenuation drop percentage ($R_{drop\_30m}$) with $\ge 5000\text{ Lux}$ daylight threshold guard.
+- Implement startup sample scaling for cold-boot scenarios when full 3-hour window ($N < 18$) is not yet accumulated ($N \ge 6$ extrapolates 3h delta; $1 < N \le 6$ extrapolates 1h delta).
+- Implement defensive validation (NULL pointer checks, NaN verification on newest/historical samples, zero sample count guard).
+- Integrate `trend_detector.c` into [`firmware/app/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/CMakeLists.txt).
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- **Sampling Cadence**: Nominal 10-minute intervals ($600\text{ s}$); 30-min window = 3 samples, 1-hour window = 6 samples, 3-hour window = 18 samples.
+- **Array Layout**: `p_samples` array is chronological where index `0` is oldest and index `sample_count - 1` is current ($t$).
+- **Solar Attenuation Guard**: Daylight threshold `SOLAR_DAYLIGHT_MIN_LUX = 5000.0f`. Solar drop percentage is evaluated as `((Lux_old - Lux_now) / Lux_old) * 100.0f` only when `Lux_old >= 5000.0f` and `Lux_now < Lux_old`; returns `0.0f` otherwise (night/dawn/dusk/increasing light).
+- **Target Platform / Performance**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz). Zero dynamic memory allocation ($O(1)$ stack/space), deterministic execution ($< 250$ CPU cycles).
+- **Return / Status Codes**: Standard status codes: `0` (STATUS_OK), `-1` (ERR_NULL_PTR), `-2` (ERR_INVALID_ARG / NaN), `-3` (ERR_INSUFFICIENT_DATA).
 
 ## History
 

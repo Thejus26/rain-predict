@@ -5,6 +5,7 @@
 
 add_library(firmware_app STATIC
     src/zambretti.c
+    src/trend_detector.c
 )
 
 target_include_directories(firmware_app PUBLIC
