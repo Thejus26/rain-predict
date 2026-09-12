@@ -1,39 +1,16 @@
-# Current Feature: S2-T2.2 - Dew Point Temperature & Relative Humidity Depression
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Implement `dew_point_calc_tdew(float temp_c, float rh_pct, float *p_dew_c)` in Layer 3 middleware utilizing intermediate parameter $\gamma(T, RH) = \ln(RH/100) + (17.67 \cdot T)/(T + 243.5)$ and analytical inversion $T_{dew} = (243.5 \cdot \gamma) / (17.67 - \gamma)$.
-- Implement `dew_point_calc_depression(float temp_c, float rh_pct, float *p_dpd_c)` calculating $\Delta T_{dep} = \max(0.0\text{f}, T - T_{dew})$.
-- Implement `dew_point_calc_from_vapor_pressure(float e_hpa, float *p_dew_c)` computing dew point temperature directly from known actual partial vapor pressure $e$.
-- Implement `dew_point_calc_psychrometric_state(float temp_c, float rh_pct, psychrometric_state_t *p_state)` aggregating $e_s$, $e$, $\text{VPD}$, $\text{AH}$, $T_{dew}$, and $\Delta T_{dep}$ in a single validated invocation.
-- Enforce strict single-precision FPU execution (`logf`, `fabsf`), zero dynamic memory allocation, stack frame $< 48$ bytes, and execution latency $< 280$ CPU cycles @ 48 MHz.
-- Implement singularity and boundary protections: denominator guard ($|17.67 - \gamma| < 10^{-4}\text{f}$), non-positive logarithm clamping ($RH \ge 0.1\%$, $e \ge 0.1\text{ hPa}$), and physical invariants ($T_{dew} \le T$, $\Delta T_{dep} \ge 0.0^\circ\text{C}$).
-- Include robust input parameter validation (NULL pointer checks returning `STATUS_ERR_NULL_PTR`, `isnan()` checks returning `STATUS_ERR_INVALID_ARG`, and temperature/humidity domain clamping).
-- Verify numerical accuracy against NOAA/Smithsonian psychrometric reference test vectors (TC-DP-01 through TC-DP-11) within tolerance $\pm 0.05^\circ\text{C}$.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Target Files**:
-  - [`firmware/middleware/inc/dew_point.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/dew_point.h)
-  - [`firmware/middleware/src/dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c)
-- **Specification Document**: [`context/specs/s2-t2.2-dew-point-depression.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t2.2-dew-point-depression.md)
-- **Mathematical Constants**:
-  - Magnus coefficients: $a = 6.112\text{f}\text{ hPa}$, $b = 17.67\text{f}$, $c = 243.5\text{f}$
-  - Absolute humidity constant: $C = 216.7\text{f}\text{ g}\cdot\text{K}/\text{J}$
-  - Kelvin offset: $273.15\text{f}$
-  - Denominator epsilon: $10^{-4}\text{f}$
-- **Domain Constraints**:
-  - $T \in [-40.0^\circ\text{C}, +85.0^\circ\text{C}]$
-  - $RH \in [0.1\%, 100.0\%]$
-  - Actual Vapor Pressure $e \ge 0.1\text{ hPa}$
-- **Agronomic & Meteorological Significance**:
-  - Lifting Condensation Level (LCL) / Cloud Base: $H_{cloud\_base} \approx 125 \times (T - T_{dew})\text{ [m]}$
-  - Canopy saturation & blister blight trigger: $\Delta T_{dep} \le 0.5^\circ\text{C}$
-  - Convective squall precursor: Rapid collapse of $\Delta T_{dep}$ over 30–60 min
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -68,6 +45,7 @@ In Progress
 - 2026-09-12: S2-T1.2 - Implemented single-precision floating-point moving average filter (firmware/middleware/inc/moving_avg_filter.h, firmware/middleware/src/moving_avg_filter.c, firmware/middleware/CMakeLists.txt) with O(1) running sum accumulator, statistical outlier spike suppression, configurable sampling window sizes (3, 4, 6, 12 samples), zero-crossing drift protection, and zero dynamic memory allocation.
 - 2026-09-12: S2-T1.3 - Implemented comprehensive ThrowTheSwitch Unity test suites (tests/unit/test_ring_buffer.c, tests/unit/test_moving_avg.c, tests/CMakeLists.txt) covering generic FIFO ring buffer ordering, drop/overwrite overflow policies, pointer wrap-around, non-destructive peeking, multi-window moving average math (sizes 3, 4, 6, 12), O(1) stability over 10,000 samples, and outlier spike clamping.
 - 2026-09-12: S2-T2.1 - Implemented saturation vapor pressure (es), actual partial vapor pressure (e), absolute humidity (AH), and vapor pressure deficit (VPD) formulas (firmware/middleware/inc/dew_point.h, firmware/middleware/src/dew_point.c) with single-precision floating point, defensive input bounds clamping, NULL/NaN safety guards, and ThrowTheSwitch Unity test suite (tests/unit/test_dew_point.c).
+- 2026-09-12: S2-T2.2 - Implemented Magnus-Tetens dew point inversion (Tdew), dew point depression (DPD), direct vapor pressure inversion, and complete psychrometric state calculations (firmware/middleware/inc/dew_point.h, firmware/middleware/src/dew_point.c) with single-precision FPU math, singularity/non-positive logarithm guards, physical invariant clamping, and ThrowTheSwitch Unity unit test suite (tests/unit/test_dew_point.c).
 
 
 
