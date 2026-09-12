@@ -373,6 +373,147 @@ static void test_dew_point_tdew_depression_null_and_nan_safety(void) {
     TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_psychrometric_state(20.0f, nan_val, &state));
 }
 
+/**
+ * @brief Test hypsometric sea level reduction P0(P, T, h) against ICAO / WMO reference vectors.
+ */
+static void test_dew_point_sea_level_pressure_reference_matrix(void) {
+    float p0 = 0.0f;
+
+    /* TC-HYP-01: Sea-Level Baseline (P=1013.25 hPa, T=15.0°C, h=0.0m) -> P0 = 1013.25 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(1013.25f, 15.00f, 0.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 1013.25f, p0);
+
+    /* TC-HYP-02: Munnar Valley Station (P=898.70 hPa, T=22.0°C, h=1000.0m) -> P0 = 1007.74 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(898.70f, 22.00f, 1000.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 1007.74f, p0);
+
+    /* TC-HYP-03: Coonoor Mid-Slope (P=845.20 hPa, T=18.5°C, h=1500.0m) -> P0 = 1004.70 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(845.20f, 18.50f, 1500.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 1004.70f, p0);
+
+    /* TC-HYP-04: Ooty Ridge Peak (P=785.40 hPa, T=14.0°C, h=2000.0m) -> P0 = 991.24 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(785.40f, 14.00f, 2000.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 991.24f, p0);
+
+    /* TC-HYP-05: Kolukkumalai High Mast (P=767.10 hPa, T=12.0°C, h=2160.0m) -> P0 = 987.61 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(767.10f, 12.00f, 2160.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 987.61f, p0);
+
+    /* TC-HYP-06: Monsoon Storm Drop (P=832.10 hPa, T=19.0°C, h=1500.0m) -> P0 = 988.84 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(832.10f, 19.00f, 1500.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 988.84f, p0);
+
+    /* TC-HYP-07: Sub-Zero Winter Frost (P=850.00 hPa, T=-2.0°C, h=1500.0m) -> P0 = 1023.46 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(850.00f, -2.00f, 1500.0f, &p0));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 1023.46f, p0);
+}
+
+/**
+ * @brief Test inverse station pressure calculation and bidirectional loopback.
+ */
+static void test_dew_point_station_pressure_from_p0_reference(void) {
+    float p_station = 0.0f;
+    float p0 = 0.0f;
+
+    /* TC-HYP-08: Inverse Pressure Loopback (P0 = 1004.70 hPa, T=18.5°C, h=1500.0m -> Station P = 845.20 hPa) */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_station_pressure_from_p0(1004.70f, 18.50f, 1500.0f, &p_station));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 845.20f, p_station);
+
+    /* Sea level bypass: P0 = 1013.25 hPa, h=0.0m -> Station P = 1013.25 hPa */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_station_pressure_from_p0(1013.25f, 15.00f, 0.0f, &p_station));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 1013.25f, p_station);
+
+    /* Exact roundtrip test across various elevations */
+    float test_pressures[] = {750.0f, 800.0f, 850.0f, 900.0f, 950.0f, 1013.25f};
+    float test_altitudes[] = {0.0f, 500.0f, 1000.0f, 1500.0f, 2000.0f, 2500.0f};
+    float temp = 20.0f;
+
+    for (size_t i = 0; i < sizeof(test_pressures) / sizeof(test_pressures[0]); i++) {
+        float p_orig = test_pressures[i];
+        float alt = test_altitudes[i];
+
+        TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(p_orig, temp, alt, &p0));
+        TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_station_pressure_from_p0(p0, temp, alt, &p_station));
+        TEST_ASSERT_FLOAT_WITHIN(0.005f, p_orig, p_station);
+    }
+}
+
+/**
+ * @brief Test pressure altitude estimation from station pressure and P0 reference.
+ */
+static void test_dew_point_pressure_altitude_reference(void) {
+    float alt_m = 0.0f;
+
+    /* Sea level: P = 1013.25 hPa, P0 = 1013.25 hPa, T = 15.0°C -> h = 0.0m */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_pressure_altitude(1013.25f, 1013.25f, 15.0f, &alt_m));
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 0.0f, alt_m);
+
+    /* Mid-elevation: P = 845.20 hPa, P0 = 1004.70 hPa, T = 18.5°C -> h ≈ 1500m */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_pressure_altitude(845.20f, 1004.70f, 18.5f, &alt_m));
+    TEST_ASSERT_FLOAT_WITHIN(30.0f, 1500.0f, alt_m);
+}
+
+/**
+ * @brief Test hypsometric altitude clamping, bypass, and domain bounds.
+ */
+static void test_dew_point_hypsometric_clamping_and_bypass(void) {
+    float p0_neg = 0.0f;
+    float p0_zero = 0.0f;
+    float p0_clamped = 0.0f;
+    float p0_max = 0.0f;
+
+    /* Negative elevation (below sea level) direct bypass */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(950.0f, 20.0f, -50.0f, &p0_neg));
+    TEST_ASSERT_EQUAL_FLOAT(950.0f, p0_neg);
+
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(950.0f, 20.0f, 0.0f, &p0_zero));
+    TEST_ASSERT_EQUAL_FLOAT(950.0f, p0_zero);
+
+    /* Elevation > 5000.0m is clamped to 5000.0m */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(600.0f, 10.0f, 6000.0f, &p0_clamped));
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_sea_level_pressure(600.0f, 10.0f, 5000.0f, &p0_max));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, p0_max, p0_clamped);
+
+    /* Station pressure from P0 with negative elevation bypass */
+    float p_neg = 0.0f;
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_station_pressure_from_p0(1013.25f, 20.0f, -10.0f, &p_neg));
+    TEST_ASSERT_EQUAL_FLOAT(1013.25f, p_neg);
+}
+
+/**
+ * @brief Test defensive null pointer, NaN inputs, and out-of-range bounds.
+ */
+static void test_dew_point_hypsometric_null_and_nan_safety(void) {
+    float out = 0.0f;
+    float nan_val = 0.0f / 0.0f;
+
+    /* TC-HYP-09: Null pointer trap */
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_sea_level_pressure(845.0f, 20.0f, 1500.0f, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_station_pressure_from_p0(1013.25f, 20.0f, 1500.0f, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_pressure_altitude(845.0f, 1013.25f, 20.0f, NULL));
+
+    /* TC-HYP-10: Out of bounds pressure (< 300 hPa or > 1100 hPa) */
+    TEST_ASSERT_EQUAL(STATUS_ERR_OUT_OF_RANGE, dew_point_calc_sea_level_pressure(150.0f, 20.0f, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_OUT_OF_RANGE, dew_point_calc_sea_level_pressure(1200.0f, 20.0f, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_OUT_OF_RANGE, dew_point_calc_station_pressure_from_p0(200.0f, 20.0f, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_OUT_OF_RANGE, dew_point_calc_station_pressure_from_p0(1200.0f, 20.0f, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_OUT_OF_RANGE, dew_point_calc_pressure_altitude(-10.0f, 1013.25f, 20.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_OUT_OF_RANGE, dew_point_calc_pressure_altitude(845.0f, 0.0f, 20.0f, &out));
+
+    /* NaN validation */
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_sea_level_pressure(nan_val, 20.0f, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_sea_level_pressure(845.0f, nan_val, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_sea_level_pressure(845.0f, 20.0f, nan_val, &out));
+
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_station_pressure_from_p0(nan_val, 20.0f, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_station_pressure_from_p0(1013.25f, nan_val, 1500.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_station_pressure_from_p0(1013.25f, 20.0f, nan_val, &out));
+
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_pressure_altitude(nan_val, 1013.25f, 20.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_pressure_altitude(845.0f, nan_val, 20.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_pressure_altitude(845.0f, 1013.25f, nan_val, &out));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -388,6 +529,11 @@ int main(void) {
     RUN_TEST(test_dew_point_psychrometric_state_full);
     RUN_TEST(test_dew_point_physical_invariants);
     RUN_TEST(test_dew_point_tdew_depression_null_and_nan_safety);
+    RUN_TEST(test_dew_point_sea_level_pressure_reference_matrix);
+    RUN_TEST(test_dew_point_station_pressure_from_p0_reference);
+    RUN_TEST(test_dew_point_pressure_altitude_reference);
+    RUN_TEST(test_dew_point_hypsometric_clamping_and_bypass);
+    RUN_TEST(test_dew_point_hypsometric_null_and_nan_safety);
 
     return UNITY_END();
 }
