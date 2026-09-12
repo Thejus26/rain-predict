@@ -132,4 +132,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_ring_buffer.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_moving_avg.c")
+    add_firmware_test(moving_avg
+        SOURCES unit/test_moving_avg.c
+        LIBRARIES firmware_middleware
+    )
+endif()
+
+
 

@@ -1,16 +1,42 @@
-# Current Feature
+# Current Feature: S2-T1.3 - Ring Buffer & Moving-Average Filter Unit Test Suites
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- [x] Create comprehensive ThrowTheSwitch Unity unit test suite in [`tests/unit/test_ring_buffer.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_ring_buffer.c) covering:
+  - NULL pointer and invalid parameter boundary validation (`ring_buffer_init`)
+  - FIFO ordering with primitive data types (`uint32_t`, `uint8_t`, `uint16_t`)
+  - FIFO ordering with structured sensor records (`test_record_t` / 16-byte structs)
+  - Full buffer rejection under `RING_BUFFER_DROP_NEW` policy (`STATUS_ERR_BUSY`)
+  - Oldest item eviction mechanics under `RING_BUFFER_OVERWRITE_OLD` policy
+  - 500–1000 cycle continuous push/pop wrap-around boundary safety
+  - Direct indexed non-destructive peeking (`ring_buffer_peek_at`) and out-of-bounds error handling (`STATUS_ERR_INVALID_PARAM`)
+  - Housekeeping verification (`ring_buffer_clear`, `ring_buffer_is_empty`, `ring_buffer_is_full`)
+- [x] Create comprehensive ThrowTheSwitch Unity unit test suite in [`tests/unit/test_moving_avg.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_moving_avg.c) covering:
+  - NULL pointer and zero window size validation (`moving_avg_init`)
+  - Sliding window mathematical correctness across window sizes 3, 4, 6, and 12 during warm-up and steady state
+  - $O(1)$ constant-time accumulator stability and zero floating-point drift over 10,000 iterations
+  - Outlier spike detection and threshold clamping ($100.0^\circ\text{C}$ spike clamped to $25.0^\circ\text{C}$)
+  - Priming state indicator transitions (`moving_avg_is_primed`)
+  - Negative temperatures and near-zero value precision handling
+  - State reset verification (`moving_avg_reset`)
+- [x] Register both test executables (`ring_buffer` and `moving_avg`) in [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt) linking `firmware_middleware`.
+- [x] Execute test suites via CTest and native test binaries with 100% pass rate and 0 compiler warnings under strict flags (`-Wall -Wextra -Wpedantic -Werror`).
+- [x] Verify zero memory leaks or uninitialized memory access via ASan/UBSan sanitizers.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Framework**: ThrowTheSwitch Unity test framework ([`tests/unity/unity.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unity/unity.h)).
+- **Target Files**:
+  - [`tests/unit/test_ring_buffer.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_ring_buffer.c)
+  - [`tests/unit/test_moving_avg.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_moving_avg.c)
+  - [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt)
+- **Memory & Allocation Rules**: Zero dynamic memory allocation (`malloc`/`free` strictly prohibited); all ring buffer storage arrays and filter buffers must be statically allocated test fixtures.
+- **Float Comparison**: Single-precision floating-point comparisons must use `TEST_ASSERT_FLOAT_WITHIN(delta, expected, actual)` with appropriate tolerances ($0.001\text{f}$ for short tests, $0.0001\text{f}$ for drift stability).
+- **Target Libraries**: Linked against `firmware_middleware` library target implementing [`firmware/middleware/inc/ring_buffer.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/ring_buffer.h) and [`firmware/middleware/inc/moving_avg_filter.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/moving_avg_filter.h).
 
 ## History
 
