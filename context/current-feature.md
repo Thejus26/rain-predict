@@ -1,25 +1,16 @@
-# Current Feature: S2-T4.1 - Multi-Variable 1-Hour & 3-Hour Gradient Differentials
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Define `env_sample_t` and `multi_gradient_t` data structures in [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h).
-- Implement `trend_detector_compute_gradients()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to compute 1-hour and 3-hour rates of change for barometric pressure ($\Delta P$), relative humidity ($\Delta RH$), and ambient temperature ($\Delta T$).
-- Calculate 30-minute solar illuminance delta ($\Delta Lux_{30\text{m}}$) and relative solar attenuation drop percentage ($R_{drop\_30m}$) with $\ge 5000\text{ Lux}$ daylight threshold guard.
-- Implement startup sample scaling for cold-boot scenarios when full 3-hour window ($N < 18$) is not yet accumulated ($N \ge 6$ extrapolates 3h delta; $1 < N \le 6$ extrapolates 1h delta).
-- Implement defensive validation (NULL pointer checks, NaN verification on newest/historical samples, zero sample count guard).
-- Integrate `trend_detector.c` into [`firmware/app/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/CMakeLists.txt).
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- **Sampling Cadence**: Nominal 10-minute intervals ($600\text{ s}$); 30-min window = 3 samples, 1-hour window = 6 samples, 3-hour window = 18 samples.
-- **Array Layout**: `p_samples` array is chronological where index `0` is oldest and index `sample_count - 1` is current ($t$).
-- **Solar Attenuation Guard**: Daylight threshold `SOLAR_DAYLIGHT_MIN_LUX = 5000.0f`. Solar drop percentage is evaluated as `((Lux_old - Lux_now) / Lux_old) * 100.0f` only when `Lux_old >= 5000.0f` and `Lux_now < Lux_old`; returns `0.0f` otherwise (night/dawn/dusk/increasing light).
-- **Target Platform / Performance**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz). Zero dynamic memory allocation ($O(1)$ stack/space), deterministic execution ($< 250$ CPU cycles).
-- **Return / Status Codes**: Standard status codes: `0` (STATUS_OK), `-1` (ERR_NULL_PTR), `-2` (ERR_INVALID_ARG / NaN), `-3` (ERR_INSUFFICIENT_DATA).
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -61,3 +52,5 @@ In Progress
 - 2026-09-12: S2-T3.2 - Implemented Zambretti sea-level pressure empirical polynomials (Formulas A, B, C), [985, 1050] hPa range clamping, [1, 26] index discretization, 3-tier operational alert classification (Unlikely/Possible/Imminent), flash string table, and end-to-end zambretti_calculate() engine.
 - 2026-09-12: S2-T3.3 - Implemented Zambretti seasonal monsoon and 16-point wind direction weighting engine (s_seasonal_monthly_offsets, s_wind_direction_offsets, zambretti_azimuth_to_wind_dir, zambretti_calculate_weighted) with 0.5 m/s calm speed threshold and [1, 26] index bounding.
 - 2026-09-12: S2-T3.4 - Implemented comprehensive ThrowTheSwitch Unity test suite (tests/unit/test_zambretti.c, tests/CMakeLists.txt) covering 3-hour pressure trend classification & startup scaling, Formulas A/B/C polynomial calculations, [1, 26] index clamping, 3-tier operational alert levels, seasonal & 16-point wind direction weighting offsets, realistic tea plantation weather scenarios (monsoon storm, winter dry anticyclone, pre-monsoon convective shower), and defensive NULL/NaN/range safety guards.
+- 2026-09-12: S2-T4.1 - Implemented multi-variable 1-hour and 3-hour atmospheric gradient differentials (delta P, delta RH, delta T, delta Lux), daylight cloud attenuation drop ratio with 5000 Lux threshold, cold-start bootstrap scaling, and zero-dynamic-memory C99 engine (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
+
