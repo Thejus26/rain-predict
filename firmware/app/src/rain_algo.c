@@ -281,7 +281,7 @@ status_t rain_algo_evaluate(const env_sample_t *p_samples,
                                    p_curr->lux,
                                    &alert_state);
 
-    p_forecast->forecast_state = (rain_forecast_state_t)alert_state;
+    p_forecast->forecast_state = alert_state;
     return STATUS_OK;
 }
 
