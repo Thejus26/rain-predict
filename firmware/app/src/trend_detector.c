@@ -206,3 +206,81 @@ const char *trend_detector_get_pressure_state_name(pressure_trend_state_t state)
     }
     return s_pressure_state_names[(uint8_t)state];
 }
+
+static const char * const s_solar_state_names[4] = {
+    "Night / Low Light",
+    "Clear Sky (High Insolation)",
+    "Scattered Clouds",
+    "Storm Cloud Extinction (Cumulonimbus)"
+};
+
+int32_t trend_detector_classify_solar(float lux_now,
+                                      float lux_30m_ago,
+                                      float drop_pct_30m,
+                                      solar_cloud_state_t *p_state)
+{
+    if (p_state == NULL) {
+        return ERR_NULL_PTR_CODE;
+    }
+    if (isnan(lux_now) || isnan(lux_30m_ago) || isnan(drop_pct_30m) ||
+        isinf(lux_now) || isinf(lux_30m_ago) || isinf(drop_pct_30m)) {
+        return ERR_INVALID_ARG_CODE;
+    }
+
+    if (lux_now < SOLAR_NIGHT_THRESH_LUX && lux_30m_ago < SOLAR_NIGHT_THRESH_LUX) {
+        *p_state = SOLAR_NIGHT;
+    } else if (lux_30m_ago >= SOLAR_DAYLIGHT_MIN_LUX &&
+               (drop_pct_30m >= SOLAR_DROP_THRESH_MODERATE_PCT ||
+                (drop_pct_30m >= SOLAR_DROP_THRESH_SEVERE_PCT && lux_now < SOLAR_STORM_DARKNESS_LUX))) {
+        *p_state = SOLAR_STORM_CLOUD_DROP;
+    } else if (drop_pct_30m >= SOLAR_DROP_THRESH_CLEAR_PCT || lux_now < SOLAR_CLEAR_MIN_LUX) {
+        *p_state = SOLAR_SCATTERED;
+    } else {
+        *p_state = SOLAR_CLEAR;
+    }
+
+    return STATUS_OK_CODE;
+}
+
+int32_t trend_detector_score_solar(float lux_now,
+                                   float lux_30m_ago,
+                                   float drop_pct_30m,
+                                   uint8_t *p_score)
+{
+    if (p_score == NULL) {
+        return ERR_NULL_PTR_CODE;
+    }
+    if (isnan(lux_now) || isnan(lux_30m_ago) || isnan(drop_pct_30m) ||
+        isinf(lux_now) || isinf(lux_30m_ago) || isinf(drop_pct_30m)) {
+        return ERR_INVALID_ARG_CODE;
+    }
+
+    /* Suppress scoring if prior light was below daylight threshold */
+    if (lux_30m_ago < SOLAR_DAYLIGHT_MIN_LUX) {
+        *p_score = 0U;
+        return STATUS_OK_CODE;
+    }
+
+    uint8_t score = 0U;
+
+    if (drop_pct_30m >= SOLAR_DROP_THRESH_SEVERE_PCT && lux_now < SOLAR_STORM_DARKNESS_LUX) {
+        score = 100U;
+    } else if (drop_pct_30m >= SOLAR_DROP_THRESH_MODERATE_PCT) {
+        score = 65U;
+    } else if (drop_pct_30m >= SOLAR_DROP_THRESH_MILD_PCT) {
+        score = 30U;
+    } else {
+        score = 0U;
+    }
+
+    *p_score = score;
+    return STATUS_OK_CODE;
+}
+
+const char *trend_detector_get_solar_state_name(solar_cloud_state_t state)
+{
+    if ((uint32_t)state > (uint32_t)SOLAR_STORM_CLOUD_DROP) {
+        return "Unknown Solar State";
+    }
+    return s_solar_state_names[(uint8_t)state];
+}

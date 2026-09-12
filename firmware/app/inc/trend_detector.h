@@ -134,6 +134,63 @@ int32_t trend_detector_score_pressure(float delta_p_1h,
  */
 const char *trend_detector_get_pressure_state_name(pressure_trend_state_t state);
 
+/**
+ * @brief Solar irradiance cloud attenuation states.
+ */
+typedef enum {
+    SOLAR_NIGHT             = 0, /**< Night / Dawn / Dusk (Lux < 50) */
+    SOLAR_CLEAR             = 1, /**< Clear direct sunlight (> 20,000 Lux, drop < 15%) */
+    SOLAR_SCATTERED         = 2, /**< Scattered fair-weather cumulus / cirrus (drop 15-50%) */
+    SOLAR_STORM_CLOUD_DROP  = 3  /**< Severe optical extinction by cumulonimbus (drop >= 50%) */
+} solar_cloud_state_t;
+
+/**
+ * @brief Solar cloud attenuation threshold constants.
+ */
+#define SOLAR_NIGHT_THRESH_LUX              (50.0f)
+#define SOLAR_CLEAR_MIN_LUX                 (20000.0f)
+#define SOLAR_STORM_DARKNESS_LUX            (3000.0f)
+#define SOLAR_DROP_THRESH_SEVERE_PCT        (70.0f)
+#define SOLAR_DROP_THRESH_MODERATE_PCT      (50.0f)
+#define SOLAR_DROP_THRESH_MILD_PCT          (30.0f)
+#define SOLAR_DROP_THRESH_CLEAR_PCT         (15.0f)
+
+/**
+ * @brief Classifies the discrete solar irradiance cloud attenuation state.
+ * 
+ * @param[in]  lux_now        Current measured ambient light in Lux.
+ * @param[in]  lux_30m_ago    Light level 30 minutes prior in Lux.
+ * @param[in]  drop_pct_30m   Calculated 30-minute relative drop percentage (0 to 100).
+ * @param[out] p_state        Pointer to store classified solar_cloud_state_t.
+ * @return int32_t            0 on success, negative error code on failure.
+ */
+int32_t trend_detector_classify_solar(float lux_now,
+                                      float lux_30m_ago,
+                                      float drop_pct_30m,
+                                      solar_cloud_state_t *p_state);
+
+/**
+ * @brief Computes normalized solar cloud attenuation precipitation sub-score (0 to 100).
+ * 
+ * @param[in]  lux_now        Current measured ambient light in Lux.
+ * @param[in]  lux_30m_ago    Light level 30 minutes prior in Lux.
+ * @param[in]  drop_pct_30m   Calculated 30-minute relative drop percentage.
+ * @param[out] p_score        Pointer to store normalized score (0 to 100).
+ * @return int32_t            0 on success, negative error code on failure.
+ */
+int32_t trend_detector_score_solar(float lux_now,
+                                   float lux_30m_ago,
+                                   float drop_pct_30m,
+                                   uint8_t *p_score);
+
+/**
+ * @brief Returns descriptive name string for a given solar cloud state.
+ * 
+ * @param[in]  state          Classified solar cloud state.
+ * @return const char*        Pointer to flash string descriptor.
+ */
+const char *trend_detector_get_solar_state_name(solar_cloud_state_t state);
+
 #ifdef __cplusplus
 }
 #endif
