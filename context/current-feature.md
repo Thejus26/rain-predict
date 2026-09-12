@@ -1,26 +1,16 @@
-# Current Feature: S2-T1.2 - Moving-Average and Outlier Noise Filter Engine
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Implement single-precision floating-point moving average filter interface in [`firmware/middleware/inc/moving_avg_filter.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/moving_avg_filter.h).
-- Implement moving average computation and spike suppression logic in [`firmware/middleware/src/moving_avg_filter.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/moving_avg_filter.c).
-- Support configurable window sizes (3, 4, 6, 12 samples) with caller-allocated static float storage buffers.
-- Implement $O(1)$ running-sum accumulator updates per sample tick without iterating over buffer elements.
-- Implement optional statistical outlier / spike suppression (`fabsf(sample - current_avg) > outlier_threshold`) with clamping for primed filters ($count \ge 3$).
-- Guard against floating-point accumulation drift near zero (`fabsf(running_sum) < 1e-7f`).
-- Implement complete public API: `moving_avg_init()`, `moving_avg_update()`, `moving_avg_get_average()`, `moving_avg_is_primed()`, `moving_avg_get_count()`, and `moving_avg_reset()`.
-- Enforce strict zero dynamic memory allocation (`malloc`/`free` prohibited).
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Target Hardware: ARM Cortex-M4 (STM32WLE5) single-precision hardware FPU.
-- Standard & Style: C99, 4-space indent, 100-col limit, 1TBS/K&R braces, `status_t` return codes.
-- Spec Document: [`context/specs/s2-t1.2-moving-average-filter.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t1.2-moving-average-filter.md).
-- Downstream Dependencies: `S2-T1.3` (Unity test suite), `S2-T4` (Trend detector), `S2-T5` (Composite rain nowcasting engine).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -52,6 +42,7 @@ In Progress
 - 2026-09-11: S1-T3.3 - Implemented convective and orographic storm injection models (tools/simulation/simulate_plantation_weather.py) with pre-monsoon convective storm build-up/rain/dissipation, sustained monsoon profiles, false-alarm cumulus shadow and morning valley fog controls, discrete tipping-bucket accumulator (0.2 mm/tip), and ground-truth lead time tracking.
 - 2026-09-12: S1-T3.4 - Implemented multi-format dataset serialization (tools/simulation/simulate_plantation_weather.py) supporting RFC 4180 CSV, JSON telemetry streams, and C99 test vector array headers (tests/unit/simulated_weather_vectors.h), meteorological/tipping-bucket integrity validation, CLI summary reporting, and unit test suite (tests/unit/test_simulator.py). Completed Sprint 1.
 - 2026-09-12: S2-T1.1 - Implemented generic static circular FIFO ring buffer (firmware/middleware/inc/ring_buffer.h, ring_buffer.c, firmware/middleware/CMakeLists.txt) supporting arbitrary item sizes, DROP_NEW/OVERWRITE_OLD overflow policies, non-destructive indexed peeking, zero dynamic memory allocation, and Unity test suite (tests/unit/test_ring_buffer.c).
+- 2026-09-12: S2-T1.2 - Implemented single-precision floating-point moving average filter (firmware/middleware/inc/moving_avg_filter.h, firmware/middleware/src/moving_avg_filter.c, firmware/middleware/CMakeLists.txt) with O(1) running sum accumulator, statistical outlier spike suppression, configurable sampling window sizes (3, 4, 6, 12 samples), zero-crossing drift protection, and zero dynamic memory allocation.
 
 
 
