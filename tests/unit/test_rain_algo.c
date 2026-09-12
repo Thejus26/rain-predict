@@ -18,7 +18,7 @@ void tearDown(void)
     /* No cleanup required */
 }
 
-void test_rain_algo_sub_scores(void)
+static void test_rain_algo_sub_scores(void)
 {
     uint8_t score = 0;
 
@@ -71,7 +71,7 @@ void test_rain_algo_sub_scores(void)
     TEST_ASSERT_EQUAL_UINT8(100, score);
 }
 
-void test_rain_algo_composite_score(void)
+static void test_rain_algo_composite_score(void)
 {
     float cpi = 0.0f;
 
@@ -94,7 +94,7 @@ void test_rain_algo_composite_score(void)
     TEST_ASSERT_FLOAT_WITHIN(0.1f, 84.94f, cpi);
 }
 
-void test_rain_algo_state_classification_and_overrides(void)
+static void test_rain_algo_state_classification_and_overrides(void)
 {
     rain_alert_state_t state;
 
@@ -127,7 +127,7 @@ void test_rain_algo_state_classification_and_overrides(void)
     TEST_ASSERT_EQUAL_STRING("Rain Imminent (Red Alert)", rain_algo_get_alert_state_name(RAIN_ALERT_IMMINENT));
 }
 
-void test_rain_algo_master_evaluation_synthetic_storm(void)
+static void test_rain_algo_master_evaluation_synthetic_storm(void)
 {
     /* 36 samples @ 10-minute intervals = 6 hours */
     env_sample_t storm_profile[36];
@@ -183,10 +183,9 @@ void test_rain_algo_master_evaluation_synthetic_storm(void)
     TEST_ASSERT_EQUAL_INT(RAIN_ALERT_IMMINENT, (rain_alert_state_t)fc_squall.forecast_state);
 }
 
-void test_rain_algo_defensive_guards(void)
+static void test_rain_algo_defensive_guards(void)
 {
     rain_forecast_t fc;
-    float cpi;
     rain_alert_state_t state;
     env_sample_t sample;
 
