@@ -118,3 +118,123 @@ status_t dew_point_calc_vpd(float temp_c, float rh_pct, float *p_vpd_hpa)
 
     return STATUS_OK;
 }
+
+#define DENOMINATOR_EPSILON         (1e-4f)
+#define MIN_VAPOR_PRESSURE_HPA      (0.1f)
+
+status_t dew_point_calc_tdew(float temp_c, float rh_pct, float *p_dew_c)
+{
+    if (p_dew_c == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(temp_c) || isnan(rh_pct)) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    float t = clamp_temperature(temp_c);
+    float rh = clamp_humidity(rh_pct);
+
+    /* gamma = ln(RH / 100) + (17.67 * T) / (T + 243.5) */
+    float gamma = logf(rh / 100.0f) + ((MAGNUS_COEFF_A * t) / (t + MAGNUS_COEFF_B));
+
+    /* Denominator = 17.67 - gamma */
+    float denom = MAGNUS_COEFF_A - gamma;
+    if (fabsf(denom) < DENOMINATOR_EPSILON) {
+        denom = (denom >= 0.0f) ? DENOMINATOR_EPSILON : -DENOMINATOR_EPSILON;
+    }
+
+    /* Tdew = (243.5 * gamma) / (17.67 - gamma) */
+    float tdew = (MAGNUS_COEFF_B * gamma) / denom;
+
+    /* Physical constraint: Tdew cannot exceed ambient temperature */
+    if (tdew > t) {
+        tdew = t;
+    }
+
+    *p_dew_c = tdew;
+    return STATUS_OK;
+}
+
+status_t dew_point_calc_depression(float temp_c, float rh_pct, float *p_dpd_c)
+{
+    if (p_dpd_c == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(temp_c) || isnan(rh_pct)) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    float tdew = 0.0f;
+    status_t status = dew_point_calc_tdew(temp_c, rh_pct, &tdew);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    float t = clamp_temperature(temp_c);
+    float dpd = t - tdew;
+    if (dpd < 0.0f) {
+        dpd = 0.0f;
+    }
+
+    *p_dpd_c = dpd;
+    return STATUS_OK;
+}
+
+status_t dew_point_calc_from_vapor_pressure(float e_hpa, float *p_dew_c)
+{
+    if (p_dew_c == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(e_hpa) || e_hpa <= 0.0f) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    /* Clamp vapor pressure to physical limits */
+    float e = (e_hpa < MIN_VAPOR_PRESSURE_HPA) ? MIN_VAPOR_PRESSURE_HPA : e_hpa;
+
+    /* ln(e / 6.112) */
+    float ln_val = logf(e / MAGNUS_COEFF_C);
+    float denom = MAGNUS_COEFF_A - ln_val;
+    if (fabsf(denom) < DENOMINATOR_EPSILON) {
+        denom = (denom >= 0.0f) ? DENOMINATOR_EPSILON : -DENOMINATOR_EPSILON;
+    }
+
+    *p_dew_c = (MAGNUS_COEFF_B * ln_val) / denom;
+    return STATUS_OK;
+}
+
+status_t dew_point_calc_psychrometric_state(float temp_c, float rh_pct, psychrometric_state_t *p_state)
+{
+    if (p_state == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    if (isnan(temp_c) || isnan(rh_pct)) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    p_state->temp_c = clamp_temperature(temp_c);
+    p_state->rh_pct = clamp_humidity(rh_pct);
+
+    status_t status = dew_point_calc_saturation_vp(p_state->temp_c, &p_state->saturation_vp_hpa);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    p_state->actual_vp_hpa = p_state->saturation_vp_hpa * (p_state->rh_pct / 100.0f);
+    p_state->vpd_hpa = p_state->saturation_vp_hpa - p_state->actual_vp_hpa;
+
+    float t_kelvin = p_state->temp_c + KELVIN_OFFSET;
+    p_state->abs_humidity_gm3 = (ABS_HUMIDITY_COEFF * p_state->actual_vp_hpa) / t_kelvin;
+
+    status = dew_point_calc_tdew(p_state->temp_c, p_state->rh_pct, &p_state->dew_point_c);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    p_state->dew_point_dep_c = p_state->temp_c - p_state->dew_point_c;
+    if (p_state->dew_point_dep_c < 0.0f) {
+        p_state->dew_point_dep_c = 0.0f;
+    }
+
+    return STATUS_OK;
+}
