@@ -423,8 +423,8 @@ static void test_dew_point_station_pressure_from_p0_reference(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_station_pressure_from_p0(1013.25f, 15.00f, 0.0f, &p_station));
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 1013.25f, p_station);
 
-    /* Exact roundtrip test across various elevations */
-    float test_pressures[] = {750.0f, 800.0f, 850.0f, 900.0f, 950.0f, 1013.25f};
+    /* Exact roundtrip test across various elevations (using physically realistic station pressures) */
+    float test_pressures[] = {1013.25f, 955.0f, 900.0f, 845.0f, 795.0f, 745.0f};
     float test_altitudes[] = {0.0f, 500.0f, 1000.0f, 1500.0f, 2000.0f, 2500.0f};
     float temp = 20.0f;
 
