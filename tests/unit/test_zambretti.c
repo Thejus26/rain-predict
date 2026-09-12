@@ -18,7 +18,7 @@ void tearDown(void)
     /* No state cleanup required */
 }
 
-void test_zambretti_trend_classification(void)
+static void test_zambretti_trend_classification(void)
 {
     baro_trend_t trend = BARO_TREND_STEADY;
 
@@ -67,7 +67,7 @@ void test_zambretti_trend_classification(void)
     TEST_ASSERT_TRUE(zambretti_compute_trend_from_history(history_4, 4, &delta_calc, &trend) < 0);
 }
 
-void test_zambretti_formula_evaluation(void)
+static void test_zambretti_formula_evaluation(void)
 {
     float z_raw = 0.0f;
     uint8_t z_idx = 0;
@@ -99,7 +99,7 @@ void test_zambretti_formula_evaluation(void)
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 17.00f, z_raw);
 }
 
-void test_zambretti_all_26_states_and_text(void)
+static void test_zambretti_all_26_states_and_text(void)
 {
     for (uint8_t z = 1; z <= 26; z++) {
         const char *desc = zambretti_get_forecast_text(z);
@@ -122,7 +122,7 @@ void test_zambretti_all_26_states_and_text(void)
     TEST_ASSERT_EQUAL_STRING("Unknown Zambretti Index", zambretti_get_forecast_text(27));
 }
 
-void test_zambretti_seasonal_lookups(void)
+static void test_zambretti_seasonal_lookups(void)
 {
     int8_t offset = 0;
 
@@ -154,7 +154,7 @@ void test_zambretti_seasonal_lookups(void)
     TEST_ASSERT_TRUE(zambretti_get_seasonal_offset(13, &offset) < 0);
 }
 
-void test_zambretti_wind_lookups_and_azimuth(void)
+static void test_zambretti_wind_lookups_and_azimuth(void)
 {
     int8_t offset = 0;
 
@@ -178,7 +178,7 @@ void test_zambretti_wind_lookups_and_azimuth(void)
     TEST_ASSERT_EQUAL_INT(WIND_DIR_W, zambretti_azimuth_to_wind_dir(270.0f));
 }
 
-void test_zambretti_weighted_forecast_scenarios(void)
+static void test_zambretti_weighted_forecast_scenarios(void)
 {
     uint8_t z_idx = 0;
     rain_forecast_state_t state = RAIN_STATE_UNLIKELY;
@@ -196,7 +196,7 @@ void test_zambretti_weighted_forecast_scenarios(void)
     TEST_ASSERT_EQUAL_INT(RAIN_STATE_POSSIBLE, state);
 }
 
-void test_zambretti_defensive_guards(void)
+static void test_zambretti_defensive_guards(void)
 {
     rain_forecast_state_t state;
     baro_trend_t trend;
