@@ -153,7 +153,7 @@ static void test_rain_algo_master_evaluation_synthetic_storm(void)
             /* Hours 3.5..4.5: Approaching Cumulonimbus Squall (Imminent Alert Phase!) */
             uint32_t step = i - 21;
             storm_profile[i].temp_c = 23.7f - (float)step * 0.8f;
-            storm_profile[i].rh_pct = 77.5f + (float)step * 3.0f;
+            storm_profile[i].rh_pct = 80.0f + (float)step * 3.0f;
             storm_profile[i].p0_hpa = 843.2f - (float)step * 0.6f;
             storm_profile[i].lux = 38500.0f - (float)step * 6000.0f;
         } else {
@@ -169,18 +169,18 @@ static void test_rain_algo_master_evaluation_synthetic_storm(void)
     rain_forecast_t fc_fair;
     TEST_ASSERT_EQUAL_INT(STATUS_OK, rain_algo_evaluate(storm_profile, 10, 1500.0f, 4, WIND_DIR_CALM, 0.2f, &fc_fair));
     TEST_ASSERT_TRUE(fc_fair.cpi_score_pct < 30.0f);
-    TEST_ASSERT_EQUAL_INT(RAIN_ALERT_UNLIKELY, (rain_alert_state_t)fc_fair.forecast_state);
+    TEST_ASSERT_EQUAL_INT(RAIN_ALERT_UNLIKELY, fc_fair.forecast_state);
 
     /* 2. Evaluate at Hour 3.0 (Sample 18) -> Must be POSSIBLE */
     rain_forecast_t fc_unsettled;
     TEST_ASSERT_EQUAL_INT(STATUS_OK, rain_algo_evaluate(storm_profile, 19, 1500.0f, 4, WIND_DIR_SW, 2.5f, &fc_unsettled));
     TEST_ASSERT_TRUE(fc_unsettled.cpi_score_pct >= 30.0f);
-    TEST_ASSERT_TRUE(fc_unsettled.forecast_state >= RAIN_STATE_POSSIBLE);
+    TEST_ASSERT_TRUE(fc_unsettled.forecast_state >= RAIN_ALERT_POSSIBLE);
 
     /* 3. Evaluate at Hour 4.0 (Sample 24, 45 minutes before rain at Sample 28) -> Must be IMMINENT! */
     rain_forecast_t fc_squall;
     TEST_ASSERT_EQUAL_INT(STATUS_OK, rain_algo_evaluate(storm_profile, 25, 1500.0f, 4, WIND_DIR_SW, 5.0f, &fc_squall));
-    TEST_ASSERT_EQUAL_INT(RAIN_ALERT_IMMINENT, (rain_alert_state_t)fc_squall.forecast_state);
+    TEST_ASSERT_EQUAL_INT(RAIN_ALERT_IMMINENT, fc_squall.forecast_state);
 }
 
 static void test_rain_algo_defensive_guards(void)

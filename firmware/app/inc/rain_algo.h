@@ -26,6 +26,16 @@ extern "C" {
 #endif
 
 /**
+ * @brief 4-tier operational rain forecast states.
+ */
+typedef enum {
+    RAIN_ALERT_UNLIKELY     = 0, /**< CPI < 30% (Settled fine weather, Green Alert) */
+    RAIN_ALERT_POSSIBLE     = 1, /**< 30% <= CPI < 60% (Unsettled / Showers possible, Yellow Alert) */
+    RAIN_ALERT_LIKELY       = 2, /**< 60% <= CPI < 80% (High probability in 1-2h, Orange Alert) */
+    RAIN_ALERT_IMMINENT     = 3  /**< CPI >= 80% or Critical Trigger (Active storm in 15-30m, Red Alert) */
+} rain_alert_state_t;
+
+/**
  * @brief Normalized sub-scores and composite prediction output structure.
  */
 typedef struct {
@@ -38,18 +48,8 @@ typedef struct {
     uint8_t z_index;                       /**< Evaluated Zambretti index (1..26) */
     pressure_trend_state_t pressure_state; /**< Classified barometric state */
     solar_cloud_state_t solar_state;       /**< Classified solar cloud state */
-    rain_forecast_state_t forecast_state;  /**< Operational alert state (UNLIKELY, POSSIBLE, IMMINENT) */
+    rain_alert_state_t forecast_state;     /**< Operational alert state (UNLIKELY, POSSIBLE, LIKELY, IMMINENT) */
 } rain_forecast_t;
-
-/**
- * @brief 4-tier operational rain forecast states.
- */
-typedef enum {
-    RAIN_ALERT_UNLIKELY     = 0, /**< CPI < 30% (Settled fine weather, Green Alert) */
-    RAIN_ALERT_POSSIBLE     = 1, /**< 30% <= CPI < 60% (Unsettled / Showers possible, Yellow Alert) */
-    RAIN_ALERT_LIKELY       = 2, /**< 60% <= CPI < 80% (High probability in 1-2h, Orange Alert) */
-    RAIN_ALERT_IMMINENT     = 3  /**< CPI >= 80% or Critical Trigger (Active storm in 15-30m, Red Alert) */
-} rain_alert_state_t;
 
 /**
  * @brief CPI operational alert thresholds.
