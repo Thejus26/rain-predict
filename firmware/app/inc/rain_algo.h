@@ -42,6 +42,33 @@ typedef struct {
 } rain_forecast_t;
 
 /**
+ * @brief 4-tier operational rain forecast states.
+ */
+typedef enum {
+    RAIN_ALERT_UNLIKELY     = 0, /**< CPI < 30% (Settled fine weather, Green Alert) */
+    RAIN_ALERT_POSSIBLE     = 1, /**< 30% <= CPI < 60% (Unsettled / Showers possible, Yellow Alert) */
+    RAIN_ALERT_LIKELY       = 2, /**< 60% <= CPI < 80% (High probability in 1-2h, Orange Alert) */
+    RAIN_ALERT_IMMINENT     = 3  /**< CPI >= 80% or Critical Trigger (Active storm in 15-30m, Red Alert) */
+} rain_alert_state_t;
+
+/**
+ * @brief CPI operational alert thresholds.
+ */
+#define CPI_THRESH_POSSIBLE_PCT     (30.0f)
+#define CPI_THRESH_LIKELY_PCT       (60.0f)
+#define CPI_THRESH_IMMINENT_PCT     (80.0f)
+
+/**
+ * @brief Critical emergency override thresholds.
+ */
+#define CRITICAL_DROP_1H_HPA        (-2.00f)
+#define CRITICAL_DROP_RH_MIN_PCT    (88.0f)
+#define CRITICAL_SOLAR_DROP_PCT     (75.0f)
+#define CRITICAL_SOLAR_LUX_MAX      (2000.0f)
+#define CRITICAL_SAT_DPD_MAX_C      (0.30f)
+#define CRITICAL_SAT_RH_MIN_PCT     (98.0f)
+
+/**
  * @brief Standard scoring weights (Daytime).
  */
 #define WEIGHT_PRESSURE_DAY         (0.30f)
@@ -102,6 +129,54 @@ status_t rain_algo_compute_composite_score(uint8_t s_p,
                                            uint8_t s_zam,
                                            bool is_daylight,
                                            float *p_cpi_pct);
+
+/**
+ * @brief Classifies the discrete rain alert state from CPI and critical override parameters.
+ * 
+ * @param[in]  cpi_pct        Composite Precipitation Index (0.0 to 100.0%).
+ * @param[in]  delta_p_1h     1-hour pressure delta in hPa.
+ * @param[in]  rh_pct         Current relative humidity in %.
+ * @param[in]  dpd_c          Dew point depression in °C.
+ * @param[in]  drop_solar_pct 30-minute relative solar drop percentage.
+ * @param[in]  lux_curr       Current solar illuminance in Lux.
+ * @param[out] p_state        Pointer to store classified rain_alert_state_t.
+ * @return status_t           STATUS_OK on success, error code otherwise.
+ */
+status_t rain_algo_classify_state(float cpi_pct,
+                                  float delta_p_1h,
+                                  float rh_pct,
+                                  float dpd_c,
+                                  float drop_solar_pct,
+                                  float lux_curr,
+                                  rain_alert_state_t *p_state);
+
+/**
+ * @brief Master Coordinator: Executes the full end-to-end rain nowcasting pipeline.
+ * 
+ * @param[in]  p_samples      Historical array of environmental samples (oldest to newest).
+ * @param[in]  sample_count   Number of valid samples in array (must be >= 1).
+ * @param[in]  altitude_m     Station mast elevation above MSL (meters).
+ * @param[in]  month_1_to_12  Current RTC calendar month (1 to 12).
+ * @param[in]  wind_dir       16-point wind direction compass code.
+ * @param[in]  wind_speed_mps Current wind speed in m/s.
+ * @param[out] p_forecast     Pointer to destination rain_forecast_t struct.
+ * @return status_t           STATUS_OK on success, error code otherwise.
+ */
+status_t rain_algo_evaluate(const env_sample_t *p_samples,
+                            uint32_t sample_count,
+                            float altitude_m,
+                            uint8_t month_1_to_12,
+                            wind_dir_t wind_dir,
+                            float wind_speed_mps,
+                            rain_forecast_t *p_forecast);
+
+/**
+ * @brief Returns descriptive English name for a rain alert state.
+ * 
+ * @param[in]  state          Operational rain alert state.
+ * @return const char*        Pointer to flash string descriptor.
+ */
+const char *rain_algo_get_alert_state_name(rain_alert_state_t state);
 
 #ifdef __cplusplus
 }
