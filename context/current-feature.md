@@ -1,26 +1,16 @@
-# Current Feature: S2-T4.4 - Multi-Variable Trend Detector Unit Test Suite
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement comprehensive ThrowTheSwitch Unity unit test suite in `tests/unit/test_trend_detector.c`.
-- Validate 1-hour and 3-hour atmospheric gradient differentials ($\Delta P, \Delta RH, \Delta T, \Delta Lux$) with complete and scaled bootstrap sample histories.
-- Validate barometric pressure state classification and sub-scoring ($S_P \in [0, 100]$) including 1-hour convective squall overrides.
-- Validate solar cloud attenuation state classification and sub-scoring ($S_{SOL} \in [0, 100]$) including daylight threshold gating ($Lux \ge 5000\text{ Lux}$).
-- Validate steep humidity surge ($\ge +15\%/\text{hr}$) and rapid evaporative convective temperature plunge ($\le -4^\circ\text{C/hr}$) derivatives.
-- Validate defensive error guards against `NULL` pointers, `NAN` float inputs, and empty sample arrays.
-- Register `test_trend_detector` executable target in `tests/CMakeLists.txt` linked against `rain_predict_app`, `rain_predict_middleware`, and `m`.
-- Ensure 100% test pass rate with zero warnings under C99 strict diagnostics.
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- Target Files: [`tests/unit/test_trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_trend_detector.c), [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
-- Dependent Specs: [`context/specs/s2-t4.1-gradient-differentials.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.1-gradient-differentials.md), [`context/specs/s2-t4.2-pressure-trend-states.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.2-pressure-trend-states.md), [`context/specs/s2-t4.3-solar-cloud-states.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.3-solar-cloud-states.md).
-- Single-precision float comparisons with `TEST_ASSERT_FLOAT_WITHIN`.
-
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -65,6 +55,8 @@ In Progress
 - 2026-09-12: S2-T4.1 - Implemented multi-variable 1-hour and 3-hour atmospheric gradient differentials (delta P, delta RH, delta T, delta Lux), daylight cloud attenuation drop ratio with 5000 Lux threshold, cold-start bootstrap scaling, and zero-dynamic-memory C99 engine (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
 - 2026-09-12: S2-T4.2 - Implemented barometric pressure trend state classification (pressure_trend_state_t: Rapid/Moderate/Slow Drop, Steady, Rising), normalized precipitation sub-scoring (Sp in [0, 100]), 1-hour convective squall override, and telemetry string lookup table (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
 - 2026-09-12: S2-T4.3 - Implemented solar irradiance cloud attenuation state classification (solar_cloud_state_t: Night, Clear, Scattered, Storm Cloud Drop), normalized sub-scoring (Ssol in [0, 100]), daylight threshold gating (5000 Lux), cumulonimbus blackout detection, and telemetry string lookup table (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
+- 2026-09-12: S2-T4.4 - Implemented ThrowTheSwitch Unity test suite (tests/unit/test_trend_detector.c, tests/CMakeLists.txt) covering multi-variable 1-hour and 3-hour gradient differentials (dP, dRH, dT, dLux), partial history scaled bootstrapping, barometric trend state classification & scoring (RAPID_DROP, MODERATE_DROP, SLOW_DROP, STEADY, RISING with 1-hour fast squall override), solar cloud attenuation classification & scoring (STORM_CLOUD_DROP, SCATTERED, CLEAR, NIGHT with daylight gating), convective cooling & humidity surge derivatives, and defensive NULL/NAN/boundary guards.
+
 
 
 
