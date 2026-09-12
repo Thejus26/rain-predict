@@ -1,16 +1,27 @@
-# Current Feature
+# Current Feature: S2-T2.1 - Saturation & Actual Vapor Pressure Formulas
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement saturation vapor pressure $e_s(T) = 6.112 \cdot \exp\left(\frac{17.67 \cdot T}{T + 243.5}\right)$ [hPa] in `firmware/middleware/src/dew_point.c`.
+- Implement actual partial vapor pressure $e(T, RH) = e_s(T) \cdot \left(\frac{RH}{100.0}\right)$ [hPa].
+- Implement absolute humidity volumetric density $AH(T, e) = \frac{216.7 \cdot e}{T + 273.15}$ [g/m³].
+- Implement vapor pressure deficit $VPD(T, RH) = e_s(T) - e(T, RH)$ [hPa].
+- Define psychrometric state data structure (`psychrometric_state_t`), empirical Magnus constants, and status codes in `firmware/middleware/inc/dew_point.h`.
+- Implement defensive input bounds clamping: temperature $T \in [-40.0^\circ\text{C}, +85.0^\circ\text{C}]$, relative humidity $RH \in [0.1\%, 100.0\%]$.
+- Implement defensive null pointer checks (`STATUS_ERR_NULL_PTR`) and `isnan()` floating point validation (`STATUS_ERR_INVALID_ARG`).
+- Link `dew_point.c` into `firmware/middleware/CMakeLists.txt` build target.
+- Enforce strict single-precision floating-point math (`expf`, explicit `f` suffixes) for Cortex-M4 hardware FPU compatibility and zero dynamic heap allocation.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Hardware/Target: STM32WLE5CC (ARM Cortex-M4 @ 48 MHz with Single-Precision Hardware FPU).
+- Stack & Performance Limits: Execution time $< 250$ CPU cycles ($\approx 5.2\,\mu\text{s}$ @ 48 MHz), stack usage $< 48$ bytes per invocation.
+- Validation Reference: NOAA / Smithsonian Meteorological Tables with tolerance $\pm 0.05\text{ hPa}$ for vapor pressure and $\pm 0.05\text{ g/m}^3$ for absolute humidity.
+- Downstream Dependencies: Feeds directly into Dew Point Inversion (`S2-T2.2`), Barometric Sea-Level Reduction (`S2-T2.3`), Psychrometric Unit Tests (`S2-T2.4`), and Gradient Trend Detection (`S2-T4.1`).
 
 ## History
 
