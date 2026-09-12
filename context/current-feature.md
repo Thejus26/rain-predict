@@ -1,16 +1,24 @@
-# Current Feature
+# Current Feature: S1-T3.4 - Dataset Export & Serialization Tooling
 
 ## Status
 
-Complete
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement `DatasetExporter` class in [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py) supporting RFC 4180 CSV, JSON telemetry streams, and C Header test vector array generation.
+- Add CLI arguments: `--format {csv,json,c-header,all}`, `--output <path>`, `--export-c-header <path>`, `--verbose` / `--summary`.
+- Generate C99 array header `simulated_weather_vectors.h` with static const arrays (`SIM_TEMP_C`, `SIM_HUMIDITY_PCT`, `SIM_PRESSURE_HPA`, `SIM_SEA_LEVEL_P0_HPA`, `SIM_SOLAR_LUX`, `SIM_IS_RAINING`, `SIM_LEAD_TIME_MIN`) and metadata constants.
+- Implement dataset integrity checks and summary reporting table outputting min/max/mean temperature, RH, barometric pressure, peak solar lux, total rain tips/accumulated mm, peak rain rate, and max lead time.
+- Implement unit test suite in [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py) covering test cases TC-S1-T3.4-01 through TC-S1-T3.4-06.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Target files: [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py) and [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py).
+- Specification: [`context/specs/s1-t3.4-dataset-export.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t3.4-dataset-export.md).
+- CSV export schema: 14 standard header fields matching RFC 4180.
+- C Header format must strictly adhere to C99 standards (`gcc -std=c99 -Werror`).
+- Rain gauge conversion factor: $0.20\text{ mm/tip}$.
 
 ## History
 
