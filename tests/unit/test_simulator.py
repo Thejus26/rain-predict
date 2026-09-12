@@ -20,6 +20,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "tools" / "simulation"))
 
 from simulate_plantation_weather import (
+    DatasetExporter,
     DiurnalProfileGenerator,
     EnvironmentalState,
     MicroclimateEngine,
@@ -494,6 +495,237 @@ class TestStormEventCoordinator(unittest.TestCase):
         # Day 1: convective storm (24-48h) -> rain occurs at 14:00 (hour 38)
         day1_rain = [s for s in states if 24.0 <= s.elapsed_hours < 48.0 and s.is_raining == 1]
         self.assertTrue(len(day1_rain) > 0)
+
+
+class TestDatasetExporter(unittest.TestCase):
+    """Test suite for DatasetExporter, C Header generation, integrity checks, and summary reporting (S1-T3.4)."""
+
+    def setUp(self):
+        self.engine = MicroclimateEngine(
+            duration_days=1,
+            interval_min=15,
+            elevation_m=1500.0,
+            scenario="pre_monsoon_convective",
+            seed=42,
+        )
+        self.states = self.engine.run()
+        self.exporter = DatasetExporter(
+            states=self.states, elevation_m=1500.0, interval_min=15
+        )
+
+    def test_tc_s1_t3_4_01_rfc4180_csv_validation(self):
+        """TC-S1-T3.4-01: RFC 4180 CSV Validation (14 header fields, proper row formatting)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            csv_path = pathlib.Path(tmpdir) / "weather.csv"
+            self.exporter.export_csv(str(csv_path))
+
+            self.assertTrue(csv_path.exists())
+            with open(csv_path, mode="r", newline="", encoding="utf-8") as f:
+                reader = csv.reader(f)
+                header = next(reader)
+                rows = list(reader)
+
+            expected_header = [
+                "timestamp",
+                "step_index",
+                "elapsed_hours",
+                "temp_c",
+                "humidity_pct",
+                "pressure_hpa",
+                "sea_level_pressure_hpa",
+                "solar_lux",
+                "rain_rate_mmh",
+                "rain_gauge_tip_count",
+                "accumulated_rain_mm",
+                "is_raining",
+                "ground_truth_lead_time_min",
+                "scenario_tag",
+            ]
+            self.assertEqual(header, expected_header)
+            self.assertEqual(len(rows), 96)
+
+            # Check individual field data types for first row
+            first = rows[0]
+            self.assertEqual(len(first), 14)
+            self.assertEqual(int(first[1]), 0)  # step_index
+            self.assertAlmostEqual(float(first[2]), 0.0, places=2)  # elapsed_hours
+            self.assertGreater(float(first[3]), -20.0)  # temp_c
+            self.assertGreater(float(first[4]), 0.0)  # humidity_pct
+            self.assertEqual(first[13], "pre_monsoon_convective")
+
+    def test_tc_s1_t3_4_02_json_serialization_and_decoding(self):
+        """TC-S1-T3.4-02: JSON Serialization & Decoding (valid JSON array, correct fields and values)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_path = pathlib.Path(tmpdir) / "telemetry.json"
+            self.exporter.export_json(str(json_path))
+
+            self.assertTrue(json_path.exists())
+            with open(json_path, mode="r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            self.assertIsInstance(data, list)
+            self.assertEqual(len(data), 96)
+
+            expected_keys = {
+                "timestamp",
+                "step_index",
+                "elapsed_hours",
+                "temp_c",
+                "humidity_pct",
+                "pressure_hpa",
+                "sea_level_pressure_hpa",
+                "solar_lux",
+                "rain_rate_mmh",
+                "rain_gauge_tip_count",
+                "accumulated_rain_mm",
+                "is_raining",
+                "ground_truth_lead_time_min",
+                "scenario_tag",
+            }
+            self.assertEqual(set(data[0].keys()), expected_keys)
+            self.assertEqual(data[0]["step_index"], 0)
+            self.assertEqual(data[-1]["step_index"], 95)
+
+    def test_tc_s1_t3_4_03_c_header_export_structure(self):
+        """TC-S1-T3.4-03: C Header Export Structure & C99 Compilation Vector Checks."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            h_path = pathlib.Path(tmpdir) / "simulated_weather_vectors.h"
+            self.exporter.export_c_header(str(h_path))
+
+            self.assertTrue(h_path.exists())
+            content = h_path.read_text(encoding="utf-8")
+
+            # Check header guards and inclusions
+            self.assertIn("#ifndef SIMULATED_WEATHER_VECTORS_H", content)
+            self.assertIn("#define SIMULATED_WEATHER_VECTORS_H", content)
+            self.assertIn("#include <stdint.h>", content)
+            self.assertIn("#define SIM_TOTAL_SAMPLES           96", content)
+            self.assertIn("#define SIM_INTERVAL_MINUTES        15", content)
+            self.assertIn("#define SIM_STATION_ELEVATION_M     1500.0f", content)
+
+            # Check array declarations
+            self.assertIn("static const float SIM_TEMP_C[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("static const float SIM_HUMIDITY_PCT[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("static const float SIM_PRESSURE_HPA[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("static const float SIM_SEA_LEVEL_P0_HPA[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("static const float SIM_SOLAR_LUX[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("static const uint8_t SIM_IS_RAINING[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("static const float SIM_LEAD_TIME_MIN[SIM_TOTAL_SAMPLES] =", content)
+            self.assertIn("#endif /* SIMULATED_WEATHER_VECTORS_H */", content)
+
+    def test_tc_s1_t3_4_04_ground_truth_label_consistency(self):
+        """TC-S1-T3.4-04: Ground-Truth Label Consistency (is_raining == 1 => rain_rate > 0 and lead_time == 0)."""
+        for s in self.states:
+            if s.is_raining == 1:
+                self.assertGreater(
+                    s.rain_rate_mmh,
+                    0.0,
+                    f"Step {s.step_index}: is_raining == 1 but rain_rate_mmh == 0.0",
+                )
+                self.assertEqual(
+                    s.ground_truth_lead_time_min,
+                    0.0,
+                    f"Step {s.step_index}: is_raining == 1 but lead_time == {s.ground_truth_lead_time_min}",
+                )
+            else:
+                self.assertEqual(
+                    s.rain_rate_mmh,
+                    0.0,
+                    f"Step {s.step_index}: is_raining == 0 but rain_rate_mmh == {s.rain_rate_mmh}",
+                )
+
+    def test_tc_s1_t3_4_05_tipping_bucket_conservation(self):
+        """TC-S1-T3.4-05: Tipping Bucket Conservation (accumulated_rain_mm == tip_count * 0.20 mm)."""
+        for s in self.states:
+            expected_rain = round(s.rain_gauge_tip_count * 0.20, 2)
+            self.assertAlmostEqual(
+                s.accumulated_rain_mm,
+                expected_rain,
+                places=2,
+                msg=f"Step {s.step_index}: accumulated {s.accumulated_rain_mm} != tips {s.rain_gauge_tip_count} * 0.20",
+            )
+
+    def test_tc_s1_t3_4_06_summary_report_formatting(self):
+        """TC-S1-T3.4-06: Summary Report Formatting & ANSI Metric Output."""
+        files_dict = {
+            "CSV": "data/simulated_weather.csv (96 rows, 10.3 KB)",
+            "JSON": "data/simulated_weather.json (96 items, 42.6 KB)",
+            "C .h": "tests/unit/simulated_weather_vectors.h (C99 Array Headers, 6.4 KB)",
+        }
+        summary = self.exporter.get_summary_text(
+            scenario="pre_monsoon_convective", seed=42, export_files=files_dict
+        )
+
+        self.assertIn("Tea Plantation Synthetic Microclimate Simulation Summary", summary)
+        self.assertIn("Scenario Profile         : pre_monsoon_convective", summary)
+        self.assertIn("Duration & Step Size     : 1 days (96 records @ 15-min interval)", summary)
+        self.assertIn("Station Elevation        : 1500.0 m ASL", summary)
+        self.assertIn("Random Seed              : 42 (Deterministic)", summary)
+        self.assertIn("Temperature Range        :", summary)
+        self.assertIn("Relative Humidity Range  :", summary)
+        self.assertIn("Station Barometric P     :", summary)
+        self.assertIn("Sea-Level Barometric P0  :", summary)
+        self.assertIn("Peak Solar Irradiance    :", summary)
+        self.assertIn("Total Precipitation      :", summary)
+        self.assertIn("Peak Rain Rate           :", summary)
+        self.assertIn("Storm Events Simulated   :", summary)
+        self.assertIn("Max Prediction Lead Time :", summary)
+        self.assertIn("Export Files Generated   :", summary)
+        self.assertIn("CSV  : data/simulated_weather.csv", summary)
+        self.assertIn("JSON : data/simulated_weather.json", summary)
+        self.assertIn("C .h : tests/unit/simulated_weather_vectors.h", summary)
+
+    def test_dataset_integrity_validator_detects_errors(self):
+        """Verify validate_integrity() detects invalid physical states and schema violations."""
+        # Clean data passes validation
+        valid, errors = self.exporter.validate_integrity()
+        self.assertTrue(valid, f"Expected clean data to pass, got errors: {errors}")
+        self.assertEqual(len(errors), 0)
+
+        # Corrupt temperature
+        bad_states = [s for s in self.states]
+        bad_states[0] = EnvironmentalState(
+            timestamp="2026-09-09T00:00:00Z",
+            step_index=0,
+            elapsed_hours=0.0,
+            temp_c=105.0,  # invalid
+            humidity_pct=80.0,
+            pressure_hpa=845.0,
+            sea_level_pressure_hpa=1013.25,
+            solar_lux=0.0,
+            rain_rate_mmh=0.0,
+            rain_gauge_tip_count=0,
+            accumulated_rain_mm=0.0,
+            is_raining=0,
+            ground_truth_lead_time_min=0.0,
+            scenario_tag="test",
+        )
+        bad_exporter = DatasetExporter(bad_states, 1500.0, 15)
+        valid, errors = bad_exporter.validate_integrity()
+        self.assertFalse(valid)
+        self.assertTrue(any("temperature" in e for e in errors))
+
+        # Corrupt tip count conservation
+        bad_states[0] = EnvironmentalState(
+            timestamp="2026-09-09T00:00:00Z",
+            step_index=0,
+            elapsed_hours=0.0,
+            temp_c=20.0,
+            humidity_pct=80.0,
+            pressure_hpa=845.0,
+            sea_level_pressure_hpa=1013.25,
+            solar_lux=0.0,
+            rain_rate_mmh=0.0,
+            rain_gauge_tip_count=10,
+            accumulated_rain_mm=100.0,  # 10 tips should be 2.0 mm, not 100.0
+            is_raining=0,
+            ground_truth_lead_time_min=0.0,
+            scenario_tag="test",
+        )
+        bad_exporter = DatasetExporter(bad_states, 1500.0, 15)
+        valid, errors = bad_exporter.validate_integrity()
+        self.assertFalse(valid)
+        self.assertTrue(any("conservation mismatch" in e for e in errors))
 
 
 if __name__ == "__main__":
