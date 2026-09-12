@@ -6,11 +6,11 @@ Not Started
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the active feature -->
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -51,3 +51,4 @@ Not Started
 - 2026-09-12: S2-T3.1 - Implemented Zambretti 3-hour barometric pressure trend state machine (firmware/app/inc/zambretti.h, src/zambretti.c, firmware/app/CMakeLists.txt) with falling/steady/rising classification, 1.5 hPa solar tide threshold guard, rolling history evaluation with startup scaling, and defensive error checks.
 - 2026-09-12: S2-T3.2 - Implemented Zambretti sea-level pressure empirical polynomials (Formulas A, B, C), [985, 1050] hPa range clamping, [1, 26] index discretization, 3-tier operational alert classification (Unlikely/Possible/Imminent), flash string table, and end-to-end zambretti_calculate() engine.
 - 2026-09-12: S2-T3.3 - Implemented Zambretti seasonal monsoon and 16-point wind direction weighting engine (s_seasonal_monthly_offsets, s_wind_direction_offsets, zambretti_azimuth_to_wind_dir, zambretti_calculate_weighted) with 0.5 m/s calm speed threshold and [1, 26] index bounding.
+- 2026-09-12: S2-T3.4 - Implemented comprehensive ThrowTheSwitch Unity test suite (tests/unit/test_zambretti.c, tests/CMakeLists.txt) covering 3-hour pressure trend classification & startup scaling, Formulas A/B/C polynomial calculations, [1, 26] index clamping, 3-tier operational alert levels, seasonal & 16-point wind direction weighting offsets, realistic tea plantation weather scenarios (monsoon storm, winter dry anticyclone, pre-monsoon convective shower), and defensive NULL/NaN/range safety guards.
