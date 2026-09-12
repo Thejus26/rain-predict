@@ -38,6 +38,40 @@ typedef enum {
 } rain_forecast_state_t;
 
 /**
+ * @brief Plantation monsoon seasons.
+ */
+typedef enum {
+    MONSOON_SEASON_DRY          = 0, /**< Winter dry period (Dec-Feb) */
+    MONSOON_SEASON_PRE_MONSOON  = 1, /**< Pre-monsoon convective squalls (Mar-May) */
+    MONSOON_SEASON_SW_MONSOON   = 2, /**< Southwest monsoon heavy rain (Jun-Sep) */
+    MONSOON_SEASON_NE_MONSOON   = 3  /**< Northeast retreating monsoon (Oct-Nov) */
+} monsoon_season_t;
+
+/**
+ * @brief 16-point compass wind direction enumeration.
+ */
+typedef enum {
+    WIND_DIR_CALM       = 0,
+    WIND_DIR_N          = 1,
+    WIND_DIR_NNE        = 2,
+    WIND_DIR_NE         = 3,
+    WIND_DIR_ENE        = 4,
+    WIND_DIR_E          = 5,
+    WIND_DIR_ESE        = 6,
+    WIND_DIR_SE         = 7,
+    WIND_DIR_SSE        = 8,
+    WIND_DIR_S          = 9,
+    WIND_DIR_SSW        = 10,
+    WIND_DIR_SW         = 11,
+    WIND_DIR_WSW        = 12,
+    WIND_DIR_W          = 13,
+    WIND_DIR_WNW        = 14,
+    WIND_DIR_NW         = 15,
+    WIND_DIR_NNW        = 16,
+    WIND_DIR_UNKNOWN    = 17
+} wind_dir_t;
+
+/**
  * @brief Standard barometric trend classification constants.
  */
 #define ZAMBRETTI_TREND_THRESHOLD_HPA   (1.50f)     /**< 3-hour delta threshold in hPa */
@@ -61,6 +95,8 @@ typedef enum {
  */
 #define ZAMBRETTI_ALERT_UNLIKELY_MAX    (10U)       /**< Z <= 10 -> RAIN_STATE_UNLIKELY */
 #define ZAMBRETTI_ALERT_POSSIBLE_MAX    (19U)       /**< 11 <= Z <= 19 -> RAIN_STATE_POSSIBLE */
+
+#define WIND_CALM_THRESHOLD_MPS         (0.5f)      /**< Speed below which wind is considered calm */
 
 #define ZAMBRETTI_OK                    (0)
 #define ZAMBRETTI_ERR_NULL_PTR          (-1)
@@ -139,6 +175,62 @@ int32_t zambretti_calculate(float p0_hpa,
                             float delta_p_3h,
                             uint8_t *p_z_index,
                             rain_forecast_state_t *p_state);
+
+/**
+ * @brief Retrieves seasonal Zambretti index adjustment based on month of the year.
+ * 
+ * @param[in]  month_1_to_12 Month index (1 = January, 12 = December).
+ * @param[out] p_offset      Pointer to store seasonal index offset (-2 to +2).
+ * @return int32_t           0 on success, negative error code on invalid month.
+ */
+int32_t zambretti_get_seasonal_offset(uint8_t month_1_to_12, int8_t *p_offset);
+
+/**
+ * @brief Retrieves seasonal adjustment from explicit monsoon season enum.
+ * 
+ * @param[in]  season        Monsoon season enum.
+ * @param[out] p_offset      Pointer to store index offset (-2 to +2).
+ * @return int32_t           0 on success, negative error code on failure.
+ */
+int32_t zambretti_get_monsoon_offset(monsoon_season_t season, int8_t *p_offset);
+
+/**
+ * @brief Retrieves wind direction Zambretti index adjustment.
+ * 
+ * @param[in]  dir           16-point wind direction compass code.
+ * @param[in]  speed_mps     Wind speed in meters per second.
+ * @param[out] p_offset      Pointer to store wind index offset (-1 to +2).
+ * @return int32_t           0 on success, negative error code on failure.
+ */
+int32_t zambretti_get_wind_offset(wind_dir_t dir, float speed_mps, int8_t *p_offset);
+
+/**
+ * @brief Converts azimuth degrees (0.0 to 360.0) into 16-point wind_dir_t enum.
+ * 
+ * @param[in]  azimuth_deg   Wind direction in azimuth degrees (0.0° = North, clockwise).
+ * @return wind_dir_t        Corresponding 16-point compass sector.
+ */
+wind_dir_t zambretti_azimuth_to_wind_dir(float azimuth_deg);
+
+/**
+ * @brief Computes fully adjusted, weighted Zambretti forecast index.
+ * 
+ * @param[in]  p0_hpa        Current sea-level pressure in hPa.
+ * @param[in]  delta_p_3h    3-hour barometric pressure delta in hPa.
+ * @param[in]  month_1_to_12 Current month from RTC (1 to 12).
+ * @param[in]  wind_dir      Wind direction compass sector.
+ * @param[in]  wind_speed_mps Current wind speed in m/s.
+ * @param[out] p_z_index     Pointer to store final weighted Zambretti index (1 to 26).
+ * @param[out] p_state       Pointer to store operational alert state.
+ * @return int32_t           0 on success, negative error code on failure.
+ */
+int32_t zambretti_calculate_weighted(float p0_hpa,
+                                     float delta_p_3h,
+                                     uint8_t month_1_to_12,
+                                     wind_dir_t wind_dir,
+                                     float wind_speed_mps,
+                                     uint8_t *p_z_index,
+                                     rain_forecast_state_t *p_state);
 
 #ifdef __cplusplus
 }
