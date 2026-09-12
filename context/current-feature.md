@@ -1,31 +1,16 @@
-# Current Feature: S2-T4.3 - Solar Irradiance Cloud Attenuation Classification & Scoring
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Define `solar_cloud_state_t` enum (4 discrete states: `SOLAR_NIGHT`, `SOLAR_CLEAR`, `SOLAR_SCATTERED`, `SOLAR_STORM_CLOUD_DROP`) and threshold constants in [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h).
-- Implement `trend_detector_classify_solar()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to categorize optical solar cloud attenuation states.
-- Implement `trend_detector_score_solar()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) to compute normalized solar sub-score $S_{SOL} \in [0, 100]$ (15% weight in CPI).
-- Implement `trend_detector_get_solar_state_name()` in [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) returning flash string descriptors.
-- Enforce strict daylight gating ($Lux_{30m\_ago} < 5000\text{ Lux} \implies S_{SOL} = 0$), zero dynamic memory allocation, and defensive NULL/NaN argument validation.
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- **State Classification Boundaries**:
-  - `SOLAR_NIGHT`: $Lux_{now} < 50.0\text{ Lux}$ AND $Lux_{30m\_ago} < 50.0\text{ Lux}$
-  - `SOLAR_STORM_CLOUD_DROP`: $Lux_{30m\_ago} \ge 5000.0\text{ Lux}$ AND ($R_{drop\_30m} \ge 50.0\%$ OR ($R_{drop\_30m} \ge 70.0\%$ AND $Lux_{now} < 3000.0\text{ Lux}$))
-  - `SOLAR_SCATTERED`: $R_{drop\_30m} \ge 15.0\%$ OR $Lux_{now} < 20000.0\text{ Lux}$ (when not night or storm drop)
-  - `SOLAR_CLEAR`: Otherwise ($Lux_{now} \ge 20000.0\text{ Lux}$, $R_{drop\_30m} < 15.0\%$)
-- **Sub-Scoring Step Function ($S_{SOL} \in [0, 100]$)**:
-  - If $Lux_{30m\_ago} < 5000.0\text{ Lux} \implies S_{SOL} = 0$ (Night / Twilight suppression)
-  - Else if $R_{drop\_30m} \ge 70.0\%$ AND $Lux_{now} < 3000.0\text{ Lux} \implies S_{SOL} = 100$
-  - Else if $R_{drop\_30m} \ge 50.0\% \implies S_{SOL} = 65$
-  - Else if $R_{drop\_30m} \ge 30.0\% \implies S_{SOL} = 30$
-  - Else $\implies S_{SOL} = 0$
-- **Target Platform & Execution Performance**: STM32WLE5 (ARM Cortex-M4 @ 48 MHz), execution latency $< 120$ CPU cycles.
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -69,5 +54,7 @@ In Progress
 - 2026-09-12: S2-T3.4 - Implemented comprehensive ThrowTheSwitch Unity test suite (tests/unit/test_zambretti.c, tests/CMakeLists.txt) covering 3-hour pressure trend classification & startup scaling, Formulas A/B/C polynomial calculations, [1, 26] index clamping, 3-tier operational alert levels, seasonal & 16-point wind direction weighting offsets, realistic tea plantation weather scenarios (monsoon storm, winter dry anticyclone, pre-monsoon convective shower), and defensive NULL/NaN/range safety guards.
 - 2026-09-12: S2-T4.1 - Implemented multi-variable 1-hour and 3-hour atmospheric gradient differentials (delta P, delta RH, delta T, delta Lux), daylight cloud attenuation drop ratio with 5000 Lux threshold, cold-start bootstrap scaling, and zero-dynamic-memory C99 engine (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
 - 2026-09-12: S2-T4.2 - Implemented barometric pressure trend state classification (pressure_trend_state_t: Rapid/Moderate/Slow Drop, Steady, Rising), normalized precipitation sub-scoring (Sp in [0, 100]), 1-hour convective squall override, and telemetry string lookup table (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
+- 2026-09-12: S2-T4.3 - Implemented solar irradiance cloud attenuation state classification (solar_cloud_state_t: Night, Clear, Scattered, Storm Cloud Drop), normalized sub-scoring (Ssol in [0, 100]), daylight threshold gating (5000 Lux), cumulonimbus blackout detection, and telemetry string lookup table (firmware/app/inc/trend_detector.h, firmware/app/src/trend_detector.c).
+
 
 
