@@ -44,6 +44,24 @@ typedef enum {
 #define ZAMBRETTI_MIN_HISTORY_SAMPLES   (6U)        /**< Minimum 1-hour history (6 samples @ 10m) */
 #define ZAMBRETTI_FULL_HISTORY_SAMPLES  (18U)       /**< Full 3-hour history (18 samples @ 10m) */
 
+/**
+ * @brief Pressure clamping constants for Zambretti polynomials.
+ */
+#define ZAMBRETTI_P0_MIN_HPA            (985.0f)    /**< Lowest nominal sea-level pressure */
+#define ZAMBRETTI_P0_MAX_HPA            (1050.0f)   /**< Highest nominal sea-level pressure */
+
+/**
+ * @brief Zambretti index bounds.
+ */
+#define ZAMBRETTI_INDEX_MIN             (1U)        /**< Settled Fine Weather */
+#define ZAMBRETTI_INDEX_MAX             (26U)       /**< Severe Storm, Heavy Rain */
+
+/**
+ * @brief Operational alert threshold partitions.
+ */
+#define ZAMBRETTI_ALERT_UNLIKELY_MAX    (10U)       /**< Z <= 10 -> RAIN_STATE_UNLIKELY */
+#define ZAMBRETTI_ALERT_POSSIBLE_MAX    (19U)       /**< 11 <= Z <= 19 -> RAIN_STATE_POSSIBLE */
+
 #define ZAMBRETTI_OK                    (0)
 #define ZAMBRETTI_ERR_NULL_PTR          (-1)
 #define ZAMBRETTI_ERR_INVALID_ARG       (-2)
@@ -71,6 +89,56 @@ int32_t zambretti_compute_trend_from_history(const float *p_history,
                                              uint32_t sample_count,
                                              float *p_delta_p_3h,
                                              baro_trend_t *p_trend);
+
+/**
+ * @brief Calculates raw continuous Zambretti index from P0 and classified trend.
+ * 
+ * @param[in]  p0_hpa     Sea-level equivalent pressure in hPa.
+ * @param[in]  trend      Classified barometric trend (FALLING, STEADY, RISING).
+ * @param[out] p_z_raw    Pointer to store raw continuous index value.
+ * @return int32_t        0 on success, negative error code on failure.
+ */
+int32_t zambretti_calc_raw_index(float p0_hpa, baro_trend_t trend, float *p_z_raw);
+
+/**
+ * @brief Maps sea-level pressure and trend to a discrete Zambretti index (1 to 26).
+ * 
+ * @param[in]  p0_hpa     Sea-level equivalent pressure in hPa.
+ * @param[in]  trend      Classified barometric trend.
+ * @param[out] p_z_index  Pointer to store discrete integer index (1 to 26).
+ * @return int32_t        0 on success, negative error code on failure.
+ */
+int32_t zambretti_map_to_index(float p0_hpa, baro_trend_t trend, uint8_t *p_z_index);
+
+/**
+ * @brief Maps a discrete Zambretti index (1..26) to an operational alert state.
+ * 
+ * @param[in]  z_index    Discrete Zambretti index (1 to 26).
+ * @return rain_forecast_state_t Evaluated alert state (UNLIKELY, POSSIBLE, IMMINENT).
+ */
+rain_forecast_state_t zambretti_map_to_state(uint8_t z_index);
+
+/**
+ * @brief Returns English descriptive forecast string for a given Zambretti index.
+ * 
+ * @param[in]  z_index    Discrete Zambretti index (1 to 26).
+ * @return const char*    Pointer to flash-resident null-terminated string descriptor.
+ */
+const char *zambretti_get_forecast_text(uint8_t z_index);
+
+/**
+ * @brief Full end-to-end Zambretti forecast calculation.
+ * 
+ * @param[in]  p0_hpa       Current sea-level pressure (hPa).
+ * @param[in]  delta_p_3h   Pressure change over 3 hours (hPa).
+ * @param[out] p_z_index    Optional pointer to receive discrete index (1..26).
+ * @param[out] p_state      Optional pointer to receive operational forecast state.
+ * @return int32_t          0 on success, negative error code on failure.
+ */
+int32_t zambretti_calculate(float p0_hpa,
+                            float delta_p_3h,
+                            uint8_t *p_z_index,
+                            rain_forecast_state_t *p_state);
 
 #ifdef __cplusplus
 }
