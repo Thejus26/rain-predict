@@ -163,3 +163,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_trend_detector.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_rain_algo.c")
+    add_firmware_test(rain_algo
+        SOURCES unit/test_rain_algo.c
+        LIBRARIES firmware_app firmware_middleware
+    )
+endif()
+
