@@ -209,7 +209,7 @@ static void test_ring_buffer_clear_and_null_checks(void) {
     TEST_ASSERT_EQUAL(STATUS_OK,
                       ring_buffer_init(&s_rb, s_storage_bytes, 4, sizeof(uint8_t), RING_BUFFER_DROP_NEW));
 
-    const uint8_t val = 42;
+    uint8_t val = 42;
     TEST_ASSERT_EQUAL(STATUS_OK, ring_buffer_push(&s_rb, &val));
     TEST_ASSERT_EQUAL_UINT16(1, ring_buffer_get_count(&s_rb));
 
@@ -226,6 +226,10 @@ static void test_ring_buffer_clear_and_null_checks(void) {
     TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_pop(NULL, &val));
     TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_peek(NULL, &val));
     TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_peek_at(NULL, 0, &val));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_push(&s_rb, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_pop(&s_rb, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_peek(&s_rb, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, ring_buffer_peek_at(&s_rb, 0, NULL));
     ring_buffer_clear(NULL);
 }
 
