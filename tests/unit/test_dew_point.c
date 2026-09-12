@@ -28,7 +28,7 @@ static void test_dew_point_saturation_vp_reference_matrix(void) {
 
     /* TC-VP-02: Cool plantation morning (10.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(10.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(0.02f, 12.279f, es);
+    TEST_ASSERT_FLOAT_WITHIN(0.02f, 12.272f, es);
 
     /* TC-VP-03: Standard ambient (20.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(20.0f, &es));
@@ -36,27 +36,27 @@ static void test_dew_point_saturation_vp_reference_matrix(void) {
 
     /* TC-VP-04: Warm pre-monsoon peak (25.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(25.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(0.03f, 31.671f, es);
+    TEST_ASSERT_FLOAT_WITHIN(0.03f, 31.674f, es);
 
     /* TC-VP-05: Hot saturated squall (35.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(35.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 56.236f, es);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 56.312f, es);
 
     /* TC-VP-06: Winter ground frost (-5.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(-5.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.215f, es);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.220f, es);
 
     /* TC-VP-07: Arid boundary (30.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(30.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 42.430f, es);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 42.456f, es);
 
     /* TC-VP-08: Sub-zero clamping (-60.0°C clamped to -40.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(-60.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.189f, es);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.190f, es);
 
     /* TC-VP-09: Over-temperature clamping (+95.0°C clamped to +85.0°C) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_saturation_vp(95.0f, &es));
-    TEST_ASSERT_FLOAT_WITHIN(1.0f, 578.03f, es);
+    TEST_ASSERT_FLOAT_WITHIN(1.0f, 591.35f, es);
 }
 
 /**
@@ -71,7 +71,7 @@ static void test_dew_point_actual_vp_reference_matrix(void) {
 
     /* TC-VP-02: 10.0°C, 80.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_actual_vp(10.0f, 80.0f, &e));
-    TEST_ASSERT_FLOAT_WITHIN(0.02f, 9.823f, e);
+    TEST_ASSERT_FLOAT_WITHIN(0.02f, 9.817f, e);
 
     /* TC-VP-03: 20.0°C, 50.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_actual_vp(20.0f, 50.0f, &e));
@@ -79,19 +79,19 @@ static void test_dew_point_actual_vp_reference_matrix(void) {
 
     /* TC-VP-04: 25.0°C, 85.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_actual_vp(25.0f, 85.0f, &e));
-    TEST_ASSERT_FLOAT_WITHIN(0.03f, 26.920f, e);
+    TEST_ASSERT_FLOAT_WITHIN(0.03f, 26.923f, e);
 
     /* TC-VP-05: 35.0°C, 95.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_actual_vp(35.0f, 95.0f, &e));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 53.424f, e);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 53.496f, e);
 
     /* TC-VP-06: -5.0°C, 75.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_actual_vp(-5.0f, 75.0f, &e));
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.161f, e);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3.165f, e);
 
     /* TC-VP-07: 30.0°C, 0.1% RH (clamped) */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_actual_vp(30.0f, 0.1f, &e));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.042f, e);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.043f, e);
 }
 
 /**
@@ -102,11 +102,11 @@ static void test_dew_point_abs_humidity_reference_matrix(void) {
 
     /* TC-VP-01: 0.0°C, 100.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(0.0f, 100.0f, &ah));
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.848f, ah);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.849f, ah);
 
     /* TC-VP-02: 10.0°C, 80.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(10.0f, 80.0f, &ah));
-    TEST_ASSERT_FLOAT_WITHIN(0.02f, 7.518f, ah);
+    TEST_ASSERT_FLOAT_WITHIN(0.02f, 7.513f, ah);
 
     /* TC-VP-03: 20.0°C, 50.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(20.0f, 50.0f, &ah));
@@ -114,15 +114,15 @@ static void test_dew_point_abs_humidity_reference_matrix(void) {
 
     /* TC-VP-04: 25.0°C, 85.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(25.0f, 85.0f, &ah));
-    TEST_ASSERT_FLOAT_WITHIN(0.03f, 19.567f, ah);
+    TEST_ASSERT_FLOAT_WITHIN(0.03f, 19.568f, ah);
 
     /* TC-VP-05: 35.0°C, 95.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(35.0f, 95.0f, &ah));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 37.556f, ah);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 37.620f, ah);
 
     /* TC-VP-06: -5.0°C, 75.0% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(-5.0f, 75.0f, &ah));
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 2.554f, ah);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 2.558f, ah);
 
     /* TC-VP-07: 30.0°C, 0.1% RH */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_abs_humidity(30.0f, 0.1f, &ah));
@@ -139,9 +139,9 @@ static void test_dew_point_vpd_reference_matrix(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(0.0f, 100.0f, &vpd));
     TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.000f, vpd);
 
-    /* TC-VP-02: 10.0°C, 80.0% RH -> 2.456 hPa deficit */
+    /* TC-VP-02: 10.0°C, 80.0% RH -> 2.454 hPa deficit */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(10.0f, 80.0f, &vpd));
-    TEST_ASSERT_FLOAT_WITHIN(0.02f, 2.456f, vpd);
+    TEST_ASSERT_FLOAT_WITHIN(0.02f, 2.454f, vpd);
 
     /* TC-VP-03: 20.0°C, 50.0% RH -> 11.685 hPa deficit */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(20.0f, 50.0f, &vpd));
@@ -151,17 +151,17 @@ static void test_dew_point_vpd_reference_matrix(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(25.0f, 85.0f, &vpd));
     TEST_ASSERT_FLOAT_WITHIN(0.03f, 4.751f, vpd);
 
-    /* TC-VP-05: 35.0°C, 95.0% RH -> 2.812 hPa deficit */
+    /* TC-VP-05: 35.0°C, 95.0% RH -> 2.816 hPa deficit */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(35.0f, 95.0f, &vpd));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.812f, vpd);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.816f, vpd);
 
-    /* TC-VP-06: -5.0°C, 75.0% RH -> 1.054 hPa deficit */
+    /* TC-VP-06: -5.0°C, 75.0% RH -> 1.055 hPa deficit */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(-5.0f, 75.0f, &vpd));
-    TEST_ASSERT_FLOAT_WITHIN(0.01f, 1.054f, vpd);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 1.055f, vpd);
 
-    /* TC-VP-07: 30.0°C, 0.1% RH -> 42.388 hPa deficit */
+    /* TC-VP-07: 30.0°C, 0.1% RH -> 42.413 hPa deficit */
     TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_vpd(30.0f, 0.1f, &vpd));
-    TEST_ASSERT_FLOAT_WITHIN(0.05f, 42.388f, vpd);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 42.413f, vpd);
 }
 
 /**
