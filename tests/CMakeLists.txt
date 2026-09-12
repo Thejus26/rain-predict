@@ -79,6 +79,8 @@ function(add_firmware_test TEST_NAME)
     target_link_libraries(${EXEC_NAME} PRIVATE
         unity
         $<$<TARGET_EXISTS:test_mocks>:test_mocks>
+        $<$<TARGET_EXISTS:firmware_middleware>:firmware_middleware>
+        $<$<TARGET_EXISTS:firmware_app>:firmware_app>
         $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
         ${TEST_LIBRARIES}
     )
@@ -117,6 +119,16 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_mock_gpio.c")
     add_firmware_test(mock_gpio
         SOURCES unit/test_mock_gpio.c
+    )
+endif()
+
+# -----------------------------------------------------------------------------
+# 5. Middleware Data Structures & Filtering Tests
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_ring_buffer.c")
+    add_firmware_test(ring_buffer
+        SOURCES unit/test_ring_buffer.c
+        LIBRARIES firmware_middleware
     )
 endif()
 
