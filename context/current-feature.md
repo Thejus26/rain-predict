@@ -1,27 +1,16 @@
-# Current Feature: S2-T2.1 - Saturation & Actual Vapor Pressure Formulas
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Implement saturation vapor pressure $e_s(T) = 6.112 \cdot \exp\left(\frac{17.67 \cdot T}{T + 243.5}\right)$ [hPa] in `firmware/middleware/src/dew_point.c`.
-- Implement actual partial vapor pressure $e(T, RH) = e_s(T) \cdot \left(\frac{RH}{100.0}\right)$ [hPa].
-- Implement absolute humidity volumetric density $AH(T, e) = \frac{216.7 \cdot e}{T + 273.15}$ [g/m³].
-- Implement vapor pressure deficit $VPD(T, RH) = e_s(T) - e(T, RH)$ [hPa].
-- Define psychrometric state data structure (`psychrometric_state_t`), empirical Magnus constants, and status codes in `firmware/middleware/inc/dew_point.h`.
-- Implement defensive input bounds clamping: temperature $T \in [-40.0^\circ\text{C}, +85.0^\circ\text{C}]$, relative humidity $RH \in [0.1\%, 100.0\%]$.
-- Implement defensive null pointer checks (`STATUS_ERR_NULL_PTR`) and `isnan()` floating point validation (`STATUS_ERR_INVALID_ARG`).
-- Link `dew_point.c` into `firmware/middleware/CMakeLists.txt` build target.
-- Enforce strict single-precision floating-point math (`expf`, explicit `f` suffixes) for Cortex-M4 hardware FPU compatibility and zero dynamic heap allocation.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Hardware/Target: STM32WLE5CC (ARM Cortex-M4 @ 48 MHz with Single-Precision Hardware FPU).
-- Stack & Performance Limits: Execution time $< 250$ CPU cycles ($\approx 5.2\,\mu\text{s}$ @ 48 MHz), stack usage $< 48$ bytes per invocation.
-- Validation Reference: NOAA / Smithsonian Meteorological Tables with tolerance $\pm 0.05\text{ hPa}$ for vapor pressure and $\pm 0.05\text{ g/m}^3$ for absolute humidity.
-- Downstream Dependencies: Feeds directly into Dew Point Inversion (`S2-T2.2`), Barometric Sea-Level Reduction (`S2-T2.3`), Psychrometric Unit Tests (`S2-T2.4`), and Gradient Trend Detection (`S2-T4.1`).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -55,6 +44,7 @@ In Progress
 - 2026-09-12: S2-T1.1 - Implemented generic static circular FIFO ring buffer (firmware/middleware/inc/ring_buffer.h, ring_buffer.c, firmware/middleware/CMakeLists.txt) supporting arbitrary item sizes, DROP_NEW/OVERWRITE_OLD overflow policies, non-destructive indexed peeking, zero dynamic memory allocation, and Unity test suite (tests/unit/test_ring_buffer.c).
 - 2026-09-12: S2-T1.2 - Implemented single-precision floating-point moving average filter (firmware/middleware/inc/moving_avg_filter.h, firmware/middleware/src/moving_avg_filter.c, firmware/middleware/CMakeLists.txt) with O(1) running sum accumulator, statistical outlier spike suppression, configurable sampling window sizes (3, 4, 6, 12 samples), zero-crossing drift protection, and zero dynamic memory allocation.
 - 2026-09-12: S2-T1.3 - Implemented comprehensive ThrowTheSwitch Unity test suites (tests/unit/test_ring_buffer.c, tests/unit/test_moving_avg.c, tests/CMakeLists.txt) covering generic FIFO ring buffer ordering, drop/overwrite overflow policies, pointer wrap-around, non-destructive peeking, multi-window moving average math (sizes 3, 4, 6, 12), O(1) stability over 10,000 samples, and outlier spike clamping.
+- 2026-09-12: S2-T2.1 - Implemented saturation vapor pressure (es), actual partial vapor pressure (e), absolute humidity (AH), and vapor pressure deficit (VPD) formulas (firmware/middleware/inc/dew_point.h, firmware/middleware/src/dew_point.c) with single-precision floating point, defensive input bounds clamping, NULL/NaN safety guards, and ThrowTheSwitch Unity test suite (tests/unit/test_dew_point.c).
 
 
 
