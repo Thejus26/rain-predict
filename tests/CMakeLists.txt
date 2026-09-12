@@ -155,3 +155,11 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_zambretti.c")
         LIBRARIES firmware_app firmware_middleware
     )
 endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_trend_detector.c")
+    add_firmware_test(trend_detector
+        SOURCES unit/test_trend_detector.c
+        LIBRARIES firmware_app firmware_middleware
+    )
+endif()
+

@@ -1,16 +1,26 @@
-# Current Feature
+# Current Feature: S2-T4.4 - Multi-Variable Trend Detector Unit Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Implement comprehensive ThrowTheSwitch Unity unit test suite in `tests/unit/test_trend_detector.c`.
+- Validate 1-hour and 3-hour atmospheric gradient differentials ($\Delta P, \Delta RH, \Delta T, \Delta Lux$) with complete and scaled bootstrap sample histories.
+- Validate barometric pressure state classification and sub-scoring ($S_P \in [0, 100]$) including 1-hour convective squall overrides.
+- Validate solar cloud attenuation state classification and sub-scoring ($S_{SOL} \in [0, 100]$) including daylight threshold gating ($Lux \ge 5000\text{ Lux}$).
+- Validate steep humidity surge ($\ge +15\%/\text{hr}$) and rapid evaporative convective temperature plunge ($\le -4^\circ\text{C/hr}$) derivatives.
+- Validate defensive error guards against `NULL` pointers, `NAN` float inputs, and empty sample arrays.
+- Register `test_trend_detector` executable target in `tests/CMakeLists.txt` linked against `rain_predict_app`, `rain_predict_middleware`, and `m`.
+- Ensure 100% test pass rate with zero warnings under C99 strict diagnostics.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- Target Files: [`tests/unit/test_trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_trend_detector.c), [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
+- Dependent Specs: [`context/specs/s2-t4.1-gradient-differentials.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.1-gradient-differentials.md), [`context/specs/s2-t4.2-pressure-trend-states.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.2-pressure-trend-states.md), [`context/specs/s2-t4.3-solar-cloud-states.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s2-t4.3-solar-cloud-states.md).
+- Single-precision float comparisons with `TEST_ASSERT_FLOAT_WITHIN`.
+
 
 ## History
 
