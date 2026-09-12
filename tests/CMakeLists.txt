@@ -146,6 +146,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_dew_point.c")
     )
 endif()
 
-
-
-
+# -----------------------------------------------------------------------------
+# 6. Application Algorithms & Nowcasting Tests
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_zambretti.c")
+    add_firmware_test(zambretti
+        SOURCES unit/test_zambretti.c
+        LIBRARIES firmware_app firmware_middleware
+    )
+endif()
