@@ -93,6 +93,45 @@ status_t dew_point_calc_abs_humidity(float temp_c, float rh_pct, float *p_ah_gm3
  */
 status_t dew_point_calc_vpd(float temp_c, float rh_pct, float *p_vpd_hpa);
 
+/**
+ * @brief Computes dew point temperature Tdew (°C) from ambient temperature and relative humidity.
+ * 
+ * @param[in]  temp_c     Ambient dry-bulb temperature in degrees Celsius (-40.0 to +85.0).
+ * @param[in]  rh_pct     Relative humidity in percent (0.1 to 100.0).
+ * @param[out] p_dew_c    Pointer to store calculated dew point temperature (°C).
+ * @return status_t       STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_tdew(float temp_c, float rh_pct, float *p_dew_c);
+
+/**
+ * @brief Computes dew point depression (T - Tdew) in degrees Celsius.
+ * 
+ * @param[in]  temp_c     Ambient dry-bulb temperature in degrees Celsius.
+ * @param[in]  rh_pct     Relative humidity in percent.
+ * @param[out] p_dpd_c    Pointer to store calculated dew point depression (°C).
+ * @return status_t       STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_depression(float temp_c, float rh_pct, float *p_dpd_c);
+
+/**
+ * @brief Computes dew point temperature directly from known actual partial vapor pressure e.
+ * 
+ * @param[in]  e_hpa      Actual vapor pressure in hPa (> 0.0 hPa).
+ * @param[out] p_dew_c    Pointer to store calculated dew point temperature (°C).
+ * @return status_t       STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_from_vapor_pressure(float e_hpa, float *p_dew_c);
+
+/**
+ * @brief Computes complete psychrometric thermodynamic state in a single call.
+ * 
+ * @param[in]  temp_c     Ambient dry-bulb temperature (°C).
+ * @param[in]  rh_pct     Relative humidity (%).
+ * @param[out] p_state    Pointer to destination psychrometric_state_t struct.
+ * @return status_t       STATUS_OK on success, error code otherwise.
+ */
+status_t dew_point_calc_psychrometric_state(float temp_c, float rh_pct, psychrometric_state_t *p_state);
+
 #ifdef __cplusplus
 }
 #endif

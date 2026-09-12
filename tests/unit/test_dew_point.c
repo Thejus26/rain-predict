@@ -206,6 +206,173 @@ static void test_dew_point_humidity_clamping(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, e_normal, e_clamped_low);
 }
 
+/**
+ * @brief Test dew point temperature Tdew(T, RH) against NOAA reference vectors.
+ */
+static void test_dew_point_calc_tdew_reference_matrix(void) {
+    float tdew = 0.0f;
+
+    /* TC-DP-01: 100% Saturated Freezing (0.0°C, 100.0% RH) -> Tdew = 0.00°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(0.00f, 100.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.00f, tdew);
+
+    /* TC-DP-02: Cool Plantation Dawn (12.0°C, 85.0% RH) -> Tdew = 9.56°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(12.00f, 85.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 9.56f, tdew);
+
+    /* TC-DP-03: Mild Afternoon (20.0°C, 50.0% RH) -> Tdew = 9.27°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(20.00f, 50.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 9.27f, tdew);
+
+    /* TC-DP-04: Warm Pre-Monsoon (25.0°C, 80.0% RH) -> Tdew = 21.30°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(25.00f, 80.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 21.30f, tdew);
+
+    /* TC-DP-05: Saturated Pre-Storm (26.0°C, 95.0% RH) -> Tdew = 25.15°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(26.00f, 95.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 25.15f, tdew);
+
+    /* TC-DP-06: Hot Tropical Squall (32.0°C, 90.0% RH) -> Tdew = 30.17°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(32.00f, 90.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 30.17f, tdew);
+
+    /* TC-DP-07: High-Altitude Frost (-5.0°C, 70.0% RH) -> Tdew = -9.63°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(-5.00f, 70.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, -9.63f, tdew);
+
+    /* TC-DP-08: Extremely Dry Parcel (30.0°C, 5.0% RH) -> Tdew = -13.75°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(30.00f, 5.0f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, -13.75f, tdew);
+}
+
+/**
+ * @brief Test dew point depression DPD(T, RH) against reference vectors.
+ */
+static void test_dew_point_calc_depression_reference_matrix(void) {
+    float dpd = 0.0f;
+
+    /* TC-DP-01: 100% Saturated Freezing (0.0°C, 100.0% RH) -> DPD = 0.00°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(0.00f, 100.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.00f, dpd);
+
+    /* TC-DP-02: Cool Plantation Dawn (12.0°C, 85.0% RH) -> DPD = 2.44°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(12.00f, 85.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2.44f, dpd);
+
+    /* TC-DP-03: Mild Afternoon (20.0°C, 50.0% RH) -> DPD = 10.73°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(20.00f, 50.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 10.73f, dpd);
+
+    /* TC-DP-04: Warm Pre-Monsoon (25.0°C, 80.0% RH) -> DPD = 3.70°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(25.00f, 80.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 3.70f, dpd);
+
+    /* TC-DP-05: Saturated Pre-Storm (26.0°C, 95.0% RH) -> DPD = 0.85°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(26.00f, 95.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.85f, dpd);
+
+    /* TC-DP-06: Hot Tropical Squall (32.0°C, 90.0% RH) -> DPD = 1.83°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(32.00f, 90.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 1.83f, dpd);
+
+    /* TC-DP-07: High-Altitude Frost (-5.0°C, 70.0% RH) -> DPD = 4.63°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(-5.00f, 70.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 4.63f, dpd);
+
+    /* TC-DP-08: Extremely Dry Parcel (30.0°C, 5.0% RH) -> DPD = 43.75°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(30.00f, 5.0f, &dpd));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 43.75f, dpd);
+}
+
+/**
+ * @brief Test dew point calculated directly from vapor pressure.
+ */
+static void test_dew_point_calc_from_vapor_pressure_reference(void) {
+    float tdew = 0.0f;
+
+    /* TC-DP-09: Direct from Vapor Press (e = 23.37 hPa -> Tdew = 20.00°C) */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_from_vapor_pressure(23.37f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 20.00f, tdew);
+
+    /* Freezing vapor pressure: 6.112 hPa -> 0.00°C */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_from_vapor_pressure(6.112f, &tdew));
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 0.00f, tdew);
+
+    /* Low vapor pressure clamp guard */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_from_vapor_pressure(0.01f, &tdew));
+    TEST_ASSERT_TRUE(tdew < -30.0f);
+}
+
+/**
+ * @brief Test full psychrometric state struct population.
+ */
+static void test_dew_point_psychrometric_state_full(void) {
+    psychrometric_state_t state;
+
+    /* 25.0°C, 80.0% RH */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_psychrometric_state(25.0f, 80.0f, &state));
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 25.00f, state.temp_c);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 80.00f, state.rh_pct);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 31.67f, state.saturation_vp_hpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 25.34f, state.actual_vp_hpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 6.33f, state.vpd_hpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 18.42f, state.abs_humidity_gm3);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 21.30f, state.dew_point_c);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 3.70f, state.dew_point_dep_c);
+}
+
+/**
+ * @brief Test physical invariants: Tdew <= T, DPD >= 0.0 across edge cases.
+ */
+static void test_dew_point_physical_invariants(void) {
+    float tdew = 0.0f;
+    float dpd = 0.0f;
+
+    /* 100% RH should have Tdew == T and DPD == 0.0 */
+    float test_temps[] = {-40.0f, -10.0f, 0.0f, 15.0f, 25.0f, 40.0f, 85.0f};
+    for (size_t i = 0; i < sizeof(test_temps) / sizeof(test_temps[0]); i++) {
+        float t = test_temps[i];
+        TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(t, 100.0f, &tdew));
+        TEST_ASSERT_TRUE(tdew <= t + 1e-5f);
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, t, tdew);
+
+        TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(t, 100.0f, &dpd));
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, dpd);
+        TEST_ASSERT_TRUE(dpd >= 0.0f);
+    }
+
+    /* Out of bounds RH > 100% clamped */
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_tdew(20.0f, 110.0f, &tdew));
+    TEST_ASSERT_TRUE(tdew <= 20.0f);
+    TEST_ASSERT_EQUAL(STATUS_OK, dew_point_calc_depression(20.0f, 110.0f, &dpd));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, dpd);
+}
+
+/**
+ * @brief Test NULL pointer and NaN safety for new functions.
+ */
+static void test_dew_point_tdew_depression_null_and_nan_safety(void) {
+    float out = 0.0f;
+    psychrometric_state_t state;
+    float nan_val = 0.0f / 0.0f;
+
+    /* TC-DP-10: NULL pointer returns STATUS_ERR_NULL_PTR */
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_tdew(20.0f, 50.0f, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_depression(20.0f, 50.0f, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_from_vapor_pressure(20.0f, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, dew_point_calc_psychrometric_state(20.0f, 50.0f, NULL));
+
+    /* TC-DP-11: NaN inputs return STATUS_ERR_INVALID_PARAM */
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_tdew(nan_val, 50.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_tdew(20.0f, nan_val, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_depression(nan_val, 50.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_depression(20.0f, nan_val, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_from_vapor_pressure(nan_val, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_from_vapor_pressure(-5.0f, &out));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_psychrometric_state(nan_val, 50.0f, &state));
+    TEST_ASSERT_EQUAL(STATUS_ERR_INVALID_PARAM, dew_point_calc_psychrometric_state(20.0f, nan_val, &state));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -215,6 +382,12 @@ int main(void) {
     RUN_TEST(test_dew_point_vpd_reference_matrix);
     RUN_TEST(test_dew_point_null_pointer_and_nan_safety);
     RUN_TEST(test_dew_point_humidity_clamping);
+    RUN_TEST(test_dew_point_calc_tdew_reference_matrix);
+    RUN_TEST(test_dew_point_calc_depression_reference_matrix);
+    RUN_TEST(test_dew_point_calc_from_vapor_pressure_reference);
+    RUN_TEST(test_dew_point_psychrometric_state_full);
+    RUN_TEST(test_dew_point_physical_invariants);
+    RUN_TEST(test_dew_point_tdew_depression_null_and_nan_safety);
 
     return UNITY_END();
 }
