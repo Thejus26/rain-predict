@@ -1,24 +1,16 @@
-# Current Feature: S1-T3.4 - Dataset Export & Serialization Tooling
+# Current Feature
 
 ## Status
 
-In Progress
+Complete
 
 ## Goals
 
-- Implement `DatasetExporter` class in [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py) supporting RFC 4180 CSV, JSON telemetry streams, and C Header test vector array generation.
-- Add CLI arguments: `--format {csv,json,c-header,all}`, `--output <path>`, `--export-c-header <path>`, `--verbose` / `--summary`.
-- Generate C99 array header `simulated_weather_vectors.h` with static const arrays (`SIM_TEMP_C`, `SIM_HUMIDITY_PCT`, `SIM_PRESSURE_HPA`, `SIM_SEA_LEVEL_P0_HPA`, `SIM_SOLAR_LUX`, `SIM_IS_RAINING`, `SIM_LEAD_TIME_MIN`) and metadata constants.
-- Implement dataset integrity checks and summary reporting table outputting min/max/mean temperature, RH, barometric pressure, peak solar lux, total rain tips/accumulated mm, peak rain rate, and max lead time.
-- Implement unit test suite in [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py) covering test cases TC-S1-T3.4-01 through TC-S1-T3.4-06.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- Target files: [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py) and [`tests/unit/test_simulator.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_simulator.py).
-- Specification: [`context/specs/s1-t3.4-dataset-export.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s1-t3.4-dataset-export.md).
-- CSV export schema: 14 standard header fields matching RFC 4180.
-- C Header format must strictly adhere to C99 standards (`gcc -std=c99 -Werror`).
-- Rain gauge conversion factor: $0.20\text{ mm/tip}$.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -48,6 +40,7 @@ In Progress
 - 2026-09-11: S1-T3.1 - Implemented Python microclimate weather simulator core engine (tools/simulation/simulate_plantation_weather.py) with configurable temporal resolution, WMO hypsometric barometric reduction, CLI parser, and unit test suite (tests/unit/test_simulator.py).
 - 2026-09-11: S1-T3.2 - Implemented diurnal physical microclimate curves (tools/simulation/simulate_plantation_weather.py) with clear-sky solar irradiance, asymmetric temperature, Magnus-Tetens psychrometric humidity anti-correlation, 12h semi-diurnal barometric solar tide, sensor noise models, and unit test suite (tests/unit/test_simulator.py).
 - 2026-09-11: S1-T3.3 - Implemented convective and orographic storm injection models (tools/simulation/simulate_plantation_weather.py) with pre-monsoon convective storm build-up/rain/dissipation, sustained monsoon profiles, false-alarm cumulus shadow and morning valley fog controls, discrete tipping-bucket accumulator (0.2 mm/tip), and ground-truth lead time tracking.
+- 2026-09-12: S1-T3.4 - Implemented multi-format dataset serialization (tools/simulation/simulate_plantation_weather.py) supporting RFC 4180 CSV, JSON telemetry streams, and C99 test vector array headers (tests/unit/simulated_weather_vectors.h), meteorological/tipping-bucket integrity validation, CLI summary reporting, and unit test suite (tests/unit/test_simulator.py). Completed Sprint 1.
 
 
 
