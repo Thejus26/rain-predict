@@ -139,5 +139,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_moving_avg.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_dew_point.c")
+    add_firmware_test(dew_point
+        SOURCES unit/test_dew_point.c
+        LIBRARIES firmware_middleware
+    )
+endif()
+
+
 
 
