@@ -48,6 +48,7 @@ if(MOCK_SOURCES)
 
     target_link_libraries(test_mocks PUBLIC
         unity
+        $<$<TARGET_EXISTS:firmware_drivers>:firmware_drivers>
     )
 endif()
 
@@ -79,6 +80,7 @@ function(add_firmware_test TEST_NAME)
     target_link_libraries(${EXEC_NAME} PRIVATE
         unity
         $<$<TARGET_EXISTS:test_mocks>:test_mocks>
+        $<$<TARGET_EXISTS:firmware_drivers>:firmware_drivers>
         $<$<TARGET_EXISTS:firmware_core>:firmware_core>
         $<$<TARGET_EXISTS:firmware_middleware>:firmware_middleware>
         $<$<TARGET_EXISTS:firmware_app>:firmware_app>

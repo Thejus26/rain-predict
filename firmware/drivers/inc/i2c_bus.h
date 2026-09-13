@@ -185,12 +185,35 @@ bool i2c_bus_test_is_initialized(void);
 void i2c_bus_test_inject_fault(status_t fault);
 
 /**
+ * @brief Injects an advanced fault with trigger count delay.
+ * @param[in] fault_type             Fault type identifier.
+ * @param[in] trigger_after_n_calls  Calls before fault takes effect.
+ */
+void i2c_bus_test_inject_fault_advanced(uint32_t fault_type, uint32_t trigger_after_n_calls);
+
+/**
+ * @brief Clears any injected faults.
+ */
+void i2c_bus_test_clear_faults(void);
+
+/**
  * @brief Configures a simulated slave register in test mode.
  * @param[in] dev_addr 7-bit device address.
  * @param[in] reg_addr 8-bit register address.
  * @param[in] value    Byte value to store.
+ * @return status_t    STATUS_OK on success.
  */
-void i2c_bus_test_set_slave_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t value);
+status_t i2c_bus_test_set_slave_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t value);
+
+/**
+ * @brief Configures a sequence of simulated slave registers in test mode.
+ * @param[in] dev_addr  7-bit device address.
+ * @param[in] start_reg Starting 8-bit register address.
+ * @param[in] p_data    Pointer to data to copy.
+ * @param[in] length    Number of bytes to copy.
+ * @return status_t     STATUS_OK on success.
+ */
+status_t i2c_bus_test_set_slave_regs(uint8_t dev_addr, uint8_t start_reg, const uint8_t *p_data, uint16_t length);
 
 /**
  * @brief Reads a simulated slave register in test mode.
@@ -199,6 +222,27 @@ void i2c_bus_test_set_slave_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t valu
  * @return uint8_t Current byte value.
  */
 uint8_t i2c_bus_test_get_slave_reg(uint8_t dev_addr, uint8_t reg_addr);
+
+/**
+ * @brief Returns the total number of read operations on target device.
+ * @param[in] dev_addr 7-bit device address.
+ * @return uint32_t Read count.
+ */
+uint32_t i2c_bus_test_get_read_count(uint8_t dev_addr);
+
+/**
+ * @brief Returns the total number of write operations on target device.
+ * @param[in] dev_addr 7-bit device address.
+ * @return uint32_t Write count.
+ */
+uint32_t i2c_bus_test_get_write_count(uint8_t dev_addr);
+
+/**
+ * @brief Returns the last accessed register on target device.
+ * @param[in] dev_addr 7-bit device address.
+ * @return uint8_t Last register address.
+ */
+uint8_t i2c_bus_test_get_last_reg(uint8_t dev_addr);
 
 #endif /* !HAVE_STM32WLXX_HAL */
 
