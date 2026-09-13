@@ -218,6 +218,14 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bsp_power_rails.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bsp_indicators.c")
+    add_firmware_test(bsp_indicators
+        SOURCES unit/test_bsp_indicators.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
+
 
 
 

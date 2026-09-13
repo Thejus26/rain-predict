@@ -1,16 +1,28 @@
-# Current Feature
+# Current Feature: S3-T3.2 - Board Indicators & Alarm Actuator Driver
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- To be populated when a feature is loaded via /feature load -->
+- Create `firmware/drivers/inc/bsp_indicators.h` adhering to ISO C99 standards with complete Doxygen documentation and driver APIs (`bsp_indicators_init`, `bsp_led_set`, `bsp_led_toggle`, `bsp_buzzer_set`, `bsp_relay_set`, `bsp_relay_trigger_timed`, `bsp_indicator_set_pattern`, `bsp_indicators_process`, `bsp_indicators_all_off`).
+- Implement `firmware/drivers/src/bsp_indicators.c` targeting STM32WLE5 GPIO outputs: Green LED (`PB8`), Red LED (`PB9`), Piezo Buzzer gate (`PB2`), and Optocoupled Siren Relay gate (`PB4`).
+- Implement non-blocking autonomous pattern generator (`bsp_indicator_set_pattern`, `bsp_indicators_process`) supporting Heartbeat, Watch, Warning, and Storm Alert sequences without busy-waits.
+- Implement hardware-safety timed relay activation (`bsp_relay_trigger_timed`) with automatic auto-cutoff clamped to a strict $10\text{s}$ maximum guard duration (`BSP_RELAY_MAX_PULSE_DURATION_MS`).
+- Implement master pre-sleep actuator shutdown (`bsp_indicators_all_off`) driving all actuator gates firmly to ground prior to Stop 2 deep sleep (< 3.0 µA).
+- Ensure cross-target compilation hygiene with `__has_include` / `HAVE_STM32WLXX_HAL` preprocessor guards and unified host simulation backend.
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_bsp_indicators.c`) covering default power-on states, direct LED/buzzer/relay control, timed relay auto-cutoff with $10\text{s}$ clamping, pattern state progression, and pre-sleep master shutdown.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
+- Green LED (`PB8`): Status OK / Heartbeat (4.0 mA, 470 ohm).
+- Red LED (`PB9`): Warning / Storm Alert Strobe (4.0 mA, 330 ohm).
+- Piezo Buzzer (`PB2`): 90dB Sounder via 2N7002 N-MOSFET gate (< 15 mA).
+- Alert Relay (`PB4`): Optocoupler PC817 gate controlling 12V/24V estate siren rail (< 10 mA).
+- Safety: Relay maximum pulse duration clamped to 10,000 ms.
+- Memory: Zero dynamic allocation (`malloc`/`free` prohibited). Non-blocking tick-based pattern processing.
 
 ## History
 
