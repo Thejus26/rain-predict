@@ -211,5 +211,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_uart_bus.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bsp_power_rails.c")
+    add_firmware_test(bsp_power_rails
+        SOURCES unit/test_bsp_power_rails.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
+
 
 
