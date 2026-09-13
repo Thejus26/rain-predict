@@ -7,9 +7,16 @@ add_library(firmware_middleware STATIC
     src/ring_buffer.c
     src/moving_avg_filter.c
     src/dew_point.c
+    src/power_mgr.c
 )
 
 target_include_directories(firmware_middleware PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/inc
     ${CMAKE_SOURCE_DIR}/firmware/core/inc
+    ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+)
+
+target_link_libraries(firmware_middleware PUBLIC
+    firmware_core
+    firmware_drivers
 )

@@ -348,10 +348,22 @@ board_rf_mode_t board_test_get_rf_mode(void);
 uint32_t board_test_get_delay_call_count(void);
 
 /**
- * @brief Gets last delay duration passed in milliseconds.
- * @return uint32_t duration in ms.
+ * @brief Sets simulated pin mode, pull resistor, and alternate function.
+ * @param[in] port     Port identifier (GPIOA, GPIOB, GPIOC).
+ * @param[in] pin_mask Pin mask.
+ * @param[in] mode     Pin mode (GPIO_MODE_ANALOG, GPIO_MODE_OUTPUT_PP, etc.).
+ * @param[in] pull     Pull mode (GPIO_NOPULL, GPIO_PULLUP, GPIO_PULLDOWN).
+ * @param[in] af       Alternate function ID.
  */
-uint32_t board_test_get_last_delay_ms(void);
+void board_test_set_pin_config(GPIO_TypeDef port, uint16_t pin_mask, uint32_t mode, uint32_t pull, uint32_t af);
+
+/**
+ * @brief Sets simulated pin logic state.
+ * @param[in] port     Port identifier (GPIOA, GPIOB, GPIOC).
+ * @param[in] pin_mask Pin mask.
+ * @param[in] state    Pin state (GPIO_PIN_SET or GPIO_PIN_RESET).
+ */
+void board_test_set_pin_state(GPIO_TypeDef port, uint16_t pin_mask, GPIO_PinState state);
 
 #endif /* Host Simulation API */
 

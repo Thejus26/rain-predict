@@ -423,6 +423,14 @@ uint32_t board_test_get_last_delay_ms(void) {
     return s_last_delay_ms;
 }
 
+void board_test_set_pin_config(GPIO_TypeDef port, uint16_t pin_mask, uint32_t mode, uint32_t pull, uint32_t af) {
+    sim_set_pin_config(port, pin_mask, mode, pull, af);
+}
+
+void board_test_set_pin_state(GPIO_TypeDef port, uint16_t pin_mask, GPIO_PinState state) {
+    sim_write_pin(port, pin_mask, state);
+}
+
 status_t board_gpio_init(void) {
     /* 1. Safe default output levels */
     sim_write_pin(PIN_PWR_SENS_PORT, PIN_PWR_SENS_PIN, GPIO_PIN_RESET);
