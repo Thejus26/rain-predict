@@ -79,6 +79,7 @@ function(add_firmware_test TEST_NAME)
     target_link_libraries(${EXEC_NAME} PRIVATE
         unity
         $<$<TARGET_EXISTS:test_mocks>:test_mocks>
+        $<$<TARGET_EXISTS:firmware_core>:firmware_core>
         $<$<TARGET_EXISTS:firmware_middleware>:firmware_middleware>
         $<$<TARGET_EXISTS:firmware_app>:firmware_app>
         $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
@@ -167,6 +168,16 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_rain_algo.c")
     add_firmware_test(rain_algo
         SOURCES unit/test_rain_algo.c
         LIBRARIES firmware_app firmware_middleware
+    )
+endif()
+
+# -----------------------------------------------------------------------------
+# 7. Core MCU Architecture & BSP Tests
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_board_config.c")
+    add_firmware_test(board_config
+        SOURCES unit/test_board_config.c
+        LIBRARIES firmware_core
     )
 endif()
 

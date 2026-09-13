@@ -113,7 +113,11 @@ endif()
 if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
     enable_testing()
 
-    # Host-compilable algorithmic modules (pure math & middleware)
+    # Host-compilable architectural and algorithmic modules
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/firmware/core/CMakeLists.txt")
+        add_subdirectory(firmware/core)
+    endif()
+
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/firmware/middleware/CMakeLists.txt")
         add_subdirectory(firmware/middleware)
     endif()
