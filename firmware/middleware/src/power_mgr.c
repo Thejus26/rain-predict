@@ -632,6 +632,9 @@ status_t power_mgr_verify_leakage_state(void) {
         }
     }
 
+    return STATUS_OK;
+}
+
 #endif /* HAVE_STM32WLXX_HAL */
 
 /* ============================================================================
