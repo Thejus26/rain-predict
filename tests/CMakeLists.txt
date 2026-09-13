@@ -232,6 +232,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_power_mgr.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_watchdog.c")
+    add_firmware_test(watchdog
+        SOURCES unit/test_watchdog.c
+        LIBRARIES firmware_core
+    )
+endif()
+
 
 
 

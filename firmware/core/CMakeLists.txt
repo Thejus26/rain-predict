@@ -6,6 +6,7 @@
 add_library(firmware_core STATIC
     src/board_config.c
     src/system_clock.c
+    src/watchdog.c
 )
 
 target_include_directories(firmware_core PUBLIC
