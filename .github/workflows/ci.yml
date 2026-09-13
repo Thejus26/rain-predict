@@ -99,7 +99,8 @@ jobs:
         with:
           name: stm32wle5-firmware
           path: |
-            build-arm/firmware.elf
-            build-arm/firmware.bin
-            build-arm/firmware.hex
+            build-arm/*.elf
+            build-arm/*.bin
+            build-arm/*.hex
+            build-arm/**/*.a
           if-no-files-found: ignore
