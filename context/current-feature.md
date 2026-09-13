@@ -1,16 +1,29 @@
-# Current Feature
+# Current Feature: S3-T1.1 - Target Board GPIO Pin Mappings & Configuration
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Define target MCU pin mappings, port aliases, electrical modes, and alternate function mappings in `firmware/core/inc/board_config.h`.
+- Implement `board_gpio_init()` in `firmware/core/src/board_config.c` for GPIO clock gating, safe initial output levels, and EXTI0 rain gauge interrupt configuration.
+- Implement `board_gpio_sleep_prepare()` and `board_gpio_wake_restore()` for ultra-low-leakage Stop 2 deep sleep pin conditioning (< 3.0 uA).
+- Implement `board_sensor_power_enable()` with mandatory 20ms RC stabilization delay on power-up and bus pin analog leakage isolation on power-down.
+- Implement `board_vbat_divider_enable()` high-side P-MOSFET gate control to eliminate continuous battery divider drain (< 10 nA when idle).
+- Implement field actuators and indicators (`board_led_set`, `board_led_toggle`, `board_buzzer_set`, `board_relay_set`).
+- Implement transceiver direction controls (`board_rs485_dir_set`, `board_sdi12_dir_set`) and Sub-GHz RF antenna switch routing (`board_rf_switch_set`).
+- Implement user diagnostic button input polling (`board_button_is_pressed()`).
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_board_config.c`) integrated into CMake build runner.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz, UFQFPN48 package).
+- Hardware P-MOSFET switched sensor rail on PA4 requires 20ms stabilization before I2C/UART transactions.
+- Sensor bus pins (PB6, PB7, PA2, PA3, PC0, PC1) must transition to `GPIO_MODE_ANALOG` with no pulls when sensor rail is powered down to prevent parasitic phantom-power leakage through sensor ESD clamping diodes.
+- Battery divider on PB1 is active-LOW (driving PB1 LOW connects divider; driving HIGH disconnects).
+- EXTI0 on PA0 must remain active during Stop 2 sleep to wake the MCU on tipping-bucket rain gauge pulses.
+- Ensure full host testability via mock abstraction (`mock_gpio.h`).
 
 ## History
 
