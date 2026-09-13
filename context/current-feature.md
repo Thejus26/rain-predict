@@ -1,16 +1,25 @@
-# Current Feature
+# Current Feature: S3-T1.3 - STM32CubeWL HAL Module Configuration
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Create `firmware/core/inc/stm32wlxx_hal_conf.h` adhering to ISO C99 standards with complete Doxygen documentation.
+- Explicitly whitelist strictly required STM32CubeWL peripheral HAL modules (`HAL_MODULE_ENABLED`, `RCC`, `GPIO`, `DMA`, `CORTEX`, `PWR`, `FLASH`, `I2C`, `UART`, `SPI`, `RTC`, `SUBGHZ`, `ADC`, `IWDG`, `EXTI`).
+- Explicitly disable unused peripheral modules (`COMP`, `CRC`, `CRYP`, `DAC`, `GTZC`, `HSEM`, `IPCC`, `IRDA`, `LPTIM`, `RNG`, `SMARTCARD`, `SMBUS`, `TIM`, `WWDG`) to eliminate dead-code bloat and preserve Flash (256 KB) and SRAM (64 KB).
+- Synchronize hardware oscillator constants and operating parameters: `HSE_VALUE = 32000000UL`, `MSI_VALUE = 48000000UL`, `LSE_VALUE = 32768UL`, `LSI_VALUE = 32000UL`, `VDD_VALUE = 3300UL`.
+- Enable Flash Prefetch buffer (`PREFETCH_ENABLE = 1`), Cortex-M4 Instruction Cache (`INSTRUCTION_CACHE_ENABLE = 1`), and Data Cache (`DATA_CACHE_ENABLE = 1`).
+- Configure SysTick interrupt priority (`TICK_INT_PRIORITY = 0x00`) and deterministic bare-metal scheduling (`USE_RTOS = 0`).
+- Configure defensive parameter assertion macro `assert_param()` and `assert_failed()` debug trap for `DEBUG` builds with zero release overhead.
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_hal_conf.c`) verifying module definitions, hardware constants, and compilation hygiene.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz, UFQFPN48 package).
+- Acts as the central compile-time gatekeeper between application/driver layers and the STM32CubeWL HAL library.
+- Ensures cross-compatibility across host unit testing and target ARM cross-compilation toolchains.
 
 ## History
 

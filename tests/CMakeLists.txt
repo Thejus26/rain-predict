@@ -188,3 +188,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_system_clock.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_hal_conf.c")
+    add_firmware_test(hal_conf
+        SOURCES unit/test_hal_conf.c
+        LIBRARIES firmware_core
+    )
+endif()
+
