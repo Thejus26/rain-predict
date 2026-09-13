@@ -1,16 +1,41 @@
-# Current Feature
+# Current Feature: S3-T4.4 - Battery ADC Voltage Measurement and Solar Harvesting Telemetry
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Implement low-power ADC1 driver (`firmware/drivers/inc/bsp_adc.h`, `firmware/drivers/src/bsp_adc.c`) for STM32WLE5 SoC.
+- Implement factory $V_{\text{REFINT\_CAL}}$ lookup at `0x1FFF75AA` with nominal fallback (`1660`) to calculate exact instantaneous $V_{\text{DDA}}$ and eliminate supply-drift voltage measurement errors.
+- Control PB1 high-side P-MOSFET divider gate with 2.0 ms RC settling guard delay and automatic de-assertion upon acquisition completion or error, ensuring $< 10\text{ nA}$ standby leakage.
+- Implement 8x oversampled averaging conversions for both internal $V_{\text{REFINT}}$ and $V_{\text{bat}}$ (`PB0` / `ADC_IN1`) channels.
+- Implement compensated battery millivolt conversion formula using 64-bit integer fixed-point arithmetic with rounding: $V_{\text{bat\_mV}} = \lfloor (6000 \times \text{CAL\_VAL} \times \text{RAW\_VBAT} + (4095 \times \text{RAW\_VREFINT} / 2)) / (4095 \times \text{RAW\_VREFINT}) \rfloor$.
+- Implement 8-segment non-linear $\text{LiFePO}_4$ State of Charge (SoC) interpolation algorithm mapped from 2500 mV to 3400 mV with 0% to 100% boundary clamping.
+- Implement 3-tier operational battery health state classification (`OPTIMAL` $\ge 3.25\text{V}$, `LOW` $3.00\text{V} - 3.25\text{V}$, `CRITICAL` $< 3.00\text{V}$) and adaptive duty-cycle sleep throttling recommendations (e.g., 15 min for Low, 60 min for Critical).
+- Implement solar harvesting status classification (`NIGHT`, `DISCHARGING`, `ACTIVE_HARVEST`, `FLOAT_CHARGED`) correlating optical illuminance (OPT3001 Lux) with $\Delta V_{\text{bat}}$ rate of change.
+- Implement LoRaWAN telemetry Byte 11 6-bit $V_{\text{bat}}$ encoding ($\text{clamp}((V_{\text{bat\_mV}} - 2500) / 20, 0, 63)$) with Bit 6 (`sensor_error`) and Bit 7 (`unexpected_reset`) flags according to `telemetry-protocol.md`.
+- Implement comprehensive ThrowTheSwitch Unity unit test suite (`tests/unit/test_bsp_adc.c`) validating all 10 verification test cases, registering tests in `tests/CMakeLists.txt`.
 
 ## Notes
 
-<!-- Add notes here -->
+- **Microcontroller**: STMicroelectronics STM32WLE5CCU6 (Arm Cortex-M4 @ 48 MHz).
+- **Target Files**:
+  - `firmware/drivers/inc/bsp_adc.h`
+  - `firmware/drivers/src/bsp_adc.c`
+  - `firmware/middleware/inc/power_mgr.h` (battery extensions)
+  - `firmware/middleware/src/power_mgr.c` (battery extensions)
+  - `tests/unit/test_bsp_adc.c`
+  - `firmware/drivers/CMakeLists.txt` & `tests/CMakeLists.txt`
+- **Hardware Pins**:
+  - `PB1`: `PIN_VBAT_DIV_EN` (Active-LOW P-MOSFET divider gate)
+  - `PB0`: `PIN_VBAT_ADC` (`ADC1_IN1`, $100\text{k}\Omega / 100\text{k}\Omega$ 1% precision divider, factor = 2.0x)
+  - `VREFINT`: STM32WLE5 internal reference voltage channel (~1.224V)
+  - Factory Calibration Word: `0x1FFF75AA` ($V_{\text{REFINT\_CAL}}$ acquired at $V_{\text{DDA}} = 3.0\text{V} \pm 10\text{mV}$ @ 30°C)
+- **Power Constraints**:
+  - Standby leakage current across divider: $< 10\text{ nA}$ when PB1 is HIGH.
+  - Active sampling duration: $< 3\text{ ms}$ (including 2.0 ms RC settling).
+  - Stop 2 deep sleep target: $< 3.0\,\mu\text{A}$ total system current.
 
 ## History
 

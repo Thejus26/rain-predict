@@ -8,6 +8,7 @@ add_library(firmware_drivers STATIC
     src/uart_bus.c
     src/bsp_power_rails.c
     src/bsp_indicators.c
+    src/bsp_adc.c
 )
 
 target_include_directories(firmware_drivers PUBLIC

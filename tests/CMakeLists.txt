@@ -239,6 +239,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_watchdog.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bsp_adc.c")
+    add_firmware_test(bsp_adc
+        SOURCES unit/test_bsp_adc.c
+        LIBRARIES firmware_middleware firmware_drivers firmware_core
+    )
+endif()
+
 
 
 
