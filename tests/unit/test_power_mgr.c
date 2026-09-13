@@ -1,22 +1,28 @@
 /**
  * @file    test_power_mgr.c
- * @brief   Unit test verification suite for Pre-Sleep GPIO Conditioning & Leakage Elimination.
+ * @brief   Unit test verification suite for Stop 2 Deep Sleep & RTC Wakeup Manager (S3-T4.1 & S3-T4.2).
  * @details Validates bus pin analog tri-stating, floating CMOS shoot-through suppression,
- *          wakeup/oscillator exemption preservation, post-wake pin restoration, and diagnostic leakage checks.
+ *          wakeup/oscillator exemption preservation, post-wake pin restoration, diagnostic leakage checks,
+ *          RTC periodic wakeup timer configuration, multi-source wakeup detection (RTC, Rain EXTI0, Button),
+ *          fast clock restoration to 48 MHz MSI, cumulative sleep metrics tracking, and shelf-storage Standby mode.
  */
 
 #include "unity.h"
 #include "power_mgr.h"
 #include "board_config.h"
+#include "system_clock.h"
 #include "bsp_power_rails.h"
 #include "bsp_indicators.h"
 
 void setUp(void) {
     board_test_reset();
+    system_clock_test_reset();
     bsp_power_rails_test_reset();
     bsp_indicators_test_reset();
     power_mgr_test_reset();
+
     (void)board_gpio_init();
+    (void)system_clock_init();
     (void)bsp_power_rails_init();
     (void)bsp_indicators_init();
     (void)power_mgr_init();
@@ -37,10 +43,25 @@ static void test_power_mgr_init_and_states(void) {
     TEST_ASSERT_EQUAL_INT(2, (int)POWER_STATE_STOP2);
     TEST_ASSERT_EQUAL_INT(3, (int)POWER_STATE_STANDBY);
 
+    /* Verify wake reason enum constants */
+    TEST_ASSERT_EQUAL_INT(0, (int)POWER_WAKE_REASON_UNKNOWN);
+    TEST_ASSERT_EQUAL_INT(1, (int)POWER_WAKE_REASON_RTC);
+    TEST_ASSERT_EQUAL_INT(2, (int)POWER_WAKE_REASON_RAIN_EXTI);
+    TEST_ASSERT_EQUAL_INT(3, (int)POWER_WAKE_REASON_BUTTON);
+
+    /* Verify timing interval constants */
+    TEST_ASSERT_EQUAL_UINT32(600U, POWER_MGR_DEFAULT_SLEEP_SEC);
+    TEST_ASSERT_EQUAL_UINT32(300U, POWER_MGR_WATCH_SLEEP_SEC);
+    TEST_ASSERT_EQUAL_UINT32(120U, POWER_MGR_STORM_SLEEP_SEC);
+    TEST_ASSERT_EQUAL_UINT32(1800U, POWER_MGR_LOW_BAT_SLEEP_SEC);
+
     /* Verify power manager initialization */
     status_t status = power_mgr_init();
     TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
     TEST_ASSERT_EQUAL_INT(POWER_STATE_RUN, power_mgr_test_get_state());
+    TEST_ASSERT_EQUAL_INT(POWER_WAKE_REASON_UNKNOWN, power_mgr_get_wake_reason());
+    TEST_ASSERT_EQUAL_UINT32(0U, power_mgr_get_total_sleep_time_sec());
+    TEST_ASSERT_FALSE(power_mgr_test_is_rtc_wakeup_armed());
 }
 
 /**
@@ -214,7 +235,7 @@ static void test_power_mgr_gate_and_actuator_exemptions(void) {
 /**
  * @brief TC-S3-T4.1-07: Post-Wake GPIO Restoration.
  */
-static void test_power_mgr_wake_restore(void) {
+static void test_power_mgr_wake_restore_gpio(void) {
     /* 1. Condition for sleep */
     (void)power_mgr_gpio_sleep_prepare();
     TEST_ASSERT_EQUAL_INT(POWER_STATE_STOP2, power_mgr_test_get_state());
@@ -326,6 +347,151 @@ static void test_power_mgr_verify_leakage_state(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_OK, power_mgr_verify_leakage_state());
 }
 
+/**
+ * @brief TC-S3-T4.2-01: RTC Wakeup Timer Configuration & Cancellation.
+ */
+static void test_power_mgr_rtc_wakeup_config(void) {
+    /* 1. Arm RTC wakeup timer for 600s (normal sampling interval) */
+    status_t status = power_mgr_set_rtc_wakeup(600U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(power_mgr_test_is_rtc_wakeup_armed());
+    TEST_ASSERT_EQUAL_UINT32(600U, power_mgr_test_get_rtc_wakeup_interval());
+
+    /* 2. Cancel RTC wakeup timer */
+    status = power_mgr_cancel_rtc_wakeup();
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_FALSE(power_mgr_test_is_rtc_wakeup_armed());
+    TEST_ASSERT_EQUAL_UINT32(0U, power_mgr_test_get_rtc_wakeup_interval());
+
+    /* 3. Arm RTC wakeup timer with storm mode interval (120s) */
+    status = power_mgr_set_rtc_wakeup(120U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(power_mgr_test_is_rtc_wakeup_armed());
+    TEST_ASSERT_EQUAL_UINT32(120U, power_mgr_test_get_rtc_wakeup_interval());
+
+    /* 4. Arm RTC wakeup timer with max allowed 16-bit interval (65535s) */
+    status = power_mgr_set_rtc_wakeup(65535U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(power_mgr_test_is_rtc_wakeup_armed());
+    TEST_ASSERT_EQUAL_UINT32(65535U, power_mgr_test_get_rtc_wakeup_interval());
+
+    /* 5. Parameter Validation: interval = 0 must fail */
+    status = power_mgr_set_rtc_wakeup(0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, status);
+
+    /* 6. Parameter Validation: interval > 65535 must fail */
+    status = power_mgr_set_rtc_wakeup(65536U);
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, status);
+}
+
+/**
+ * @brief TC-S3-T4.2-02: Stop 2 Mode Entry & Cumulative Sleep Metric Logging.
+ */
+static void test_power_mgr_stop2_cycle_and_metrics(void) {
+    TEST_ASSERT_EQUAL_UINT32(0U, power_mgr_get_total_sleep_time_sec());
+    TEST_ASSERT_EQUAL_UINT32(0U, power_mgr_test_get_sleep_cycle_count());
+
+    /* 1. First Stop 2 sleep cycle (600s / 10 min normal) */
+    status_t status = power_mgr_enter_stop2(600U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_UINT32(600U, power_mgr_get_total_sleep_time_sec());
+    TEST_ASSERT_EQUAL_UINT32(1U, power_mgr_test_get_sleep_cycle_count());
+    TEST_ASSERT_EQUAL_INT(POWER_STATE_RUN, power_mgr_test_get_state());
+
+    /* 2. Second Stop 2 sleep cycle (300s / 5 min watch) */
+    status = power_mgr_enter_stop2(300U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_UINT32(900U, power_mgr_get_total_sleep_time_sec());
+    TEST_ASSERT_EQUAL_UINT32(2U, power_mgr_test_get_sleep_cycle_count());
+
+    /* 3. Third Stop 2 sleep cycle (120s / 2 min storm alert) */
+    status = power_mgr_enter_stop2(120U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_UINT32(1020U, power_mgr_get_total_sleep_time_sec());
+    TEST_ASSERT_EQUAL_UINT32(3U, power_mgr_test_get_sleep_cycle_count());
+
+    /* 4. Reset cumulative sleep metrics */
+    power_mgr_reset_total_sleep_time();
+    TEST_ASSERT_EQUAL_UINT32(0U, power_mgr_get_total_sleep_time_sec());
+
+    /* 5. Parameter Validation: duration = 0 must fail */
+    status = power_mgr_enter_stop2(0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, status);
+
+    /* 6. Parameter Validation: duration > 65535 must fail */
+    status = power_mgr_enter_stop2(70000U);
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, status);
+}
+
+/**
+ * @brief TC-S3-T4.2-03: Multi-Source Wakeup Reason Detection.
+ */
+static void test_power_mgr_multi_source_wake_reasons(void) {
+    /* 1. RTC Wakeup Event */
+    power_mgr_test_inject_wake_event(POWER_WAKE_REASON_RTC);
+    status_t status = power_mgr_enter_stop2(600U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(POWER_WAKE_REASON_RTC, power_mgr_get_wake_reason());
+
+    /* 2. Asynchronous Rain Gauge Pulse on PA0 (EXTI0) Wakeup Event */
+    power_mgr_test_inject_wake_event(POWER_WAKE_REASON_RAIN_EXTI);
+    status = power_mgr_enter_stop2(600U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(POWER_WAKE_REASON_RAIN_EXTI, power_mgr_get_wake_reason());
+
+    /* 3. Diagnostic User Push-Button on PC13 (EXTI13) Wakeup Event */
+    power_mgr_test_inject_wake_event(POWER_WAKE_REASON_BUTTON);
+    status = power_mgr_enter_stop2(600U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(POWER_WAKE_REASON_BUTTON, power_mgr_get_wake_reason());
+
+    /* 4. Unknown / Reset Wakeup Reason */
+    power_mgr_test_inject_wake_event(POWER_WAKE_REASON_UNKNOWN);
+    status = power_mgr_enter_stop2(600U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(POWER_WAKE_REASON_UNKNOWN, power_mgr_get_wake_reason());
+}
+
+/**
+ * @brief TC-S3-T4.2-04: Post-Wake Clock Restoration & System Clocks.
+ */
+static void test_power_mgr_clock_restoration(void) {
+    /* 1. Pre-sleep clock configuration */
+    (void)system_clock_sleep_prepare();
+    TEST_ASSERT_EQUAL_UINT32(4000000UL, system_clock_get_sysclk());
+    TEST_ASSERT_EQUAL_UINT32(0U, system_clock_test_get_flash_latency());
+
+    /* 2. Execute full wake restore */
+    status_t status = power_mgr_wake_restore();
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* 3. Verify clocks restored to 48 MHz MSI with 2 Flash wait states */
+    TEST_ASSERT_EQUAL_UINT32(48000000UL, system_clock_get_sysclk());
+    TEST_ASSERT_EQUAL_UINT32(48000000UL, system_clock_get_hclk());
+    TEST_ASSERT_EQUAL_UINT32(48000000UL, system_clock_get_pclk1());
+    TEST_ASSERT_EQUAL_UINT32(48000000UL, system_clock_get_pclk2());
+    TEST_ASSERT_EQUAL_UINT32(2U, system_clock_test_get_flash_latency());
+    TEST_ASSERT_TRUE(system_clock_test_is_msi_pll_enabled());
+}
+
+/**
+ * @brief TC-S3-T4.2-05: Shelf-Storage Standby Mode Entry.
+ */
+static void test_power_mgr_standby_mode(void) {
+    /* Enter Standby mode */
+    status_t status = power_mgr_enter_standby();
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(POWER_STATE_STANDBY, power_mgr_test_get_state());
+
+    /* Verify all pins are sleep-conditioned */
+    TEST_ASSERT_EQUAL_HEX32(GPIO_MODE_ANALOG, board_test_get_pin_mode(PIN_I2C1_SCL_PORT, PIN_I2C1_SCL_PIN));
+    TEST_ASSERT_EQUAL_HEX32(GPIO_MODE_ANALOG, board_test_get_pin_mode(PIN_RS485_TX_PORT, PIN_RS485_TX_PIN));
+    TEST_ASSERT_EQUAL_HEX32(GPIO_MODE_ANALOG, board_test_get_pin_mode(PIN_SDI12_TX_PORT, PIN_SDI12_TX_PIN));
+    TEST_ASSERT_EQUAL_HEX32(GPIO_MODE_OUTPUT_PP, board_test_get_pin_mode(PIN_PWR_SENS_PORT, PIN_PWR_SENS_PIN));
+    TEST_ASSERT_EQUAL_INT(GPIO_PIN_RESET, board_test_get_pin_state(PIN_PWR_SENS_PORT, PIN_PWR_SENS_PIN));
+    TEST_ASSERT_EQUAL_INT(GPIO_PIN_SET, board_test_get_pin_state(PIN_VBAT_DIV_EN_PORT, PIN_VBAT_DIV_EN_PIN));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_power_mgr_init_and_states);
@@ -334,7 +500,12 @@ int main(void) {
     RUN_TEST(test_power_mgr_unused_pin_conditioning);
     RUN_TEST(test_power_mgr_rain_gauge_exti_exemption);
     RUN_TEST(test_power_mgr_gate_and_actuator_exemptions);
-    RUN_TEST(test_power_mgr_wake_restore);
+    RUN_TEST(test_power_mgr_wake_restore_gpio);
     RUN_TEST(test_power_mgr_verify_leakage_state);
+    RUN_TEST(test_power_mgr_rtc_wakeup_config);
+    RUN_TEST(test_power_mgr_stop2_cycle_and_metrics);
+    RUN_TEST(test_power_mgr_multi_source_wake_reasons);
+    RUN_TEST(test_power_mgr_clock_restoration);
+    RUN_TEST(test_power_mgr_standby_mode);
     return UNITY_END();
 }

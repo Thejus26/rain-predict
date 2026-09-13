@@ -1,16 +1,37 @@
-# Current Feature
+# Current Feature: S3-T4.2 - Stop 2 Low-Power Sleep Manager & RTC Wakeup
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- To be populated when a feature is loaded via /feature load -->
+- Implement ultra-low-power Stop 2 deep sleep mode transition and configuration (`power_mgr_init`, `power_mgr_enter_stop2`) for STM32WLE5 SoC with full SRAM1 and SRAM2 retention (< 3.0 µA current draw).
+- Implement hardware RTC Periodic Wakeup Timer (`power_mgr_set_rtc_wakeup`, `power_mgr_cancel_rtc_wakeup`) driven by LSE 32.768 kHz on EXTI line 19 supporting dynamic sleep intervals (120s to 3600s).
+- Implement multi-source asynchronous wakeup detection (`power_mgr_get_wake_reason`) distinguishing between `POWER_WAKE_REASON_RTC`, `POWER_WAKE_REASON_RAIN_EXTI` (PA0/EXTI0), `POWER_WAKE_REASON_BUTTON` (PC13), and `POWER_WAKE_REASON_UNKNOWN`.
+- Implement fast sub-5 µs post-wakeup restoration (`power_mgr_wake_restore`) restoring 48 MHz MSI system clocks, Flash latency (2 wait states), and GPIO pin multiplexing.
+- Implement cumulative deep sleep duration metric tracking (`power_mgr_get_total_sleep_time_sec`) and ultra-low-leakage shelf-storage standby mode (`power_mgr_enter_standby`).
+- Implement host simulation and unit test backend in [`firmware/middleware/src/power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/power_mgr.c) with full ThrowTheSwitch Unity test coverage in `tests/unit/test_power_mgr.c`.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Target Files**: [`firmware/middleware/inc/power_mgr.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/power_mgr.h), [`firmware/middleware/src/power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/power_mgr.c), [`tests/unit/test_power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_power_mgr.c).
+- **Power Budget**: Active RUN mode ~4.5–7.8 mA @ 48 MHz; Stop 2 deep sleep ~1.5–2.5 µA @ 3.3V; Standby ~0.8 µA. Station spends > 99.7% of its lifetime in Stop 2.
+- **Hardware Registers & HAL**: `HAL_PWREx_EnableSRAM1ContentRetention()`, `HAL_PWREx_EnableSRAM2ContentRetention()`, `HAL_PWREx_EnableFlashPowerDown(PWR_FLASHPD_STOP)`, `HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, counter, RTC_WAKEUPCLOCK_CK_SPRE_16BITS, 0)`, `HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI)`.
+- **Pre-Sleep Sequence**:
+  1. `bsp_power_rails_all_off()` -> Tri-state sensor rail (PA4) and battery divider (PB1).
+  2. `bsp_indicators_all_off()` -> Turn off LEDs, buzzer, siren relay.
+  3. `board_rf_switch_set(RF_SWITCH_SHUTDOWN)` -> De-energize RF antenna switch.
+  4. `power_mgr_gpio_sleep_prepare()` -> Condition all digital buses (I2C, UART, SPI) to analog high-impedance mode to prevent parasitic leakage.
+  5. `system_clock_sleep_prepare()` -> Configure MSI clock tree for wakeup.
+  6. `power_mgr_set_rtc_wakeup(interval_sec)` -> Arm RTC periodic timer on EXTI19.
+  7. Clear pending flags (`PWR_FLAG_WUF`, `RTC_FLAG_WUTF`).
+  8. `HAL_SuspendTick()` -> `HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI)` -> `HAL_ResumeTick()`.
+- **Post-Wake Sequence**:
+  1. `system_clock_wake_restore()` -> Restore 48 MHz MSI & 2 Flash wait states.
+  2. `power_mgr_gpio_wake_restore()` -> Restore peripheral GPIO alternate function multiplexing.
+  3. Identify wake source (`POWER_WAKE_REASON_RTC` vs `POWER_WAKE_REASON_RAIN_EXTI`).
+- **Memory & Constraints**: Zero dynamic memory allocation (`malloc`/`free` prohibited); single-precision Cortex-M4 floating-point safety.
 
 ## History
 

@@ -1,11 +1,14 @@
 /**
  * @file    power_mgr.c
- * @brief   Implementation of Low-Power Sleep Management & Pre-Sleep GPIO Conditioning.
- * @details Eliminates parasitic sensor back-powering and CMOS shoot-through leakage
- *          for STM32WLE5 SoC ultra-low-power Stop 2 deep sleep (< 3.0 uA).
+ * @brief   Implementation of STM32WLE5 Stop 2 Deep Sleep & RTC Wakeup Manager.
+ * @details Eliminates parasitic sensor back-powering and CMOS shoot-through leakage,
+ *          manages ultra-low-power Stop 2 deep sleep (< 3.0 uA) with full SRAM1/SRAM2 retention,
+ *          arms LSE-clocked hardware RTC periodic wakeup timer (EXTI19), detects multi-source
+ *          wake triggers, and restores 48 MHz MSI clock execution in < 5 us.
  */
 
 #include "power_mgr.h"
+#include "system_clock.h"
 #include "bsp_power_rails.h"
 #include "bsp_indicators.h"
 
@@ -15,10 +18,136 @@
  * STM32WLE5 Hardware HAL Implementation
  * ============================================================================ */
 
+extern RTC_HandleTypeDef hrtc;
+
+static power_wake_reason_t s_last_wake_reason = POWER_WAKE_REASON_UNKNOWN;
+static uint32_t s_cumulative_sleep_sec = 0;
+
 status_t power_mgr_init(void) {
     /* 1. Enable Ultra-Low-Power mode and Backup Domain access */
     HAL_PWREx_EnableUltraLowPowerMode();
     HAL_PWR_EnableBkUpAccess();
+
+    /* 2. Configure SRAM1 and SRAM2 full content retention in Stop 2 */
+    HAL_PWREx_EnableSRAM1ContentRetention();
+    HAL_PWREx_EnableSRAM2ContentRetention();
+
+    /* 3. Configure Flash memory to enter deep power-down during Stop 2 */
+    HAL_PWREx_EnableFlashPowerDown(PWR_FLASHPD_STOP);
+
+    /* 4. Initialize internal tracking metrics */
+    s_last_wake_reason = POWER_WAKE_REASON_UNKNOWN;
+    s_cumulative_sleep_sec = 0;
+
+    return STATUS_OK;
+}
+
+status_t power_mgr_set_rtc_wakeup(uint32_t interval_sec) {
+    if (interval_sec < POWER_MGR_MIN_SLEEP_SEC || interval_sec > POWER_MGR_MAX_SLEEP_SEC) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    /* Deactivate any pending wakeup timer */
+    HAL_RTCEx_DeactivateWakeUpTimer(&hrtc);
+
+    /* Clear RTC Wakeup Timer Flag */
+    __HAL_RTC_WAKEUPTIMER_CLEAR_FLAG(&hrtc, RTC_FLAG_WUTF);
+
+    /* Clock source: 1 Hz ck_spre (when interval_sec >= 1) */
+    uint32_t wut_counter = interval_sec - 1U;
+
+    if (HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, wut_counter, RTC_WAKEUPCLOCK_CK_SPRE_16BITS, 0) != HAL_OK) {
+        return STATUS_ERR_GENERIC;
+    }
+
+    return STATUS_OK;
+}
+
+status_t power_mgr_cancel_rtc_wakeup(void) {
+    HAL_RTCEx_DeactivateWakeUpTimer(&hrtc);
+    __HAL_RTC_WAKEUPTIMER_CLEAR_FLAG(&hrtc, RTC_FLAG_WUTF);
+    return STATUS_OK;
+}
+
+status_t power_mgr_enter_stop2(uint32_t sleep_duration_sec) {
+    if (sleep_duration_sec < POWER_MGR_MIN_SLEEP_SEC || sleep_duration_sec > POWER_MGR_MAX_SLEEP_SEC) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    /* 1. Pre-sleep hardware and GPIO conditioning */
+    status_t status = power_mgr_gpio_sleep_prepare();
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 2. Configure clock tree wake-up source to MSI */
+    (void)system_clock_sleep_prepare();
+
+    /* 3. Arm RTC Periodic Wakeup Timer */
+    status = power_mgr_set_rtc_wakeup(sleep_duration_sec);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 4. Clear all pending EXTI and Wakeup flags */
+    __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WUF);
+    __HAL_RTC_WAKEUPTIMER_CLEAR_FLAG(&hrtc, RTC_FLAG_WUTF);
+
+    /* 5. Enter STM32WLE5 Stop 2 Deep Sleep Mode */
+    HAL_SuspendTick();
+    HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+    HAL_ResumeTick();
+
+    /* --- MCU Execution Resumes Here Upon Wakeup --- */
+
+    /* 6. Restore system clocks, Flash latency, and active GPIO multiplexing */
+    (void)power_mgr_wake_restore();
+
+    /* 7. Track cumulative sleep metrics */
+    s_cumulative_sleep_sec += sleep_duration_sec;
+
+    return STATUS_OK;
+}
+
+status_t power_mgr_wake_restore(void) {
+    /* 1. Restore MSI 48 MHz System Clock and Flash Latency */
+    (void)system_clock_wake_restore();
+
+    /* 2. Restore Peripheral Pin Assignments and GPIO Modes */
+    (void)power_mgr_gpio_wake_restore();
+
+    /* 3. Identify Wakeup Trigger Reason */
+    if (__HAL_RTC_WAKEUPTIMER_GET_FLAG(&hrtc, RTC_FLAG_WUTF) != RESET) {
+        s_last_wake_reason = POWER_WAKE_REASON_RTC;
+        __HAL_RTC_WAKEUPTIMER_CLEAR_FLAG(&hrtc, RTC_FLAG_WUTF);
+    } else if (__HAL_GPIO_EXTI_GET_IT(PIN_RAIN_GAUGE_PIN) != RESET) {
+        s_last_wake_reason = POWER_WAKE_REASON_RAIN_EXTI;
+        __HAL_GPIO_EXTI_CLEAR_IT(PIN_RAIN_GAUGE_PIN);
+    } else if (__HAL_GPIO_EXTI_GET_IT(PIN_USER_BTN_PIN) != RESET) {
+        s_last_wake_reason = POWER_WAKE_REASON_BUTTON;
+        __HAL_GPIO_EXTI_CLEAR_IT(PIN_USER_BTN_PIN);
+    } else {
+        s_last_wake_reason = POWER_WAKE_REASON_UNKNOWN;
+    }
+
+    return STATUS_OK;
+}
+
+power_wake_reason_t power_mgr_get_wake_reason(void) {
+    return s_last_wake_reason;
+}
+
+uint32_t power_mgr_get_total_sleep_time_sec(void) {
+    return s_cumulative_sleep_sec;
+}
+
+void power_mgr_reset_total_sleep_time(void) {
+    s_cumulative_sleep_sec = 0;
+}
+
+status_t power_mgr_enter_standby(void) {
+    (void)power_mgr_gpio_sleep_prepare();
+    HAL_PWR_EnterSTANDBYMode();
     return STATUS_OK;
 }
 
@@ -170,10 +299,22 @@ status_t power_mgr_verify_leakage_state(void) {
  * Host Simulation & Unit Testing Backend
  * ============================================================================ */
 
-static power_state_t s_sim_power_state = POWER_STATE_RUN;
+static power_state_t       s_sim_power_state          = POWER_STATE_RUN;
+static power_wake_reason_t s_sim_last_wake_reason     = POWER_WAKE_REASON_UNKNOWN;
+static power_wake_reason_t s_sim_next_wake_reason     = POWER_WAKE_REASON_RTC;
+static uint32_t            s_sim_cumulative_sleep_sec = 0;
+static uint32_t            s_sim_rtc_interval_sec     = 0;
+static bool                s_sim_rtc_armed            = false;
+static uint32_t            s_sim_sleep_cycles         = 0;
 
 void power_mgr_test_reset(void) {
-    s_sim_power_state = POWER_STATE_RUN;
+    s_sim_power_state          = POWER_STATE_RUN;
+    s_sim_last_wake_reason     = POWER_WAKE_REASON_UNKNOWN;
+    s_sim_next_wake_reason     = POWER_WAKE_REASON_RTC;
+    s_sim_cumulative_sleep_sec = 0;
+    s_sim_rtc_interval_sec     = 0;
+    s_sim_rtc_armed            = false;
+    s_sim_sleep_cycles         = 0;
 }
 
 power_state_t power_mgr_test_get_state(void) {
@@ -184,8 +325,114 @@ void power_mgr_test_set_state(power_state_t state) {
     s_sim_power_state = state;
 }
 
+void power_mgr_test_set_wake_reason(power_wake_reason_t reason) {
+    s_sim_next_wake_reason = reason;
+    s_sim_last_wake_reason = reason;
+}
+
+void power_mgr_test_inject_wake_event(power_wake_reason_t reason) {
+    s_sim_next_wake_reason = reason;
+}
+
+uint32_t power_mgr_test_get_rtc_wakeup_interval(void) {
+    return s_sim_rtc_interval_sec;
+}
+
+bool power_mgr_test_is_rtc_wakeup_armed(void) {
+    return s_sim_rtc_armed;
+}
+
+uint32_t power_mgr_test_get_sleep_cycle_count(void) {
+    return s_sim_sleep_cycles;
+}
+
 status_t power_mgr_init(void) {
+    s_sim_power_state          = POWER_STATE_RUN;
+    s_sim_last_wake_reason     = POWER_WAKE_REASON_UNKNOWN;
+    s_sim_next_wake_reason     = POWER_WAKE_REASON_RTC;
+    s_sim_cumulative_sleep_sec = 0;
+    s_sim_rtc_interval_sec     = 0;
+    s_sim_rtc_armed            = false;
+    s_sim_sleep_cycles         = 0;
+    return STATUS_OK;
+}
+
+status_t power_mgr_set_rtc_wakeup(uint32_t interval_sec) {
+    if (interval_sec < POWER_MGR_MIN_SLEEP_SEC || interval_sec > POWER_MGR_MAX_SLEEP_SEC) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    s_sim_rtc_interval_sec = interval_sec;
+    s_sim_rtc_armed = true;
+    return STATUS_OK;
+}
+
+status_t power_mgr_cancel_rtc_wakeup(void) {
+    s_sim_rtc_interval_sec = 0;
+    s_sim_rtc_armed = false;
+    return STATUS_OK;
+}
+
+status_t power_mgr_enter_stop2(uint32_t sleep_duration_sec) {
+    if (sleep_duration_sec < POWER_MGR_MIN_SLEEP_SEC || sleep_duration_sec > POWER_MGR_MAX_SLEEP_SEC) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+
+    /* 1. Pre-sleep hardware and GPIO conditioning */
+    status_t status = power_mgr_gpio_sleep_prepare();
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 2. Configure clock tree wake-up source to MSI */
+    (void)system_clock_sleep_prepare();
+
+    /* 3. Arm RTC Periodic Wakeup Timer */
+    status = power_mgr_set_rtc_wakeup(sleep_duration_sec);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    s_sim_power_state = POWER_STATE_STOP2;
+    s_sim_sleep_cycles++;
+
+    /* --- Wakeup Event Restoration Simulation --- */
+    (void)power_mgr_wake_restore();
+
+    /* Track cumulative sleep metrics */
+    s_sim_cumulative_sleep_sec += sleep_duration_sec;
+
+    return STATUS_OK;
+}
+
+status_t power_mgr_wake_restore(void) {
+    /* 1. Restore MSI 48 MHz System Clock and Flash Latency */
+    (void)system_clock_wake_restore();
+
+    /* 2. Restore Peripheral Pin Assignments and GPIO Modes */
+    (void)power_mgr_gpio_wake_restore();
+
+    /* 3. Apply and record injected/detected wake event reason */
+    s_sim_last_wake_reason = s_sim_next_wake_reason;
     s_sim_power_state = POWER_STATE_RUN;
+
+    return STATUS_OK;
+}
+
+power_wake_reason_t power_mgr_get_wake_reason(void) {
+    return s_sim_last_wake_reason;
+}
+
+uint32_t power_mgr_get_total_sleep_time_sec(void) {
+    return s_sim_cumulative_sleep_sec;
+}
+
+void power_mgr_reset_total_sleep_time(void) {
+    s_sim_cumulative_sleep_sec = 0;
+}
+
+status_t power_mgr_enter_standby(void) {
+    (void)power_mgr_gpio_sleep_prepare();
+    s_sim_power_state = POWER_STATE_STANDBY;
     return STATUS_OK;
 }
 
