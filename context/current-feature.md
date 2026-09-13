@@ -1,26 +1,16 @@
-# Current Feature: S3-T2.1 - Bounded Non-Blocking I2C Bus Driver & Lockup Recovery
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Update `firmware/drivers/inc/i2c_bus.h` adhering to ISO C99 standards with complete Doxygen documentation and extended APIs (`i2c_bus_init`, `i2c_bus_deinit`, `i2c_bus_read`, `i2c_bus_write`, `i2c_bus_read16`, `i2c_bus_write16`, `i2c_bus_is_device_ready`, `i2c_bus_recover`, `i2c_bus_is_busy`).
-- Implement `firmware/drivers/src/i2c_bus.c` targeting STM32WLE5 I2C1 (`PB6` SCL, `PB7` SDA) using STM32CubeWL HAL with strict bounded timeouts (25–100 ms).
-- Implement 9-clock SCL pulse recovery engine and explicit STOP condition generation to release stuck I2C slave devices holding SDA LOW.
-- Provide 16-bit big-endian register helper APIs (`i2c_bus_read16`, `i2c_bus_write16`) with automatic host endian conversion.
-- Implement pre-sleep peripheral deinitialization (`i2c_bus_deinit`) to gate clocks and release GPIO pins for Stop 2 low-leakage conditioning.
-- Ensure cross-target compilation hygiene with `__has_include` preprocessor guards for both host simulation and ARM Cortex-M4 toolchains.
-- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_i2c_bus.c`) covering multi-byte burst reading, 16-bit word serialization, timeout handling, 9-clock recovery, and NULL pointer safety.
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
-- Pins: PB6 (I2C1_SCL, AF4), PB7 (I2C1_SDA, AF4) pulled up to switched sensor rail `VSENS_SW` (4.7 kΩ).
-- Speeds: Standard Mode (100 kHz, Timing 0x10909CEC), Fast Mode (400 kHz, Timing 0x00802172).
-- Zero dynamic memory allocation (`malloc`/`free` strictly prohibited).
-- Bounded timeouts guarantee zero MCU deadlock on detached cables or damaged sensor ICs.
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -74,3 +64,4 @@ In Progress
 - 2026-09-13: S3-T1.1 - Implemented target board GPIO pin mappings and configuration (firmware/core/inc/board_config.h, firmware/core/src/board_config.c, firmware/core/CMakeLists.txt) covering STM32WLE5CCU6 48-pin assignments, board_gpio_init(), Stop 2 deep sleep low-leakage conditioning (< 3.0 uA), switched sensor power rail with 20ms RC stabilization delay, battery divider gate control (< 10 nA standby), field indicators/actuators (LEDs, buzzer, relay), bus directions (RS-485, SDI-12), RF switch modes, user diagnostic button sensing, and ThrowTheSwitch Unity test suite (tests/unit/test_board_config.c).
 - 2026-09-13: S3-T1.2 - Implemented system clock tree configuration and low-power oscillator management (firmware/core/inc/system_clock.h, firmware/core/src/system_clock.c) covering Power Range 1 (1.2V core), 2 Flash wait states, Flash Prefetch/ICache/DCache, LSE 32.768 kHz quartz oscillator startup with backup domain control, MSI 48 MHz (Range 11) with LSE PLL hardware auto-calibration, Stop 2 sleep clock scaling and fast < 5 µs wake restoration, on-demand Sub-GHz radio HSE TCXO 32 MHz clock gating, frequency query accessors, and ThrowTheSwitch Unity test suite (tests/unit/test_system_clock.c).
 - 2026-09-13: S3-T1.3 - Implemented STM32CubeWL HAL module configuration (firmware/core/inc/stm32wlxx_hal_conf.h, tests/unit/test_hal_conf.c, tests/CMakeLists.txt) covering peripheral whitelist (15 enabled modules: RCC, GPIO, DMA, CORTEX, PWR, FLASH, I2C, UART, SPI, RTC, SUBGHZ, ADC, IWDG, EXTI), dead-code exclusion (14 disabled modules), oscillator synchronization (HSE 32MHz, MSI 48MHz, LSE 32.768kHz, VDD 3.3V), cache acceleration (Prefetch, ICache, DCache), SysTick priority 0x00, deterministic bare-metal execution (USE_RTOS 0), defensive assert_param() hooks, and ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T2.1 - Implemented bounded non-blocking I2C master bus driver with 9-clock lockup recovery (firmware/drivers/inc/i2c_bus.h, firmware/drivers/src/i2c_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_i2c_bus.c, tests/CMakeLists.txt) covering STM32WLE5 I2C1 (PB6/PB7) hardware integration, Standard Mode (100 kHz) & Fast Mode (400 kHz) timing, 25ms bounded transaction timeouts, bit-bang 9-clock SCL pulse recovery engine with manual STOP generation, 16-bit big-endian register serialization (OPT3001), pre-sleep clock gating and deinitialization (i2c_bus_deinit), host simulation state tracking, and ThrowTheSwitch Unity test suite.
