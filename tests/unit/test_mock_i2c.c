@@ -70,7 +70,7 @@ static void test_mock_i2c_address_nack_fault(void) {
     status = i2c_bus_write(BME280_I2C_ADDR, 0xF4U, &dummy, 1, 100);
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_SENSOR_NO_RESPONSE, status);
 
-    status = i2c_bus_is_device_ready(BME280_I2C_ADDR, 100);
+    status = i2c_bus_is_device_ready(BME280_I2C_ADDR, 3U, 100U);
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_SENSOR_NO_RESPONSE, status);
 }
 
@@ -113,12 +113,12 @@ static void test_mock_i2c_delayed_fault_trigger(void) {
 
 static void test_mock_i2c_device_ready_check(void) {
     /* Initially unconfigured */
-    status_t status = i2c_bus_is_device_ready(0x22U, 100);
+    status_t status = i2c_bus_is_device_ready(0x22U, 3U, 100U);
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_SENSOR_NO_RESPONSE, status);
 
     /* Configure device */
     (void)mock_i2c_set_register(0x22U, 0x00U, 0x12U);
-    status = i2c_bus_is_device_ready(0x22U, 100);
+    status = i2c_bus_is_device_ready(0x22U, 3U, 100U);
     TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
 }
 

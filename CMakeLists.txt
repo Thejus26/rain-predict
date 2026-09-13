@@ -118,6 +118,10 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
         add_subdirectory(firmware/core)
     endif()
 
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/firmware/drivers/CMakeLists.txt")
+        add_subdirectory(firmware/drivers)
+    endif()
+
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/firmware/middleware/CMakeLists.txt")
         add_subdirectory(firmware/middleware)
     endif()

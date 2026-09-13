@@ -203,7 +203,31 @@ status_t i2c_bus_write(uint8_t dev_addr, uint8_t reg_addr, const uint8_t *p_data
     return STATUS_OK;
 }
 
-status_t i2c_bus_is_device_ready(uint8_t dev_addr, uint32_t timeout_ms) {
+status_t i2c_bus_deinit(void) {
+    return STATUS_OK;
+}
+
+status_t i2c_bus_read16(uint8_t dev_addr, uint8_t reg_addr, uint16_t *p_value, uint32_t timeout_ms) {
+    if (p_value == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+    uint8_t raw_buf[2] = {0};
+    status_t status = i2c_bus_read(dev_addr, reg_addr, raw_buf, 2U, timeout_ms);
+    if (status == STATUS_OK) {
+        *p_value = (uint16_t)(((uint16_t)raw_buf[0] << 8) | (uint16_t)raw_buf[1]);
+    }
+    return status;
+}
+
+status_t i2c_bus_write16(uint8_t dev_addr, uint8_t reg_addr, uint16_t value, uint32_t timeout_ms) {
+    uint8_t raw_buf[2];
+    raw_buf[0] = (uint8_t)((value >> 8) & 0xFFU);
+    raw_buf[1] = (uint8_t)(value & 0xFFU);
+    return i2c_bus_write(dev_addr, reg_addr, raw_buf, 2U, timeout_ms);
+}
+
+status_t i2c_bus_is_device_ready(uint8_t dev_addr, uint32_t trials, uint32_t timeout_ms) {
+    (void)trials;
     (void)timeout_ms;
     if (s_active_fault == MOCK_I2C_FAULT_NACK_ADDR) {
         return STATUS_ERR_SENSOR_NO_RESPONSE;
@@ -211,3 +235,12 @@ status_t i2c_bus_is_device_ready(uint8_t dev_addr, uint32_t timeout_ms) {
     mock_device_t *p_dev = find_device(dev_addr);
     return (p_dev != NULL) ? STATUS_OK : STATUS_ERR_SENSOR_NO_RESPONSE;
 }
+
+status_t i2c_bus_recover(void) {
+    return STATUS_OK;
+}
+
+bool i2c_bus_is_busy(void) {
+    return false;
+}
+
