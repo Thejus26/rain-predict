@@ -142,8 +142,8 @@ static void test_i2c_bus_9clock_lockup_recovery(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
 
     /* Verify SCL was clocked and STOP condition was emitted */
-    TEST_ASSERT_GREATER_THAN_UINT32(0U, i2c_bus_test_get_recovery_pulse_count());
-    TEST_ASSERT_LESS_OR_EQUAL_UINT32(9U, i2c_bus_test_get_recovery_pulse_count());
+    TEST_ASSERT_TRUE(i2c_bus_test_get_recovery_pulse_count() > 0U);
+    TEST_ASSERT_TRUE(i2c_bus_test_get_recovery_pulse_count() <= 9U);
     TEST_ASSERT_TRUE(i2c_bus_test_get_stop_condition_emitted());
     TEST_ASSERT_FALSE(i2c_bus_test_get_sda_stuck());
     TEST_ASSERT_TRUE(i2c_bus_test_is_initialized());
