@@ -1,41 +1,16 @@
-# Current Feature: S3-T4.4 - Battery ADC Voltage Measurement and Solar Harvesting Telemetry
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement low-power ADC1 driver (`firmware/drivers/inc/bsp_adc.h`, `firmware/drivers/src/bsp_adc.c`) for STM32WLE5 SoC.
-- Implement factory $V_{\text{REFINT\_CAL}}$ lookup at `0x1FFF75AA` with nominal fallback (`1660`) to calculate exact instantaneous $V_{\text{DDA}}$ and eliminate supply-drift voltage measurement errors.
-- Control PB1 high-side P-MOSFET divider gate with 2.0 ms RC settling guard delay and automatic de-assertion upon acquisition completion or error, ensuring $< 10\text{ nA}$ standby leakage.
-- Implement 8x oversampled averaging conversions for both internal $V_{\text{REFINT}}$ and $V_{\text{bat}}$ (`PB0` / `ADC_IN1`) channels.
-- Implement compensated battery millivolt conversion formula using 64-bit integer fixed-point arithmetic with rounding: $V_{\text{bat\_mV}} = \lfloor (6000 \times \text{CAL\_VAL} \times \text{RAW\_VBAT} + (4095 \times \text{RAW\_VREFINT} / 2)) / (4095 \times \text{RAW\_VREFINT}) \rfloor$.
-- Implement 8-segment non-linear $\text{LiFePO}_4$ State of Charge (SoC) interpolation algorithm mapped from 2500 mV to 3400 mV with 0% to 100% boundary clamping.
-- Implement 3-tier operational battery health state classification (`OPTIMAL` $\ge 3.25\text{V}$, `LOW` $3.00\text{V} - 3.25\text{V}$, `CRITICAL` $< 3.00\text{V}$) and adaptive duty-cycle sleep throttling recommendations (e.g., 15 min for Low, 60 min for Critical).
-- Implement solar harvesting status classification (`NIGHT`, `DISCHARGING`, `ACTIVE_HARVEST`, `FLOAT_CHARGED`) correlating optical illuminance (OPT3001 Lux) with $\Delta V_{\text{bat}}$ rate of change.
-- Implement LoRaWAN telemetry Byte 11 6-bit $V_{\text{bat}}$ encoding ($\text{clamp}((V_{\text{bat\_mV}} - 2500) / 20, 0, 63)$) with Bit 6 (`sensor_error`) and Bit 7 (`unexpected_reset`) flags according to `telemetry-protocol.md`.
-- Implement comprehensive ThrowTheSwitch Unity unit test suite (`tests/unit/test_bsp_adc.c`) validating all 10 verification test cases, registering tests in `tests/CMakeLists.txt`.
+<!-- Add goals here -->
 
 ## Notes
 
-- **Microcontroller**: STMicroelectronics STM32WLE5CCU6 (Arm Cortex-M4 @ 48 MHz).
-- **Target Files**:
-  - `firmware/drivers/inc/bsp_adc.h`
-  - `firmware/drivers/src/bsp_adc.c`
-  - `firmware/middleware/inc/power_mgr.h` (battery extensions)
-  - `firmware/middleware/src/power_mgr.c` (battery extensions)
-  - `tests/unit/test_bsp_adc.c`
-  - `firmware/drivers/CMakeLists.txt` & `tests/CMakeLists.txt`
-- **Hardware Pins**:
-  - `PB1`: `PIN_VBAT_DIV_EN` (Active-LOW P-MOSFET divider gate)
-  - `PB0`: `PIN_VBAT_ADC` (`ADC1_IN1`, $100\text{k}\Omega / 100\text{k}\Omega$ 1% precision divider, factor = 2.0x)
-  - `VREFINT`: STM32WLE5 internal reference voltage channel (~1.224V)
-  - Factory Calibration Word: `0x1FFF75AA` ($V_{\text{REFINT\_CAL}}$ acquired at $V_{\text{DDA}} = 3.0\text{V} \pm 10\text{mV}$ @ 30°C)
-- **Power Constraints**:
-  - Standby leakage current across divider: $< 10\text{ nA}$ when PB1 is HIGH.
-  - Active sampling duration: $< 3\text{ ms}$ (including 2.0 ms RC settling).
-  - Stop 2 deep sleep target: $< 3.0\,\mu\text{A}$ total system current.
+<!-- Add notes here -->
 
 ## History
 
@@ -94,3 +69,4 @@ In Progress
 - 2026-09-13: S3-T4.1 - Implemented pre-sleep GPIO conditioning and parasitic leakage elimination (firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, firmware/middleware/CMakeLists.txt, tests/unit/test_power_mgr.c, tests/CMakeLists.txt) covering STM32WLE5 Stop 2 deep sleep preparation (< 3.0 µA), digital sensor bus analog isolation (I2C1 PB6/PB7, USART1 PA2/PA3, LPUART1 PC0/PC1, SPI1 PA5/PA6/PA7) preventing parasitic back-powering via ESD diodes, unused CMOS floating pin shoot-through suppression (PA8..PA12, PA15, PB0, PB3, PB5, PB10..PB15, PC6..PC13), wakeup/oscillator exemption preservation (PA0 EXTI0, PC14/PC15 LSE 32.768 kHz, PA13/PA14 SWD, PA4/PB1 power rail gates, PB8/PB9/PB2/PB4 actuators, PC3/PC4/PC5 RF switch), post-wake GPIO multiplexing restoration (< 10 µs), diagnostic leakage state verification, host simulation backend, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.2 - Implemented Stop 2 low-power deep sleep manager and RTC periodic wakeup timer (firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_power_mgr.c) covering STM32WLE5 Stop 2 mode transition (< 3.0 µA current draw), full SRAM1 and SRAM2 retention, Flash deep power-down (PWR_FLASHPD_STOP), hardware RTC periodic wakeup timer (120s to 3600s dynamic intervals) on EXTI line 19 clocked by LSE 32.768 kHz, multi-source asynchronous wakeup detection (RTC, PA0/EXTI0 rain gauge pulse, PC13 button, unknown), fast sub-5 µs post-wakeup restoration to 48 MHz MSI and 2 Flash wait states, cumulative deep sleep duration metric tracking (power_mgr_get_total_sleep_time_sec), shelf-storage Standby mode (< 0.8 µA), host simulation state machine, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.3 - Implemented Independent Watchdog (IWDG) driver and supervision (firmware/core/inc/watchdog.h, firmware/core/src/watchdog.c, tests/unit/test_watchdog.c) covering STM32WLE5 dedicated 32 kHz LSI clocking, /64 prescaler divider (500 Hz / 2.0 ms tick), 4000 reload count (8.0s deterministic timeout), anti-masking safe refresh logic (IWDG_KR 0xAAAA), boot reset reason diagnostics (RCC_CSR_IWDGRSTF), DBGMCU Stop 2 and Standby sleep counter freeze, and ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T4.4 - Implemented Battery ADC Voltage Measurement and Solar Harvesting Telemetry (firmware/drivers/inc/bsp_adc.h, firmware/drivers/src/bsp_adc.c, firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_bsp_adc.c) covering STM32WLE5 ADC1 driver with internal factory VREFINT_CAL (0x1FFF75AA) calibration, PB1 high-side P-MOSFET divider gate control with 2.0ms RC stabilization delay (< 10 nA standby leakage), 8x oversampled averaging, 8-segment non-linear LiFePO4 State of Charge (SoC) interpolation (0-100%), 3-tier battery health categorization (Optimal/Low/Critical), adaptive duty-cycle sleep throttling (>= 15 min for Low, 60 min for Critical), solar harvesting classification (Night/Discharging/Active Harvest/Float Charged), bit-packed LoRaWAN Byte 11 (6-bit Vbat @ 20mV LSB + sensor error and reset flags), and ThrowTheSwitch Unity test suite. Completed Sprint 3 (Core MCU Architecture, BSP & Power Management).
