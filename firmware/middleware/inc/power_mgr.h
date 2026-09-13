@@ -1,8 +1,9 @@
 /**
  * @file    power_mgr.h
- * @brief   Power management, sleep mode controller, and pre-sleep GPIO conditioning for STM32WLE5.
- * @details Manages pre-sleep GPIO leakage elimination, bus isolation, Stop 2 deep sleep entry,
- *          and post-wake restoration routines for the Tea Plantation Rain Prediction System.
+ * @brief   Ultra-low-power Stop 2 sleep manager and RTC wake controller for STM32WLE5 SoC.
+ * @details Manages pre-sleep GPIO leakage elimination, bus isolation, Stop 2 deep sleep entry (< 3.0 uA),
+ *          hardware RTC periodic wakeup timing (EXTI19), multi-source wake detection,
+ *          sub-5 us clock restoration, cumulative sleep tracking, and shelf-storage Standby mode.
  */
 
 #ifndef POWER_MGR_H
@@ -20,7 +21,7 @@ extern "C" {
 #include "board_config.h"
 
 /* ============================================================================
- * Power State Definitions
+ * Power State & Wakeup Source Definitions
  * ============================================================================ */
 
 /**
@@ -33,15 +34,94 @@ typedef enum {
     POWER_STATE_STANDBY     /**< Standby shelf-storage mode (< 0.8 uA) */
 } power_state_t;
 
+/**
+ * @brief Stop 2 Deep Sleep Wakeup Source Triggers.
+ */
+typedef enum {
+    POWER_WAKE_REASON_UNKNOWN = 0,  /**< Reset, power-on, or unidentified wake trigger */
+    POWER_WAKE_REASON_RTC,          /**< RTC Periodic Measurement Wakeup Timer (EXTI line 19) */
+    POWER_WAKE_REASON_RAIN_EXTI,    /**< Tipping-Bucket Rain Gauge Pulse on PA0 (EXTI line 0) */
+    POWER_WAKE_REASON_BUTTON        /**< User Field Diagnostic Push-Button on PC13 (EXTI line 13) */
+} power_wake_reason_t;
+
+/* ============================================================================
+ * Sleep Interval Timing Constants (in seconds)
+ * ============================================================================ */
+
+#define POWER_MGR_DEFAULT_SLEEP_SEC     600U    /**< Default normal fair-weather sampling: 10 min (600s) */
+#define POWER_MGR_WATCH_SLEEP_SEC       300U    /**< Unsettled weather watch sampling: 5 min (300s) */
+#define POWER_MGR_STORM_SLEEP_SEC       120U    /**< Active convective storm alert sampling: 2 min (120s) */
+#define POWER_MGR_LOW_BAT_SLEEP_SEC     1800U   /**< Low battery preservation sampling: 30 min (1800s) */
+#define POWER_MGR_MIN_SLEEP_SEC         1U      /**< Minimum configurable RTC sleep interval: 1s */
+#define POWER_MGR_MAX_SLEEP_SEC         65535U  /**< Maximum 16-bit RTC WUT interval: 65535s (~18.2 hours) */
+
 /* ============================================================================
  * Public Power Management API Prototypes
  * ============================================================================ */
 
 /**
- * @brief  Initializes the power management subsystem, low-power regulator configurations, and backup domain access.
+ * @brief  Initializes power manager, low-power voltage regulator, backup domain access, and retention.
+ * @details Configures Ultra-Low-Power mode, backup domain write access, full SRAM1/SRAM2 retention,
+ *          and Flash deep power-down during Stop 2 sleep.
  * @return status_t STATUS_OK on success, error code otherwise.
  */
 status_t power_mgr_init(void);
+
+/**
+ * @brief  Enters Stop 2 ultra-low-power deep sleep mode with automatic RTC timer wakeup.
+ * @details Sequentially isolates all GPIOs, configures clock tree for wake, arms RTC periodic wakeup timer,
+ *          clears pending interrupt flags, halts core via WFI, restores clocks and GPIO mux upon wake,
+ *          and logs cumulative sleep metrics.
+ * @param[in] sleep_duration_sec Sleep interval in seconds (1 to 65535).
+ * @return status_t STATUS_OK upon waking from sleep, STATUS_ERR_INVALID_PARAM if duration is out of range.
+ */
+status_t power_mgr_enter_stop2(uint32_t sleep_duration_sec);
+
+/**
+ * @brief  Arms the hardware RTC Periodic Wakeup Timer counter with a specified second interval.
+ * @details Configures RTC_WUTR on EXTI Line 19 with 1 Hz ck_spre clock source.
+ * @param[in] interval_sec Wakeup period in seconds (1 to 65535).
+ * @return status_t STATUS_OK on success, STATUS_ERR_INVALID_PARAM if interval is 0 or > 65535.
+ */
+status_t power_mgr_set_rtc_wakeup(uint32_t interval_sec);
+
+/**
+ * @brief  Disables and cancels any pending RTC periodic wakeup timer.
+ * @return status_t STATUS_OK on success.
+ */
+status_t power_mgr_cancel_rtc_wakeup(void);
+
+/**
+ * @brief  Identifies and returns the event source that caused the last wakeup from Stop 2 deep sleep.
+ * @return power_wake_reason_t Wakeup event trigger (RTC, RAIN_EXTI, BUTTON, UNKNOWN).
+ */
+power_wake_reason_t power_mgr_get_wake_reason(void);
+
+/**
+ * @brief  Restores 48 MHz MSI clocks, Flash latency (2 wait states), and peripheral GPIO multiplexing post-wake.
+ * @details Restores MSI clock tree, re-enables LSE auto-calibration, restores GPIO AF multiplexing,
+ *          and identifies/clears wakeup interrupt flags.
+ * @return status_t STATUS_OK on success.
+ */
+status_t power_mgr_wake_restore(void);
+
+/**
+ * @brief  Returns cumulative seconds the system has spent in Stop 2 deep sleep since boot.
+ * @return uint32_t Cumulative sleep duration in seconds.
+ */
+uint32_t power_mgr_get_total_sleep_time_sec(void);
+
+/**
+ * @brief  Resets cumulative deep sleep duration counter to zero.
+ */
+void power_mgr_reset_total_sleep_time(void);
+
+/**
+ * @brief  Enters ultra-low-leakage Standby mode (< 0.8 uA) for long-term shelf storage.
+ * @details Tri-states all GPIOs and shuts down core/SRAM retention. Requires NRST pin reset to wake.
+ * @return status_t Does not return on embedded target if successful; STATUS_OK on simulation.
+ */
+status_t power_mgr_enter_standby(void);
 
 /**
  * @brief  Conditions all GPIO ports for ultra-low-leakage Stop 2 deep sleep (< 3.0 uA).
@@ -99,6 +179,36 @@ power_state_t power_mgr_test_get_state(void);
  * @param[in] state Power state to assign.
  */
 void power_mgr_test_set_state(power_state_t state);
+
+/**
+ * @brief Overrides simulated last wakeup reason.
+ * @param[in] reason Wake reason to assign.
+ */
+void power_mgr_test_set_wake_reason(power_wake_reason_t reason);
+
+/**
+ * @brief Injects the next wakeup event to be returned upon wake restoration.
+ * @param[in] reason Wake reason trigger to inject.
+ */
+void power_mgr_test_inject_wake_event(power_wake_reason_t reason);
+
+/**
+ * @brief Gets the configured simulated RTC wakeup interval in seconds.
+ * @return uint32_t RTC interval in seconds.
+ */
+uint32_t power_mgr_test_get_rtc_wakeup_interval(void);
+
+/**
+ * @brief Checks if the simulated RTC wakeup timer is currently armed.
+ * @return bool true if RTC wakeup timer is active.
+ */
+bool power_mgr_test_is_rtc_wakeup_armed(void);
+
+/**
+ * @brief Gets total number of Stop 2 sleep cycles executed during test simulation.
+ * @return uint32_t Sleep cycle count.
+ */
+uint32_t power_mgr_test_get_sleep_cycle_count(void);
 
 #endif /* Host Simulation API */
 
