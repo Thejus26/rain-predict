@@ -204,4 +204,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_i2c_bus.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_uart_bus.c")
+    add_firmware_test(uart_bus
+        SOURCES unit/test_uart_bus.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
+
 

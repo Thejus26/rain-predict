@@ -1,18 +1,31 @@
-# Current Feature
+# Current Feature: S3-T2.2 - Bounded Non-Blocking Dual-Port UART & SDI-12 Bus Driver
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Update `firmware/drivers/inc/uart_bus.h` adhering to ISO C99 standards with complete Doxygen documentation and extended APIs (`uart_bus_init`, `uart_bus_deinit`, `uart_bus_transmit`, `uart_bus_receive`, `uart_bus_sdi12_send_break`, `uart_bus_flush`, `uart_bus_get_available`, `uart_bus_rx_isr_handler`).
+- Implement `firmware/drivers/src/uart_bus.c` targeting STM32WLE5 USART1 (`PA2` TX, `PA3` RX, `PA1` DE/RE) for RS-485 Modbus RTU and LPUART1 (`PC0` TX, `PC1` RX, `PC2` DIR) for SDI-12.
+- Implement RS-485 half-duplex direction sequencing on `PA1` with pre-transmission guard delay (25 µs) and post-transmission guard delay (35 µs) to prevent clipped end-of-frame bytes.
+- Implement SDI-12 physical wakeup break (>12 ms) and mark (>8.3 ms) signaling sequencer on `PC0` (LPUART1 TX) and `PC2` (`SDI12_DIR`).
+- Implement interrupt-driven circular RX ring buffers (256 bytes per port) with IDLE line detection and bounded non-blocking timeouts (50–250 ms).
+- Implement pre-sleep serial deinitialization (`uart_bus_deinit`) to gate peripheral clocks and release GPIO pins for Stop 2 low-leakage conditioning.
+- Ensure cross-target compilation hygiene with `__has_include` preprocessor guards and unified host simulation backend.
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_uart_bus.c`) covering dual-port initialization, RS-485 DE guard timing, SDI-12 break/mark sequencing, RX ring buffering, timeouts, buffer flushing, and NULL pointer defense.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
+- USART1: RS-485 Modbus RTU (PA2 TX AF7, PA3 RX AF7, PA1 DE/RE Push-Pull Output).
+- LPUART1: SDI-12 Agricultural Bus (PC0 TX AF8, PC1 RX AF8, PC2 DIR Push-Pull Output).
+- Guard Times: RS-485 pre-delay 25 µs, post-delay 35 µs; SDI-12 break 13 ms, mark 9 ms.
+- Memory: Static 256-byte circular FIFO ring buffer per port; zero dynamic allocation (`malloc`/`free` prohibited).
+- Bounded timeouts guarantee zero MCU deadlock on disconnected sensor cables or noisy serial lines.
 
 ## History
+
 
 
 

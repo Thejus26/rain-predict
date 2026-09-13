@@ -5,6 +5,7 @@
 
 add_library(firmware_drivers STATIC
     src/i2c_bus.c
+    src/uart_bus.c
 )
 
 target_include_directories(firmware_drivers PUBLIC
