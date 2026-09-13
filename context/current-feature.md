@@ -1,54 +1,18 @@
-# Current Feature: S3-T4.1 - Pre-Sleep GPIO Conditioning & Parasitic Leakage Elimination
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement `firmware/middleware/inc/power_mgr.h` conforming to C99 standards with full Doxygen documentation and strict compiler compatibility.
-- Implement `firmware/middleware/src/power_mgr.c` with pre-sleep GPIO conditioning, bus isolation, and post-wake restoration routines.
-- Implement `power_mgr_isolate_sensor_buses()` to reconfigure digital communication pins (I2C1 `PB6/PB7`, USART1 `PA2/PA3`, LPUART1 `PC0/PC1`, SPI1 `PA5/PA6/PA7`) into `GPIO_MODE_ANALOG` (`GPIO_NOPULL`) to prevent parasitic sensor back-powering via ESD diodes when `VSENS_SW` is unpowered ($0\text{V}$).
-- Implement `power_mgr_restore_sensor_buses()` to reconfigure sensor communication pins back to their active Alternate Function peripheral assignments.
-- Implement `power_mgr_gpio_sleep_prepare()` to:
-  1. De-energize switched sensor rails (`bsp_power_rails_all_off()`) and battery divider.
-  2. Silence buzzer, turn off status/warning LEDs, and de-energize siren relay (`bsp_indicators_all_off()`).
-  3. Set Sub-GHz RF switch to shutdown mode (`board_rf_switch_set(RF_SWITCH_SHUTDOWN)`).
-  4. Isolate digital sensor buses (`power_mgr_isolate_sensor_buses()`).
-  5. Reconfigure all unused/unrouted pins across Ports A, B, and C (`PA8..PA12`, `PA15`, `PB3`, `PB5`, `PB10..PB15`, `PC6..PC13`) to `GPIO_MODE_ANALOG` (`GPIO_NOPULL`) to suppress CMOS floating input shoot-through leakage.
-- Enforce strict Sleep Exemption List to preserve continuous background MCU functions and wake capability:
-  - `PA0` (`PIN_RAIN_GAUGE`): Preserved as `GPIO_MODE_IT_FALLING` with EXTI0 active for tipping-bucket rain detection during sleep.
-  - `PC14` / `PC15` (`OSC32_IN` / `OSC32_OUT`): Preserved in RCC Analog mode for continuous $32.768\text{ kHz}$ LSE quartz oscillator and RTC timing.
-  - `PA13` / `PA14` (`SWDIO` / `SWCLK`): Preserved in AF0 SWD debug mode with internal pull-up / pull-down for in-circuit debugging.
-  - `PA4` (`PIN_PWR_SENS_EN`): Preserved as Output Push-Pull driven LOW ($0\text{V}$, Switched Rail OFF).
-  - `PB1` (`PIN_VBAT_DIV_EN`): Preserved as Output Push-Pull driven HIGH ($V_{\text{BAT}}$, Divider OFF, $< 10\text{nA}$ leakage).
-  - `PB8`, `PB9`, `PB2`, `PB4`: Preserved as Output Push-Pull driven LOW (LEDs, Buzzer, Siren Relay grounded/de-energized).
-  - `PC3`, `PC4`, `PC5` (`FE_CTRL3`, `FE_CTRL1`, `FE_CTRL2`): Preserved as Output Push-Pull driven LOW (RF switch shutdown).
-- Implement `power_mgr_gpio_wake_restore()` restoring operational pin multiplexing and peripheral active states in $< 10\,\mu\text{s}$.
-- Implement `power_mgr_verify_leakage_state()` diagnostic helper verifying that no unexempt pins remain floating and power rail switches are safely de-energized.
-- Implement `power_mgr_init()` initializing power subsystem and ultra-low-power mode registers.
-- Ensure zero dynamic memory allocation (`malloc`/`free` prohibited) and MISRA/C99 safety compliance.
-- Implement comprehensive ThrowTheSwitch Unity test suite in `tests/unit/test_power_mgr.c` covering all verification test cases (TC-S3-T4.1-01 through TC-S3-T4.1-08) and integrate into `tests/CMakeLists.txt`.
+<!-- To be populated when a feature is loaded via /feature load -->
 
 ## Notes
 
-- **Target Microcontroller**: STM32WLE5CCU6 (Arm Cortex-M4 @ 48 MHz).
-- **Target Standby Baseline**: $< 3.0\,\mu\text{A}$ in Stop 2 deep sleep mode.
-- **Physical Leakage Mechanisms Addressed**:
-  1. *Parasitic Sensor Back-Powering*: $200\,\mu\text{A} - 2.0\,\text{mA}$ current leakage into unpowered sensor ICs via ESD protection diodes when MCU bus pins remain HIGH. Eliminated by analog tri-stating (`GPIO_MODE_ANALOG`, `GPIO_NOPULL`).
-  2. *CMOS Input Buffer Shoot-Through*: $50 - 300\,\mu\text{A}$ per pin when unused pins float at intermediate logic levels, causing NMOS and PMOS gate crossbar conduction. Eliminated by configuring all unused pins to `GPIO_MODE_ANALOG`.
-- **Restoration Latency Constraint**: $< 10\,\mu\text{s}$ post-wake GPIO reinitialization time.
-- **Related Specifications**:
-  - `context/specs/s3-t4.1-gpio-sleep-conditioning.md`
-  - `context/specs/s3-t1.1-gpio-pin-mappings.md`
-  - `context/specs/s3-t3.1-switched-power-rails.md`
-  - `context/specs/s3-t3.2-board-indicators.md`
-  - `context/specs/s3-t4.2-stop2-sleep-manager.md`
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
-
-
-
 
 - 2026-09-09: Implemented Phase 1 documentation deliverables (System & Hardware Architecture).
 - 2026-09-09: Implemented Phase 2 documentation deliverables (Sensors & Prediction Math).
@@ -102,3 +66,4 @@ In Progress
 - 2026-09-13: S3-T2.2 - Implemented bounded non-blocking dual-port UART and SDI-12 bus driver (firmware/drivers/inc/uart_bus.h, firmware/drivers/src/uart_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_uart_bus.c, tests/CMakeLists.txt) covering STM32WLE5 USART1 (RS-485 Modbus RTU on PA2 TX, PA3 RX, PA1 DE/RE) with 25µs pre-delay and 35µs post-delay guard timing, LPUART1 (SDI-12 on PC0 TX, PC1 RX, PC2 DIR) with 13ms break spacing and 9ms mark wakeup sequencing, 256-byte static circular RX ring buffers per port with interrupt-driven reception, bounded 50-250ms timeouts, pre-sleep serial deinitialization (uart_bus_deinit), host simulation backend, and comprehensive ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T3.1 - Implemented switched sensor power rails driver with high-side P-MOSFET load switch management and stabilization guard delays (firmware/drivers/inc/bsp_power_rails.h, firmware/drivers/src/bsp_power_rails.c, firmware/drivers/CMakeLists.txt, tests/unit/test_bsp_power_rails.c, tests/CMakeLists.txt) covering STM32WLE5 PA4 (3.3V switched sensor rail VSENS_SW) with 20ms calibrated RC stabilization delay, PB1 active-LOW battery divider gate with 2ms stabilization delay (< 10 nA standby leakage), pre-sleep all-off shutdown (bsp_power_rails_all_off) for Stop 2 deep sleep (< 3.0 µA), host simulation state tracking, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T3.2 - Implemented board indicators and alarm actuator driver with non-blocking pattern generator and timed relay auto-cutoff (firmware/drivers/inc/bsp_indicators.h, firmware/drivers/src/bsp_indicators.c, firmware/drivers/CMakeLists.txt, tests/unit/test_bsp_indicators.c, tests/CMakeLists.txt) covering STM32WLE5 PB8 (Green Status LED), PB9 (Red Warning LED), PB2 (90dB Piezo Buzzer gate), PB4 (Optocoupled Siren Relay gate), tick-based non-blocking pattern generator (Heartbeat, Watch, Warning, Storm Alert), 10s maximum relay safety auto-cutoff (BSP_RELAY_MAX_PULSE_DURATION_MS), pre-sleep all-off shutdown (bsp_indicators_all_off) for Stop 2 deep sleep (< 3.0 µA), host simulation state tracking, and ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T4.1 - Implemented pre-sleep GPIO conditioning and parasitic leakage elimination (firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, firmware/middleware/CMakeLists.txt, tests/unit/test_power_mgr.c, tests/CMakeLists.txt) covering STM32WLE5 Stop 2 deep sleep preparation (< 3.0 µA), digital sensor bus analog isolation (I2C1 PB6/PB7, USART1 PA2/PA3, LPUART1 PC0/PC1, SPI1 PA5/PA6/PA7) preventing parasitic back-powering via ESD diodes, unused CMOS floating pin shoot-through suppression (PA8..PA12, PA15, PB0, PB3, PB5, PB10..PB15, PC6..PC13), wakeup/oscillator exemption preservation (PA0 EXTI0, PC14/PC15 LSE 32.768 kHz, PA13/PA14 SWD, PA4/PB1 power rail gates, PB8/PB9/PB2/PB4 actuators, PC3/PC4/PC5 RF switch), post-wake GPIO multiplexing restoration (< 10 µs), diagnostic leakage state verification, host simulation backend, and ThrowTheSwitch Unity test suite.
