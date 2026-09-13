@@ -1,18 +1,29 @@
-# Current Feature
+# Current Feature: S3-T2.1 - Bounded Non-Blocking I2C Bus Driver & Lockup Recovery
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Update `firmware/drivers/inc/i2c_bus.h` adhering to ISO C99 standards with complete Doxygen documentation and extended APIs (`i2c_bus_init`, `i2c_bus_deinit`, `i2c_bus_read`, `i2c_bus_write`, `i2c_bus_read16`, `i2c_bus_write16`, `i2c_bus_is_device_ready`, `i2c_bus_recover`, `i2c_bus_is_busy`).
+- Implement `firmware/drivers/src/i2c_bus.c` targeting STM32WLE5 I2C1 (`PB6` SCL, `PB7` SDA) using STM32CubeWL HAL with strict bounded timeouts (25–100 ms).
+- Implement 9-clock SCL pulse recovery engine and explicit STOP condition generation to release stuck I2C slave devices holding SDA LOW.
+- Provide 16-bit big-endian register helper APIs (`i2c_bus_read16`, `i2c_bus_write16`) with automatic host endian conversion.
+- Implement pre-sleep peripheral deinitialization (`i2c_bus_deinit`) to gate clocks and release GPIO pins for Stop 2 low-leakage conditioning.
+- Ensure cross-target compilation hygiene with `__has_include` preprocessor guards for both host simulation and ARM Cortex-M4 toolchains.
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_i2c_bus.c`) covering multi-byte burst reading, 16-bit word serialization, timeout handling, 9-clock recovery, and NULL pointer safety.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
+- Pins: PB6 (I2C1_SCL, AF4), PB7 (I2C1_SDA, AF4) pulled up to switched sensor rail `VSENS_SW` (4.7 kΩ).
+- Speeds: Standard Mode (100 kHz, Timing 0x10909CEC), Fast Mode (400 kHz, Timing 0x00802172).
+- Zero dynamic memory allocation (`malloc`/`free` strictly prohibited).
+- Bounded timeouts guarantee zero MCU deadlock on detached cables or damaged sensor ICs.
 
 ## History
+
 
 
 - 2026-09-09: Implemented Phase 1 documentation deliverables (System & Hardware Architecture).
