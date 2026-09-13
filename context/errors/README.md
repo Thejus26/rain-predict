@@ -30,6 +30,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-020`** | 2026-09-13 16:11:39 | [`c3bc892`](https://github.com/Thejus26/rain-predict/commit/c3bc8920751509c2ec090ea013ee8a9348372875) | Core Architecture | **Missing STATUS_ERR_INVALID_STATE & Delay Prototype**: Omitted status enum value and test prototype in header. | [ERR-020 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-020-2026-09-13-missing-status-err-invalid-state-and-delay-prototype.md) |
 | **`ERR-021`** | 2026-09-13 17:21:10 | [`51562da`](https://github.com/Thejus26/rain-predict/commit/51562da19c61f0d1f11ee890a5e7608cec424d03) | Middleware (Power) | **Unclosed Function Brace in power_mgr.c**: Missing return/closing brace before `#endif` caused nested function compiler errors. | [ERR-021 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-021-2026-09-13-unclosed-function-brace-nested-functions-error-in-power-mgr.md) |
 | **`ERR-022`** | 2026-09-13 17:26:21 | [`108811a`](https://github.com/Thejus26/rain-predict/commit/108811ab36ef4a6e8b647e4103775a9cb7c3673c) | Testing (Unity) | **Non-Existent TEST_ASSERT_UINT16_WITHIN in test_bsp_adc**: Undefined macro called for integer tolerance checks. | [ERR-022 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-022-2026-09-13-invalid-unity-assertion-macro-in-test-bsp-adc.md) |
+| **`ERR-023`** | 2026-09-13 17:32:10 | [`dc4c3df`](https://github.com/Thejus26/rain-predict/commit/dc4c3dfd19ce44f7f2f1869bae9884eab024a512) | Testing & Middleware | **Stale LOW_BAT_SLEEP_SEC Assertion Mismatch**: Unit test asserted obsolete 1800s interval instead of 900s multi-tier value. | [ERR-023 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-023-2026-09-13-stale-low-bat-sleep-sec-assertion-in-test-power-mgr.md) |
 
 ---
 
@@ -38,7 +39,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 8
-    "Testing Macros & Mock Architectural Collisions" : 6
+    "Testing Macros & Mock Architectural Collisions" : 7
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2
     "Algorithm Numerical Precision & Physical Vectors" : 2
