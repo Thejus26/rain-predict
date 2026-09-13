@@ -1,27 +1,19 @@
-# Current Feature: S3-T1.3 - STM32CubeWL HAL Module Configuration
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Create `firmware/core/inc/stm32wlxx_hal_conf.h` adhering to ISO C99 standards with complete Doxygen documentation.
-- Explicitly whitelist strictly required STM32CubeWL peripheral HAL modules (`HAL_MODULE_ENABLED`, `RCC`, `GPIO`, `DMA`, `CORTEX`, `PWR`, `FLASH`, `I2C`, `UART`, `SPI`, `RTC`, `SUBGHZ`, `ADC`, `IWDG`, `EXTI`).
-- Explicitly disable unused peripheral modules (`COMP`, `CRC`, `CRYP`, `DAC`, `GTZC`, `HSEM`, `IPCC`, `IRDA`, `LPTIM`, `RNG`, `SMARTCARD`, `SMBUS`, `TIM`, `WWDG`) to eliminate dead-code bloat and preserve Flash (256 KB) and SRAM (64 KB).
-- Synchronize hardware oscillator constants and operating parameters: `HSE_VALUE = 32000000UL`, `MSI_VALUE = 48000000UL`, `LSE_VALUE = 32768UL`, `LSI_VALUE = 32000UL`, `VDD_VALUE = 3300UL`.
-- Enable Flash Prefetch buffer (`PREFETCH_ENABLE = 1`), Cortex-M4 Instruction Cache (`INSTRUCTION_CACHE_ENABLE = 1`), and Data Cache (`DATA_CACHE_ENABLE = 1`).
-- Configure SysTick interrupt priority (`TICK_INT_PRIORITY = 0x00`) and deterministic bare-metal scheduling (`USE_RTOS = 0`).
-- Configure defensive parameter assertion macro `assert_param()` and `assert_failed()` debug trap for `DEBUG` builds with zero release overhead.
-- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_hal_conf.c`) verifying module definitions, hardware constants, and compilation hygiene.
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz, UFQFPN48 package).
-- Acts as the central compile-time gatekeeper between application/driver layers and the STM32CubeWL HAL library.
-- Ensures cross-compatibility across host unit testing and target ARM cross-compilation toolchains.
+<!-- Any technical notes, constraints, or context -->
 
 ## History
+
 
 - 2026-09-09: Implemented Phase 1 documentation deliverables (System & Hardware Architecture).
 - 2026-09-09: Implemented Phase 2 documentation deliverables (Sensors & Prediction Math).
@@ -70,3 +62,4 @@ In Progress
 - 2026-09-12: S2-T5.3 - Implemented comprehensive ThrowTheSwitch Unity unit test suite (tests/unit/test_rain_algo.c, tests/CMakeLists.txt) covering relative humidity, dew point depression, and Zambretti sub-scores, daytime/nighttime composite CPI scoring, 4-tier alert classification and critical safety overrides, 6-hour synthetic convective storm simulation with > 45 minutes advance lead time, and defensive NULL/NaN/buffer error guards. Completed Sprint 2 (Meteorological Algorithms & Nowcasting Engine).
 - 2026-09-13: S3-T1.1 - Implemented target board GPIO pin mappings and configuration (firmware/core/inc/board_config.h, firmware/core/src/board_config.c, firmware/core/CMakeLists.txt) covering STM32WLE5CCU6 48-pin assignments, board_gpio_init(), Stop 2 deep sleep low-leakage conditioning (< 3.0 uA), switched sensor power rail with 20ms RC stabilization delay, battery divider gate control (< 10 nA standby), field indicators/actuators (LEDs, buzzer, relay), bus directions (RS-485, SDI-12), RF switch modes, user diagnostic button sensing, and ThrowTheSwitch Unity test suite (tests/unit/test_board_config.c).
 - 2026-09-13: S3-T1.2 - Implemented system clock tree configuration and low-power oscillator management (firmware/core/inc/system_clock.h, firmware/core/src/system_clock.c) covering Power Range 1 (1.2V core), 2 Flash wait states, Flash Prefetch/ICache/DCache, LSE 32.768 kHz quartz oscillator startup with backup domain control, MSI 48 MHz (Range 11) with LSE PLL hardware auto-calibration, Stop 2 sleep clock scaling and fast < 5 µs wake restoration, on-demand Sub-GHz radio HSE TCXO 32 MHz clock gating, frequency query accessors, and ThrowTheSwitch Unity test suite (tests/unit/test_system_clock.c).
+- 2026-09-13: S3-T1.3 - Implemented STM32CubeWL HAL module configuration (firmware/core/inc/stm32wlxx_hal_conf.h, tests/unit/test_hal_conf.c, tests/CMakeLists.txt) covering peripheral whitelist (15 enabled modules: RCC, GPIO, DMA, CORTEX, PWR, FLASH, I2C, UART, SPI, RTC, SUBGHZ, ADC, IWDG, EXTI), dead-code exclusion (14 disabled modules), oscillator synchronization (HSE 32MHz, MSI 48MHz, LSE 32.768kHz, VDD 3.3V), cache acceleration (Prefetch, ICache, DCache), SysTick priority 0x00, deterministic bare-metal execution (USE_RTOS 0), defensive assert_param() hooks, and ThrowTheSwitch Unity test suite.
