@@ -15,16 +15,14 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include "status.h"
+#include "board_config.h"
 
 #define GPIO_MAX_PINS_PER_PORT  16
 
 /**
- * @brief GPIO pin logic levels.
+ * @brief GPIO pin logic levels (HAL-compatible alias).
  */
-typedef enum {
-    GPIO_PIN_RESET = 0,
-    GPIO_PIN_SET   = 1
-} gpio_pin_state_t;
+typedef GPIO_PinState gpio_pin_state_t;
 
 /**
  * @brief GPIO hardware port identifiers.
@@ -35,21 +33,6 @@ typedef enum {
     GPIO_PORT_C = 2,
     GPIO_PORT_MAX
 } gpio_port_t;
-
-/**
- * @brief GPIO pin operating modes (HAL-compatible).
- */
-typedef enum {
-    GPIO_MODE_INPUT = 0,
-    GPIO_MODE_OUTPUT_PP,
-    GPIO_MODE_OUTPUT_OD,
-    GPIO_MODE_AF_PP,
-    GPIO_MODE_AF_OD,
-    GPIO_MODE_ANALOG,
-    GPIO_MODE_IT_RISING,
-    GPIO_MODE_IT_FALLING,
-    GPIO_MODE_IT_RISING_FALLING
-} gpio_mode_t;
 
 /* Dedicated Hardware Pin Aliases from schematics-and-pinout.md */
 #define PIN_RAIN_GAUGE_EXTI     0  /**< Port B Pin 0: Tipping-Bucket EXTI */
@@ -70,7 +53,7 @@ typedef void (*gpio_exti_callback_t)(uint16_t pin);
  *
  * @param[in] port GPIO port identifier.
  * @param[in] pin  Pin number (0-15).
- * @param[in] mode Operating mode.
+ * @param[in] mode Operating mode (GPIO_MODE_INPUT, GPIO_MODE_OUTPUT_PP, etc.).
  */
 void gpio_init_pin(gpio_port_t port, uint16_t pin, uint32_t mode);
 
