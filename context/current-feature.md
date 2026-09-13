@@ -1,26 +1,16 @@
-# Current Feature: S3-T4.3 - Independent Watchdog (IWDG) Driver & Supervision
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement Independent Watchdog initialization (`watchdog_init`) configured for deterministic 8.0s hardware timeout window (32 kHz LSI, /64 prescaler, 4000 reload counts).
-- Implement anti-masking safe refresh mechanism (`watchdog_refresh`) reloading the 12-bit down-counter with 0xAAAA key outside of ISRs.
-- Implement boot reset reason diagnostic detection (`watchdog_was_reset_by_watchdog`, `watchdog_clear_reset_flags`) inspecting RCC_CSR_IWDGRSTF.
-- Implement hardware Stop 2 and Standby deep sleep counter freeze configuration (`__HAL_DBGMCU_FREEZE_IWDG`) to prevent spurious watchdog timeouts during multi-minute sleep cycles.
-- Implement watchdog query accessors (`watchdog_get_timeout_ms`, `watchdog_is_enabled`).
-- Implement host simulation backend and comprehensive ThrowTheSwitch Unity test suite in [`tests/unit/test_watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_watchdog.c).
+<!-- Add goals here -->
 
 ## Notes
 
-- **Target Files**: [`firmware/core/inc/watchdog.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/watchdog.h), [`firmware/core/src/watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/watchdog.c), [`tests/unit/test_watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_watchdog.c).
-- **Clock Domain**: Dedicated 32 kHz internal RC oscillator (LSI) independent of MSI/LSE/HSE clocks.
-- **Timing Calculations**: $T_{\text{timeout}} = \frac{4000 \times 64}{32,000\text{ Hz}} = 8.00\text{ seconds}$ ($2.0\text{ ms/count}$).
-- **Key Hardware Registers & HAL**: `IWDG_KR` (0xCCCC enable, 0xAAAA reload, 0x5555 write access), `IWDG_PR` (prescaler /64), `IWDG_RLR` (reload 4000), `DBGMCU_APB1FZR1` (Stop 2 freeze), `RCC_CSR` (`RCC_CSR_IWDGRSTF`).
-- **Supervision & Checkpoints**: Refresh only at dedicated state transitions in `app_state_machine.c` (never in ISRs).
-- **Memory & Constraints**: Zero dynamic memory allocation (`malloc`/`free` prohibited); single-precision float / strict C99 safety.
+<!-- Add notes here -->
 
 ## History
 
@@ -78,3 +68,4 @@ In Progress
 - 2026-09-13: S3-T3.2 - Implemented board indicators and alarm actuator driver with non-blocking pattern generator and timed relay auto-cutoff (firmware/drivers/inc/bsp_indicators.h, firmware/drivers/src/bsp_indicators.c, firmware/drivers/CMakeLists.txt, tests/unit/test_bsp_indicators.c, tests/CMakeLists.txt) covering STM32WLE5 PB8 (Green Status LED), PB9 (Red Warning LED), PB2 (90dB Piezo Buzzer gate), PB4 (Optocoupled Siren Relay gate), tick-based non-blocking pattern generator (Heartbeat, Watch, Warning, Storm Alert), 10s maximum relay safety auto-cutoff (BSP_RELAY_MAX_PULSE_DURATION_MS), pre-sleep all-off shutdown (bsp_indicators_all_off) for Stop 2 deep sleep (< 3.0 µA), host simulation state tracking, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.1 - Implemented pre-sleep GPIO conditioning and parasitic leakage elimination (firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, firmware/middleware/CMakeLists.txt, tests/unit/test_power_mgr.c, tests/CMakeLists.txt) covering STM32WLE5 Stop 2 deep sleep preparation (< 3.0 µA), digital sensor bus analog isolation (I2C1 PB6/PB7, USART1 PA2/PA3, LPUART1 PC0/PC1, SPI1 PA5/PA6/PA7) preventing parasitic back-powering via ESD diodes, unused CMOS floating pin shoot-through suppression (PA8..PA12, PA15, PB0, PB3, PB5, PB10..PB15, PC6..PC13), wakeup/oscillator exemption preservation (PA0 EXTI0, PC14/PC15 LSE 32.768 kHz, PA13/PA14 SWD, PA4/PB1 power rail gates, PB8/PB9/PB2/PB4 actuators, PC3/PC4/PC5 RF switch), post-wake GPIO multiplexing restoration (< 10 µs), diagnostic leakage state verification, host simulation backend, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.2 - Implemented Stop 2 low-power deep sleep manager and RTC periodic wakeup timer (firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_power_mgr.c) covering STM32WLE5 Stop 2 mode transition (< 3.0 µA current draw), full SRAM1 and SRAM2 retention, Flash deep power-down (PWR_FLASHPD_STOP), hardware RTC periodic wakeup timer (120s to 3600s dynamic intervals) on EXTI line 19 clocked by LSE 32.768 kHz, multi-source asynchronous wakeup detection (RTC, PA0/EXTI0 rain gauge pulse, PC13 button, unknown), fast sub-5 µs post-wakeup restoration to 48 MHz MSI and 2 Flash wait states, cumulative deep sleep duration metric tracking (power_mgr_get_total_sleep_time_sec), shelf-storage Standby mode (< 0.8 µA), host simulation state machine, and ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T4.3 - Implemented Independent Watchdog (IWDG) driver and supervision (firmware/core/inc/watchdog.h, firmware/core/src/watchdog.c, tests/unit/test_watchdog.c) covering STM32WLE5 dedicated 32 kHz LSI clocking, /64 prescaler divider (500 Hz / 2.0 ms tick), 4000 reload count (8.0s deterministic timeout), anti-masking safe refresh logic (IWDG_KR 0xAAAA), boot reset reason diagnostics (RCC_CSR_IWDGRSTF), DBGMCU Stop 2 and Standby sleep counter freeze, and ThrowTheSwitch Unity test suite.
