@@ -7,7 +7,7 @@
 
 #include "board_config.h"
 
-#if defined(STM32WLE5xx) || defined(USE_HAL_DRIVER)
+#if defined(HAVE_STM32WLXX_HAL)
 
 /* ============================================================================
  * STM32WLE5 Hardware HAL Implementation

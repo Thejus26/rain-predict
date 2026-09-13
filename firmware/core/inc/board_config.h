@@ -17,7 +17,13 @@ extern "C" {
 #include <stddef.h>
 #include "status.h"
 
-#if defined(STM32WLE5xx) || defined(USE_HAL_DRIVER)
+#if defined(__has_include)
+#if __has_include("stm32wlxx_hal.h")
+#define HAVE_STM32WLXX_HAL 1
+#endif
+#endif
+
+#if defined(HAVE_STM32WLXX_HAL)
 #include "stm32wlxx_hal.h"
 #else
 /* Standard port/pin types for host unit testing & simulation */
@@ -269,7 +275,7 @@ void board_rf_switch_set(board_rf_mode_t mode);
  */
 bool board_button_is_pressed(void);
 
-#if !defined(STM32WLE5xx) && !defined(USE_HAL_DRIVER)
+#if !defined(HAVE_STM32WLXX_HAL)
 /* ============================================================================
  * Host Simulation & Test Inspection API
  * ============================================================================ */
