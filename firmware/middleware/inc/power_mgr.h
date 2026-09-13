@@ -44,16 +44,55 @@ typedef enum {
     POWER_WAKE_REASON_BUTTON        /**< User Field Diagnostic Push-Button on PC13 (EXTI line 13) */
 } power_wake_reason_t;
 
+/**
+ * @brief Categorized operational battery health states.
+ */
+typedef enum {
+    POWER_BATTERY_HEALTH_OPTIMAL  = 0,  /**< Vbat >= 3.25V: Normal duty-cycling */
+    POWER_BATTERY_HEALTH_LOW      = 1,  /**< 3.00V <= Vbat < 3.25V: Throttled duty-cycling (>= 15 min) */
+    POWER_BATTERY_HEALTH_CRITICAL = 2   /**< Vbat < 3.00V: Emergency preservation mode (60 min) */
+} power_battery_health_t;
+
+/**
+ * @brief Solar photovoltaic energy harvesting status.
+ */
+typedef enum {
+    SOLAR_STATUS_NIGHT          = 0,    /**< Lux < 50: Solar dark / nocturne */
+    SOLAR_STATUS_DISCHARGING    = 1,    /**< Daytime, but net battery discharge */
+    SOLAR_STATUS_ACTIVE_HARVEST = 2,    /**< Daytime, net battery charging (MPPT CC active) */
+    SOLAR_STATUS_FLOAT_CHARGED  = 3     /**< Vbat >= 3.45V, fully saturated / float regulation */
+} power_solar_status_t;
+
+/**
+ * @brief Consolidated battery and power subsystem telemetry data structure.
+ */
+typedef struct {
+    uint16_t                vbat_mv;                /**< Compensated cell potential in millivolts */
+    uint8_t                 soc_percent;            /**< Estimated LiFePO4 State of Charge (0-100%) */
+    power_battery_health_t  health;                 /**< Categorized battery operating state */
+    power_solar_status_t    solar_status;           /**< Solar harvesting classification */
+    int16_t                 delta_vbat_mv_per_hr;   /**< Rate of voltage change in mV/hour */
+    uint32_t                last_sample_timestamp;  /**< System tick / epoch of last measurement */
+    bool                    throttling_active;      /**< Flag indicating duty-cycle throttling active */
+} power_battery_status_t;
+
 /* ============================================================================
- * Sleep Interval Timing Constants (in seconds)
+ * Sleep Interval Timing & Voltage Constants
  * ============================================================================ */
 
-#define POWER_MGR_DEFAULT_SLEEP_SEC     600U    /**< Default normal fair-weather sampling: 10 min (600s) */
-#define POWER_MGR_WATCH_SLEEP_SEC       300U    /**< Unsettled weather watch sampling: 5 min (300s) */
-#define POWER_MGR_STORM_SLEEP_SEC       120U    /**< Active convective storm alert sampling: 2 min (120s) */
-#define POWER_MGR_LOW_BAT_SLEEP_SEC     1800U   /**< Low battery preservation sampling: 30 min (1800s) */
-#define POWER_MGR_MIN_SLEEP_SEC         1U      /**< Minimum configurable RTC sleep interval: 1s */
-#define POWER_MGR_MAX_SLEEP_SEC         65535U  /**< Maximum 16-bit RTC WUT interval: 65535s (~18.2 hours) */
+#define POWER_MGR_DEFAULT_SLEEP_SEC         600U    /**< Default normal fair-weather sampling: 10 min (600s) */
+#define POWER_MGR_WATCH_SLEEP_SEC           300U    /**< Unsettled weather watch sampling: 5 min (300s) */
+#define POWER_MGR_STORM_SLEEP_SEC           120U    /**< Active convective storm alert sampling: 2 min (120s) */
+#define POWER_MGR_LOW_BAT_SLEEP_SEC         900U    /**< Low battery preservation minimum sampling: 15 min (900s) */
+#define POWER_MGR_CRITICAL_BAT_SLEEP_SEC    3600U   /**< Critical battery preservation sampling: 60 min (3600s) */
+#define POWER_MGR_MIN_SLEEP_SEC             1U      /**< Minimum configurable RTC sleep interval: 1s */
+#define POWER_MGR_MAX_SLEEP_SEC             65535U  /**< Maximum 16-bit RTC WUT interval: 65535s (~18.2 hours) */
+
+#define POWER_BATTERY_OPTIMAL_THRESHOLD_MV  3250U   /**< Optimal battery threshold (>= 3.25V) */
+#define POWER_BATTERY_LOW_THRESHOLD_MV      3000U   /**< Low battery threshold (>= 3.00V and < 3.25V) */
+#define POWER_BATTERY_FLOAT_THRESHOLD_MV    3450U   /**< Saturated float charging threshold (>= 3.45V) */
+#define POWER_BATTERY_NIGHT_LUX_THRESHOLD   50U     /**< Nocturnal dark threshold (50 Lux) */
+#define POWER_BATTERY_HARVEST_LUX_THRESHOLD 1000U   /**< Active solar harvesting lux threshold (1000 Lux) */
 
 /* ============================================================================
  * Public Power Management API Prototypes
@@ -157,6 +196,63 @@ status_t power_mgr_restore_sensor_buses(void);
  * @return status_t STATUS_OK if all pins comply with leakage rules, STATUS_ERR_INVALID_STATE otherwise.
  */
 status_t power_mgr_verify_leakage_state(void);
+
+/* ============================================================================
+ * Battery & Power Telemetry Public API Prototypes
+ * ============================================================================ */
+
+/**
+ * @brief  Samples the battery ADC, computes compensated Vbat, estimates SoC %,
+ *         evaluates rate of change, and updates solar harvesting telemetry.
+ * @param[in] ambient_lux Ambient optical illuminance from OPT3001 (0 to 83000 lux).
+ * @return status_t STATUS_OK on success, or error code on hardware/sampling failure.
+ */
+status_t power_mgr_battery_update(uint16_t ambient_lux);
+
+/**
+ * @brief  Returns a const pointer to the current cached battery telemetry status.
+ * @return const power_battery_status_t* Pointer to cached battery structure.
+ */
+const power_battery_status_t* power_mgr_battery_get_status(void);
+
+/**
+ * @brief  Returns the current categorized battery health state.
+ * @return power_battery_health_t Categorized health (OPTIMAL, LOW, or CRITICAL).
+ */
+power_battery_health_t power_mgr_battery_get_health(void);
+
+/**
+ * @brief  Estimates LiFePO4 State of Charge percentage from terminal millivolts using
+ *         an 8-segment calibrated non-linear piecewise interpolation curve.
+ * @param[in] vbat_mv Battery terminal potential in millivolts.
+ * @return uint8_t State of Charge percentage (0% to 100%).
+ */
+uint8_t power_mgr_battery_calc_soc(uint16_t vbat_mv);
+
+/**
+ * @brief  Bit-packs battery voltage (6-bit, 20 mV/step) and diagnostics into LoRaWAN Byte 11.
+ * @details Formula: Raw_6bit = clamp((Vbat_mV - 2500) / 20, 0, 63)
+ *          Bit 0..5: Raw_6bit (2.50V to 3.76V)
+ *          Bit 6: Sensor error flag
+ *          Bit 7: Unexpected reset flag
+ * @param[in] sensor_error True if any environmental sensor reported a bus or CRC error.
+ * @param[in] unexpected_reset True if system rebooted due to watchdog or brownout.
+ * @return uint8_t Formatted 8-bit telemetry payload byte.
+ */
+uint8_t power_mgr_battery_encode_payload_byte(bool sensor_error, bool unexpected_reset);
+
+/**
+ * @brief  Checks whether battery voltage/health requires duty-cycle preservation throttling.
+ * @return bool True if battery health is LOW or CRITICAL.
+ */
+bool power_mgr_battery_is_throttling_required(void);
+
+/**
+ * @brief  Calculates recommended Stop 2 sleep duration adjusted for battery health.
+ * @param[in] nominal_sleep_sec Nominal sleep duration dictated by weather conditions (e.g. 600s, 300s, 120s).
+ * @return uint32_t Power-adjusted sleep duration (>= 900s for Low battery, 3600s for Critical battery).
+ */
+uint32_t power_mgr_battery_get_recommended_sleep_sec(uint32_t nominal_sleep_sec);
 
 #if !defined(HAVE_STM32WLXX_HAL)
 /* ============================================================================

@@ -11,6 +11,33 @@
 #include "system_clock.h"
 #include "bsp_power_rails.h"
 #include "bsp_indicators.h"
+#include "bsp_adc.h"
+
+/* ============================================================================
+ * Cached Battery Status & Default State
+ * ============================================================================ */
+
+static const power_battery_status_t s_battery_status_default = {
+    .vbat_mv               = 3300U,
+    .soc_percent           = 80U,
+    .health                = POWER_BATTERY_HEALTH_OPTIMAL,
+    .solar_status          = SOLAR_STATUS_NIGHT,
+    .delta_vbat_mv_per_hr  = 0,
+    .last_sample_timestamp = 0,
+    .throttling_active     = false
+};
+
+static power_battery_status_t s_battery_status = {
+    .vbat_mv               = 3300U,
+    .soc_percent           = 80U,
+    .health                = POWER_BATTERY_HEALTH_OPTIMAL,
+    .solar_status          = SOLAR_STATUS_NIGHT,
+    .delta_vbat_mv_per_hr  = 0,
+    .last_sample_timestamp = 0,
+    .throttling_active     = false
+};
+
+static uint16_t s_prev_vbat_mv = 3300U;
 
 #if defined(HAVE_STM32WLXX_HAL)
 
@@ -38,6 +65,8 @@ status_t power_mgr_init(void) {
     /* 4. Initialize internal tracking metrics */
     s_last_wake_reason = POWER_WAKE_REASON_UNKNOWN;
     s_cumulative_sleep_sec = 0;
+    s_battery_status = s_battery_status_default;
+    s_prev_vbat_mv = 3300U;
 
     return STATUS_OK;
 }
@@ -315,6 +344,8 @@ void power_mgr_test_reset(void) {
     s_sim_rtc_interval_sec     = 0;
     s_sim_rtc_armed            = false;
     s_sim_sleep_cycles         = 0;
+    s_battery_status           = s_battery_status_default;
+    s_prev_vbat_mv             = 3300U;
 }
 
 power_state_t power_mgr_test_get_state(void) {
@@ -354,6 +385,8 @@ status_t power_mgr_init(void) {
     s_sim_rtc_interval_sec     = 0;
     s_sim_rtc_armed            = false;
     s_sim_sleep_cycles         = 0;
+    s_battery_status           = s_battery_status_default;
+    s_prev_vbat_mv             = 3300U;
     return STATUS_OK;
 }
 
@@ -599,7 +632,126 @@ status_t power_mgr_verify_leakage_state(void) {
         }
     }
 
+#endif /* HAVE_STM32WLXX_HAL */
+
+/* ============================================================================
+ * Battery & Power Telemetry Implementation
+ * ============================================================================ */
+
+uint8_t power_mgr_battery_calc_soc(uint16_t vbat_mv) {
+    if (vbat_mv >= 3400U) {
+        return 100U;
+    } else if (vbat_mv >= 3330U) {
+        /* 3330 mV - 3399 mV -> 90% - 99% (Slope: 10% / 70 mV) */
+        return (uint8_t)(90U + (((uint32_t)(vbat_mv - 3330U) * 10U) / 70U));
+    } else if (vbat_mv >= 3300U) {
+        /* 3300 mV - 3329 mV -> 70% - 89% (Slope: 20% / 30 mV) */
+        return (uint8_t)(70U + (((uint32_t)(vbat_mv - 3300U) * 20U) / 30U));
+    } else if (vbat_mv >= 3250U) {
+        /* 3250 mV - 3299 mV -> 40% - 69% (Slope: 30% / 50 mV) */
+        return (uint8_t)(40U + (((uint32_t)(vbat_mv - 3250U) * 30U) / 50U));
+    } else if (vbat_mv >= 3200U) {
+        /* 3200 mV - 3249 mV -> 20% - 39% (Slope: 20% / 50 mV) */
+        return (uint8_t)(20U + (((uint32_t)(vbat_mv - 3200U) * 20U) / 50U));
+    } else if (vbat_mv >= 3100U) {
+        /* 3100 mV - 3199 mV -> 10% - 19% (Slope: 10% / 100 mV) */
+        return (uint8_t)(10U + (((uint32_t)(vbat_mv - 3100U) * 10U) / 100U));
+    } else if (vbat_mv >= 3000U) {
+        /* 3000 mV - 3099 mV -> 5% - 9% (Slope: 5% / 100 mV) */
+        return (uint8_t)(5U + (((uint32_t)(vbat_mv - 3000U) * 5U) / 100U));
+    } else if (vbat_mv >= 2500U) {
+        /* 2500 mV - 2999 mV -> 0% - 4% (Slope: 5% / 500 mV) */
+        return (uint8_t)(((uint32_t)(vbat_mv - 2500U) * 5U) / 500U);
+    } else {
+        return 0U;
+    }
+}
+
+status_t power_mgr_battery_update(uint16_t ambient_lux) {
+    uint16_t vbat_mv = 0;
+    status_t status = bsp_adc_read_vbat_mv(&vbat_mv);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    s_battery_status.vbat_mv = vbat_mv;
+    s_battery_status.soc_percent = power_mgr_battery_calc_soc(vbat_mv);
+
+    /* Determine battery health state and throttling */
+    if (vbat_mv >= POWER_BATTERY_OPTIMAL_THRESHOLD_MV) {
+        s_battery_status.health = POWER_BATTERY_HEALTH_OPTIMAL;
+        s_battery_status.throttling_active = false;
+    } else if (vbat_mv >= POWER_BATTERY_LOW_THRESHOLD_MV) {
+        s_battery_status.health = POWER_BATTERY_HEALTH_LOW;
+        s_battery_status.throttling_active = true;
+    } else {
+        s_battery_status.health = POWER_BATTERY_HEALTH_CRITICAL;
+        s_battery_status.throttling_active = true;
+    }
+
+    /* Calculate rate of change delta */
+    int16_t diff_mv = (int16_t)vbat_mv - (int16_t)s_prev_vbat_mv;
+    s_battery_status.delta_vbat_mv_per_hr = diff_mv;
+    s_prev_vbat_mv = vbat_mv;
+
+    /* Classify solar harvesting status */
+    if (ambient_lux < POWER_BATTERY_NIGHT_LUX_THRESHOLD) {
+        s_battery_status.solar_status = SOLAR_STATUS_NIGHT;
+    } else if (vbat_mv >= POWER_BATTERY_FLOAT_THRESHOLD_MV) {
+        s_battery_status.solar_status = SOLAR_STATUS_FLOAT_CHARGED;
+    } else if (diff_mv > 0 && ambient_lux >= POWER_BATTERY_HARVEST_LUX_THRESHOLD) {
+        s_battery_status.solar_status = SOLAR_STATUS_ACTIVE_HARVEST;
+    } else {
+        s_battery_status.solar_status = SOLAR_STATUS_DISCHARGING;
+    }
+
     return STATUS_OK;
 }
 
-#endif /* HAVE_STM32WLXX_HAL */
+const power_battery_status_t* power_mgr_battery_get_status(void) {
+    return &s_battery_status;
+}
+
+power_battery_health_t power_mgr_battery_get_health(void) {
+    return s_battery_status.health;
+}
+
+bool power_mgr_battery_is_throttling_required(void) {
+    return s_battery_status.throttling_active;
+}
+
+uint32_t power_mgr_battery_get_recommended_sleep_sec(uint32_t nominal_sleep_sec) {
+    if (s_battery_status.health == POWER_BATTERY_HEALTH_CRITICAL) {
+        return POWER_MGR_CRITICAL_BAT_SLEEP_SEC;
+    } else if (s_battery_status.health == POWER_BATTERY_HEALTH_LOW) {
+        return (nominal_sleep_sec < POWER_MGR_LOW_BAT_SLEEP_SEC) ? POWER_MGR_LOW_BAT_SLEEP_SEC : nominal_sleep_sec;
+    }
+    return nominal_sleep_sec;
+}
+
+uint8_t power_mgr_battery_encode_payload_byte(bool sensor_error, bool unexpected_reset) {
+    uint16_t vbat_mv = s_battery_status.vbat_mv;
+    uint8_t raw_vbat_6bit = 0;
+
+    if (vbat_mv <= 2500U) {
+        raw_vbat_6bit = 0U;
+    } else if (vbat_mv >= 3760U) {
+        raw_vbat_6bit = 63U;
+    } else {
+        raw_vbat_6bit = (uint8_t)((vbat_mv - 2500U) / 20U);
+        if (raw_vbat_6bit > 63U) {
+            raw_vbat_6bit = 63U;
+        }
+    }
+
+    uint8_t byte11 = raw_vbat_6bit & 0x3FU;
+    if (sensor_error) {
+        byte11 |= (uint8_t)(1U << 6);
+    }
+    if (unexpected_reset) {
+        byte11 |= (uint8_t)(1U << 7);
+    }
+
+    return byte11;
+}
+
