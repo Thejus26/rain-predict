@@ -1,29 +1,16 @@
-# Current Feature: S3-T1.1 - Target Board GPIO Pin Mappings & Configuration
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Define target MCU pin mappings, port aliases, electrical modes, and alternate function mappings in `firmware/core/inc/board_config.h`.
-- Implement `board_gpio_init()` in `firmware/core/src/board_config.c` for GPIO clock gating, safe initial output levels, and EXTI0 rain gauge interrupt configuration.
-- Implement `board_gpio_sleep_prepare()` and `board_gpio_wake_restore()` for ultra-low-leakage Stop 2 deep sleep pin conditioning (< 3.0 uA).
-- Implement `board_sensor_power_enable()` with mandatory 20ms RC stabilization delay on power-up and bus pin analog leakage isolation on power-down.
-- Implement `board_vbat_divider_enable()` high-side P-MOSFET gate control to eliminate continuous battery divider drain (< 10 nA when idle).
-- Implement field actuators and indicators (`board_led_set`, `board_led_toggle`, `board_buzzer_set`, `board_relay_set`).
-- Implement transceiver direction controls (`board_rs485_dir_set`, `board_sdi12_dir_set`) and Sub-GHz RF antenna switch routing (`board_rf_switch_set`).
-- Implement user diagnostic button input polling (`board_button_is_pressed()`).
-- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_board_config.c`) integrated into CMake build runner.
+<!-- List specific deliverables for the current feature -->
 
 ## Notes
 
-- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz, UFQFPN48 package).
-- Hardware P-MOSFET switched sensor rail on PA4 requires 20ms stabilization before I2C/UART transactions.
-- Sensor bus pins (PB6, PB7, PA2, PA3, PC0, PC1) must transition to `GPIO_MODE_ANALOG` with no pulls when sensor rail is powered down to prevent parasitic phantom-power leakage through sensor ESD clamping diodes.
-- Battery divider on PB1 is active-LOW (driving PB1 LOW connects divider; driving HIGH disconnects).
-- EXTI0 on PA0 must remain active during Stop 2 sleep to wake the MCU on tipping-bucket rain gauge pulses.
-- Ensure full host testability via mock abstraction (`mock_gpio.h`).
+<!-- Any technical notes, constraints, or context -->
 
 ## History
 
@@ -72,3 +59,4 @@ In Progress
 - 2026-09-12: S2-T5.1 - Implemented multi-variable weighted composite precipitation index (CPI) scoring engine (firmware/app/inc/rain_algo.h, firmware/app/src/rain_algo.c, firmware/app/CMakeLists.txt) with humidity scoring, dew point depression canopy scoring, Zambretti index scaling, dynamic nighttime weight re-normalization (/ 0.85), and strict [0.0%, 100.0%] bounded output.
 - 2026-09-12: S2-T5.2 - Implemented 4-tier operational rain alert state classification (rain_alert_state_t: Unlikely, Possible, Likely, Imminent), critical emergency safety overrides (rapid barometric plunge <= -2.0 hPa/hr, optical blackout >= 75% drop, canopy super-saturation DPD <= 0.3°C), master coordinator nowcasting pipeline (rain_algo_evaluate), and flash alert state string lookups.
 - 2026-09-12: S2-T5.3 - Implemented comprehensive ThrowTheSwitch Unity unit test suite (tests/unit/test_rain_algo.c, tests/CMakeLists.txt) covering relative humidity, dew point depression, and Zambretti sub-scores, daytime/nighttime composite CPI scoring, 4-tier alert classification and critical safety overrides, 6-hour synthetic convective storm simulation with > 45 minutes advance lead time, and defensive NULL/NaN/buffer error guards. Completed Sprint 2 (Meteorological Algorithms & Nowcasting Engine).
+- 2026-09-13: S3-T1.1 - Implemented target board GPIO pin mappings and configuration (firmware/core/inc/board_config.h, firmware/core/src/board_config.c, firmware/core/CMakeLists.txt) covering STM32WLE5CCU6 48-pin assignments, board_gpio_init(), Stop 2 deep sleep low-leakage conditioning (< 3.0 uA), switched sensor power rail with 20ms RC stabilization delay, battery divider gate control (< 10 nA standby), field indicators/actuators (LEDs, buzzer, relay), bus directions (RS-485, SDI-12), RF switch modes, user diagnostic button sensing, and ThrowTheSwitch Unity test suite (tests/unit/test_board_config.c).
