@@ -1,16 +1,26 @@
-# Current Feature
+# Current Feature: S3-T1.2 - System Clock Tree & Low-Power Oscillator Configuration
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- List specific deliverables for the current feature -->
+- Define clock frequency constants, timeouts, and public API prototypes in `firmware/core/inc/system_clock.h`.
+- Implement `system_clock_init()` in `firmware/core/src/system_clock.c` configuring Power Regulator Voltage Scaling Range 1 (1.2V core), 2 Flash wait states (`FLASH_LATENCY_2`), ICache/DCache/Prefetch, LSE 32.768 kHz quartz initialization, MSI 48 MHz (Range 11) with LSE PLL auto-calibration, and 1:1 AHB/APB prescalers.
+- Implement `system_clock_lse_init()` for backup domain unlock, medium-high drive capability, and bounded timeout error handling.
+- Implement `system_clock_sleep_prepare()` and `system_clock_wake_restore()` for fast (< 5 µs) MSI 48 MHz restoration and Flash latency recovery upon wakeup from Stop 2 deep sleep.
+- Implement `system_clock_hse_radio_enable()` for on-demand gating of the 32 MHz HSE/TCXO oscillator for Sub-GHz LoRa radio operations (saving battery during sensing and sleep).
+- Implement bus frequency query accessors (`system_clock_get_sysclk`, `system_clock_get_hclk`, `system_clock_get_pclk1`, `system_clock_get_pclk2`).
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_system_clock.c`) and integrate into CMake build runner.
 
 ## Notes
 
-<!-- Any technical notes, constraints, or context -->
+- Primary SYSCLK: Multi-Speed Internal (MSI) RC Oscillator configured for Range 11 (48 MHz) with hardware PLL auto-trim locked to LSE crystal (< ±0.25% frequency drift).
+- Continuous Low-Power Clock: Low-Speed External (LSE) 32.768 kHz quartz crystal remains active in Stop 2 (< 300 nA) for RTC wakeups and timekeeping.
+- Radio Carrier Clock: High-Speed External (HSE) 32 MHz TCXO is powered only on-demand during LoRa TX/RX windows.
+- Watchdog Clock: Low-Speed Internal (LSI) 32 kHz dedicated to Independent Watchdog (IWDG).
+- Flash latency: 2 Wait States (WS) required at 48 MHz and Voltage Range 1.
 
 ## History
 
