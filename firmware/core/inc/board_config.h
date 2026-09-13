@@ -348,6 +348,12 @@ board_rf_mode_t board_test_get_rf_mode(void);
 uint32_t board_test_get_delay_call_count(void);
 
 /**
+ * @brief Gets last delay duration passed in milliseconds.
+ * @return uint32_t duration in ms.
+ */
+uint32_t board_test_get_last_delay_ms(void);
+
+/**
  * @brief Sets simulated pin mode, pull resistor, and alternate function.
  * @param[in] port     Port identifier (GPIOA, GPIOB, GPIOC).
  * @param[in] pin_mask Pin mask.
