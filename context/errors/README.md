@@ -28,6 +28,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-018`** | 2026-09-13 13:01:21 | [`291debb`](https://github.com/Thejus26/rain-predict/commit/291debbfe36ca6c90130d1cbd9ac3230d465a4f1) | Tests (I2C Bus) | **Non-Existent Unity Assertion Macro in test_i2c_bus**: Used invalid `TEST_ASSERT_INT_WITHIN` for integer range check. | [ERR-018 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-018-2026-09-13-invalid-unity-assertion-macro-in-test-i2c-bus.md) |
 | **`ERR-019`** | 2026-09-13 13:05:44 | [`03aa895`](https://github.com/Thejus26/rain-predict/commit/03aa89542832ced59948914a0741462d724a8a39) | Architecture (Drivers) | **Duplicate I2C Driver Symbol Collision**: Multiple definition linker collision between `test_mocks` and `firmware_drivers`. | [ERR-019 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-019-2026-09-13-duplicate-i2c-driver-symbol-collision.md) |
 | **`ERR-020`** | 2026-09-13 16:11:39 | [`c3bc892`](https://github.com/Thejus26/rain-predict/commit/c3bc8920751509c2ec090ea013ee8a9348372875) | Core Architecture | **Missing STATUS_ERR_INVALID_STATE & Delay Prototype**: Omitted status enum value and test prototype in header. | [ERR-020 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-020-2026-09-13-missing-status-err-invalid-state-and-delay-prototype.md) |
+| **`ERR-021`** | 2026-09-13 17:21:10 | [`51562da`](https://github.com/Thejus26/rain-predict/commit/51562da19c61f0d1f11ee890a5e7608cec424d03) | Middleware (Power) | **Unclosed Function Brace in power_mgr.c**: Missing return/closing brace before `#endif` caused nested function compiler errors. | [ERR-021 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-021-2026-09-13-unclosed-function-brace-nested-functions-error-in-power-mgr.md) |
 
 ---
 
@@ -35,7 +36,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 7
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 8
     "Testing Macros & Mock Architectural Collisions" : 5
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2
