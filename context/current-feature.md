@@ -1,28 +1,16 @@
-# Current Feature: S3-T2.2 - Bounded Non-Blocking Dual-Port UART & SDI-12 Bus Driver
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Update `firmware/drivers/inc/uart_bus.h` adhering to ISO C99 standards with complete Doxygen documentation and extended APIs (`uart_bus_init`, `uart_bus_deinit`, `uart_bus_transmit`, `uart_bus_receive`, `uart_bus_sdi12_send_break`, `uart_bus_flush`, `uart_bus_get_available`, `uart_bus_rx_isr_handler`).
-- Implement `firmware/drivers/src/uart_bus.c` targeting STM32WLE5 USART1 (`PA2` TX, `PA3` RX, `PA1` DE/RE) for RS-485 Modbus RTU and LPUART1 (`PC0` TX, `PC1` RX, `PC2` DIR) for SDI-12.
-- Implement RS-485 half-duplex direction sequencing on `PA1` with pre-transmission guard delay (25 µs) and post-transmission guard delay (35 µs) to prevent clipped end-of-frame bytes.
-- Implement SDI-12 physical wakeup break (>12 ms) and mark (>8.3 ms) signaling sequencer on `PC0` (LPUART1 TX) and `PC2` (`SDI12_DIR`).
-- Implement interrupt-driven circular RX ring buffers (256 bytes per port) with IDLE line detection and bounded non-blocking timeouts (50–250 ms).
-- Implement pre-sleep serial deinitialization (`uart_bus_deinit`) to gate peripheral clocks and release GPIO pins for Stop 2 low-leakage conditioning.
-- Ensure cross-target compilation hygiene with `__has_include` preprocessor guards and unified host simulation backend.
-- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_uart_bus.c`) covering dual-port initialization, RS-485 DE guard timing, SDI-12 break/mark sequencing, RX ring buffering, timeouts, buffer flushing, and NULL pointer defense.
+<!-- To be populated when a feature is loaded via /feature load -->
 
 ## Notes
 
-- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
-- USART1: RS-485 Modbus RTU (PA2 TX AF7, PA3 RX AF7, PA1 DE/RE Push-Pull Output).
-- LPUART1: SDI-12 Agricultural Bus (PC0 TX AF8, PC1 RX AF8, PC2 DIR Push-Pull Output).
-- Guard Times: RS-485 pre-delay 25 µs, post-delay 35 µs; SDI-12 break 13 ms, mark 9 ms.
-- Memory: Static 256-byte circular FIFO ring buffer per port; zero dynamic allocation (`malloc`/`free` prohibited).
-- Bounded timeouts guarantee zero MCU deadlock on disconnected sensor cables or noisy serial lines.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -78,3 +66,4 @@ In Progress
 - 2026-09-13: S3-T1.2 - Implemented system clock tree configuration and low-power oscillator management (firmware/core/inc/system_clock.h, firmware/core/src/system_clock.c) covering Power Range 1 (1.2V core), 2 Flash wait states, Flash Prefetch/ICache/DCache, LSE 32.768 kHz quartz oscillator startup with backup domain control, MSI 48 MHz (Range 11) with LSE PLL hardware auto-calibration, Stop 2 sleep clock scaling and fast < 5 µs wake restoration, on-demand Sub-GHz radio HSE TCXO 32 MHz clock gating, frequency query accessors, and ThrowTheSwitch Unity test suite (tests/unit/test_system_clock.c).
 - 2026-09-13: S3-T1.3 - Implemented STM32CubeWL HAL module configuration (firmware/core/inc/stm32wlxx_hal_conf.h, tests/unit/test_hal_conf.c, tests/CMakeLists.txt) covering peripheral whitelist (15 enabled modules: RCC, GPIO, DMA, CORTEX, PWR, FLASH, I2C, UART, SPI, RTC, SUBGHZ, ADC, IWDG, EXTI), dead-code exclusion (14 disabled modules), oscillator synchronization (HSE 32MHz, MSI 48MHz, LSE 32.768kHz, VDD 3.3V), cache acceleration (Prefetch, ICache, DCache), SysTick priority 0x00, deterministic bare-metal execution (USE_RTOS 0), defensive assert_param() hooks, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T2.1 - Implemented bounded non-blocking I2C master bus driver with 9-clock lockup recovery (firmware/drivers/inc/i2c_bus.h, firmware/drivers/src/i2c_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_i2c_bus.c, tests/CMakeLists.txt) covering STM32WLE5 I2C1 (PB6/PB7) hardware integration, Standard Mode (100 kHz) & Fast Mode (400 kHz) timing, 25ms bounded transaction timeouts, bit-bang 9-clock SCL pulse recovery engine with manual STOP generation, 16-bit big-endian register serialization (OPT3001), pre-sleep clock gating and deinitialization (i2c_bus_deinit), host simulation state tracking, and ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T2.2 - Implemented bounded non-blocking dual-port UART and SDI-12 bus driver (firmware/drivers/inc/uart_bus.h, firmware/drivers/src/uart_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_uart_bus.c, tests/CMakeLists.txt) covering STM32WLE5 USART1 (RS-485 Modbus RTU on PA2 TX, PA3 RX, PA1 DE/RE) with 25µs pre-delay and 35µs post-delay guard timing, LPUART1 (SDI-12 on PC0 TX, PC1 RX, PC2 DIR) with 13ms break spacing and 9ms mark wakeup sequencing, 256-byte static circular RX ring buffers per port with interrupt-driven reception, bounded 50-250ms timeouts, pre-sleep serial deinitialization (uart_bus_deinit), host simulation backend, and comprehensive ThrowTheSwitch Unity test suite.
