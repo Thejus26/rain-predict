@@ -1,27 +1,16 @@
-# Current Feature: S3-T3.1 - Switched Sensor Power Rails & Stabilization Driver
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Create `firmware/drivers/inc/bsp_power_rails.h` adhering to ISO C99 standards with complete Doxygen documentation and driver APIs (`bsp_power_rails_init`, `bsp_power_rail_enable`, `bsp_power_rail_is_enabled`, `bsp_power_rails_all_off`, `bsp_power_rail_stabilize`, `bsp_power_rail_get_stabilization_ms`).
-- Implement `firmware/drivers/src/bsp_power_rails.c` targeting STM32WLE5 high-side P-MOSFET load switches on `PA4` (VSENS_SW 3.3V switched sensor rail) and `PB1` (VBAT_DIV_EN battery voltage divider gate).
-- Implement mandatory calibrated 20 ms RC stabilization delay (`BSP_POWER_RAIL_SENSORS_STABILIZE_MS`) upon sensor rail activation to guarantee IC internal POR completion before I2C/UART bus transactions.
-- Implement battery divider gating on `PB1` (active-LOW P-MOSFET gate) with 2 ms stabilization delay to reduce standby divider leakage from 16.5 µA to < 10 nA.
-- Implement master pre-sleep power-down routine (`bsp_power_rails_all_off`) to de-energize all switched rails simultaneously prior to Stop 2 deep sleep entry (< 3.0 µA).
-- Ensure cross-target compilation hygiene with `__has_include` / `HAVE_STM32WLXX_HAL` preprocessor guards and unified host simulation backend.
-- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_bsp_power_rails.c`) covering default power-on states, sensor rail 20ms activation timing, battery divider active-LOW gating, all-off helper, parameter boundary guards, and host test isolation.
+<!-- To be populated when a feature is loaded via /feature load -->
 
 ## Notes
 
-- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
-- PA4 (`PIN_PWR_SENS`): High-Side P-MOSFET (DMG2305UX) Gate. Active HIGH = ON (3.3V `VSENS_SW`).
-- PB1 (`PIN_VBAT_DIV_EN`): Resistor Divider Gate (100k/100k). Active LOW = ON (connects divider to `PB0` ADC_IN1).
-- Stabilization Delays: Sensor Rail 20 ms, Battery Divider 2 ms, Bleeder discharge 10 ms.
-- Quiescent current reduction: Isolates > 500 µA sensor quiescent current to achieve < 3.0 µA Stop 2 sleep target.
-- Memory: Zero dynamic allocation (`malloc`/`free` strictly prohibited). Compile-time static state tracking.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -78,3 +67,4 @@ In Progress
 - 2026-09-13: S3-T1.3 - Implemented STM32CubeWL HAL module configuration (firmware/core/inc/stm32wlxx_hal_conf.h, tests/unit/test_hal_conf.c, tests/CMakeLists.txt) covering peripheral whitelist (15 enabled modules: RCC, GPIO, DMA, CORTEX, PWR, FLASH, I2C, UART, SPI, RTC, SUBGHZ, ADC, IWDG, EXTI), dead-code exclusion (14 disabled modules), oscillator synchronization (HSE 32MHz, MSI 48MHz, LSE 32.768kHz, VDD 3.3V), cache acceleration (Prefetch, ICache, DCache), SysTick priority 0x00, deterministic bare-metal execution (USE_RTOS 0), defensive assert_param() hooks, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T2.1 - Implemented bounded non-blocking I2C master bus driver with 9-clock lockup recovery (firmware/drivers/inc/i2c_bus.h, firmware/drivers/src/i2c_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_i2c_bus.c, tests/CMakeLists.txt) covering STM32WLE5 I2C1 (PB6/PB7) hardware integration, Standard Mode (100 kHz) & Fast Mode (400 kHz) timing, 25ms bounded transaction timeouts, bit-bang 9-clock SCL pulse recovery engine with manual STOP generation, 16-bit big-endian register serialization (OPT3001), pre-sleep clock gating and deinitialization (i2c_bus_deinit), host simulation state tracking, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T2.2 - Implemented bounded non-blocking dual-port UART and SDI-12 bus driver (firmware/drivers/inc/uart_bus.h, firmware/drivers/src/uart_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_uart_bus.c, tests/CMakeLists.txt) covering STM32WLE5 USART1 (RS-485 Modbus RTU on PA2 TX, PA3 RX, PA1 DE/RE) with 25µs pre-delay and 35µs post-delay guard timing, LPUART1 (SDI-12 on PC0 TX, PC1 RX, PC2 DIR) with 13ms break spacing and 9ms mark wakeup sequencing, 256-byte static circular RX ring buffers per port with interrupt-driven reception, bounded 50-250ms timeouts, pre-sleep serial deinitialization (uart_bus_deinit), host simulation backend, and comprehensive ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T3.1 - Implemented switched sensor power rails driver with high-side P-MOSFET load switch management and stabilization guard delays (firmware/drivers/inc/bsp_power_rails.h, firmware/drivers/src/bsp_power_rails.c, firmware/drivers/CMakeLists.txt, tests/unit/test_bsp_power_rails.c, tests/CMakeLists.txt) covering STM32WLE5 PA4 (3.3V switched sensor rail VSENS_SW) with 20ms calibrated RC stabilization delay, PB1 active-LOW battery divider gate with 2ms stabilization delay (< 10 nA standby leakage), pre-sleep all-off shutdown (bsp_power_rails_all_off) for Stop 2 deep sleep (< 3.0 µA), host simulation state tracking, and ThrowTheSwitch Unity test suite.
