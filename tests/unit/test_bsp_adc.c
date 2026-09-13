@@ -13,6 +13,11 @@
 #include "bsp_power_rails.h"
 #include "board_config.h"
 
+/** @brief Local helper macro for integer tolerance assertion within +/- delta */
+#define TEST_ASSERT_UINT16_WITHIN(delta, expected, actual) \
+    TEST_ASSERT_TRUE(((uint32_t)(actual) >= ((uint32_t)(expected) - (uint32_t)(delta))) && \
+                     ((uint32_t)(actual) <= ((uint32_t)(expected) + (uint32_t)(delta))))
+
 void setUp(void) {
     board_test_reset();
     bsp_power_rails_test_reset();
