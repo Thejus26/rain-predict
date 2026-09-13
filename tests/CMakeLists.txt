@@ -181,3 +181,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_board_config.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_system_clock.c")
+    add_firmware_test(system_clock
+        SOURCES unit/test_system_clock.c
+        LIBRARIES firmware_core
+    )
+endif()
+
