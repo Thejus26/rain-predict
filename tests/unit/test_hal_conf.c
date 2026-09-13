@@ -5,6 +5,7 @@
  *          cache acceleration settings, and assertion macro safety.
  */
 
+#include <stdbool.h>
 #include "unity.h"
 #include "stm32wlxx_hal_conf.h"
 
@@ -65,7 +66,7 @@ static void test_hal_conf_enabled_modules(void) {
 #ifndef HAL_UART_MODULE_ENABLED
     TEST_FAIL_MESSAGE("HAL_UART_MODULE_ENABLED must be defined");
 #endif
-    TEST_PASS();
+    TEST_ASSERT_TRUE(true);
 }
 
 /**
@@ -114,7 +115,7 @@ static void test_hal_conf_disabled_modules(void) {
 #ifdef HAL_WWDG_MODULE_ENABLED
     TEST_FAIL_MESSAGE("HAL_WWDG_MODULE_ENABLED should be disabled");
 #endif
-    TEST_PASS();
+    TEST_ASSERT_TRUE(true);
 }
 
 /**
@@ -150,7 +151,7 @@ static void test_hal_conf_assert_param_macro(void) {
     assert_param(1);
     assert_param(HSE_VALUE == 32000000UL);
     assert_param(LSE_VALUE == 32768UL);
-    TEST_PASS();
+    TEST_ASSERT_TRUE(true);
 }
 
 int main(void) {
