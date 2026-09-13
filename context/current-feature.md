@@ -1,16 +1,27 @@
-# Current Feature
+# Current Feature: S3-T3.1 - Switched Sensor Power Rails & Stabilization Driver
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- To be populated when a feature is loaded via /feature load -->
+- Create `firmware/drivers/inc/bsp_power_rails.h` adhering to ISO C99 standards with complete Doxygen documentation and driver APIs (`bsp_power_rails_init`, `bsp_power_rail_enable`, `bsp_power_rail_is_enabled`, `bsp_power_rails_all_off`, `bsp_power_rail_stabilize`, `bsp_power_rail_get_stabilization_ms`).
+- Implement `firmware/drivers/src/bsp_power_rails.c` targeting STM32WLE5 high-side P-MOSFET load switches on `PA4` (VSENS_SW 3.3V switched sensor rail) and `PB1` (VBAT_DIV_EN battery voltage divider gate).
+- Implement mandatory calibrated 20 ms RC stabilization delay (`BSP_POWER_RAIL_SENSORS_STABILIZE_MS`) upon sensor rail activation to guarantee IC internal POR completion before I2C/UART bus transactions.
+- Implement battery divider gating on `PB1` (active-LOW P-MOSFET gate) with 2 ms stabilization delay to reduce standby divider leakage from 16.5 µA to < 10 nA.
+- Implement master pre-sleep power-down routine (`bsp_power_rails_all_off`) to de-energize all switched rails simultaneously prior to Stop 2 deep sleep entry (< 3.0 µA).
+- Ensure cross-target compilation hygiene with `__has_include` / `HAVE_STM32WLXX_HAL` preprocessor guards and unified host simulation backend.
+- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_bsp_power_rails.c`) covering default power-on states, sensor rail 20ms activation timing, battery divider active-LOW gating, all-off helper, parameter boundary guards, and host test isolation.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
+- PA4 (`PIN_PWR_SENS`): High-Side P-MOSFET (DMG2305UX) Gate. Active HIGH = ON (3.3V `VSENS_SW`).
+- PB1 (`PIN_VBAT_DIV_EN`): Resistor Divider Gate (100k/100k). Active LOW = ON (connects divider to `PB0` ADC_IN1).
+- Stabilization Delays: Sensor Rail 20 ms, Battery Divider 2 ms, Bleeder discharge 10 ms.
+- Quiescent current reduction: Isolates > 500 µA sensor quiescent current to achieve < 3.0 µA Stop 2 sleep target.
+- Memory: Zero dynamic allocation (`malloc`/`free` strictly prohibited). Compile-time static state tracking.
 
 ## History
 
