@@ -7,6 +7,7 @@ add_library(firmware_drivers STATIC
     src/i2c_bus.c
     src/uart_bus.c
     src/bsp_power_rails.c
+    src/bsp_indicators.c
 )
 
 target_include_directories(firmware_drivers PUBLIC
