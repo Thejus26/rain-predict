@@ -244,18 +244,24 @@ bool i2c_bus_is_busy(void) {
 #define SIM_I2C_REG_SPACE       256
 
 typedef struct {
-    uint8_t address;
-    bool    is_active;
-    uint8_t registers[SIM_I2C_REG_SPACE];
+    uint8_t  address;
+    bool     is_active;
+    uint8_t  registers[SIM_I2C_REG_SPACE];
+    uint32_t read_count;
+    uint32_t write_count;
+    uint8_t  last_reg;
 } sim_i2c_device_t;
 
 static sim_i2c_device_t s_sim_devices[SIM_I2C_MAX_DEVICES];
-static bool s_sim_initialized = false;
+static bool s_sim_initialized = true;
 static uint32_t s_sim_speed_hz = I2C_BUS_SPEED_FAST_HZ;
 static bool s_sim_sda_stuck = false;
 static uint32_t s_sim_recovery_pulse_count = 0;
 static bool s_sim_stop_condition_emitted = false;
 static status_t s_sim_injected_fault = STATUS_OK;
+static uint32_t s_sim_fault_trigger_delay = 0;
+static uint32_t s_sim_transaction_count = 0;
+static uint32_t s_sim_active_fault_type = 0;
 
 static sim_i2c_device_t *sim_find_device(uint8_t dev_addr) {
     for (size_t i = 0; i < SIM_I2C_MAX_DEVICES; i++) {
@@ -283,12 +289,15 @@ static sim_i2c_device_t *sim_find_or_create_device(uint8_t dev_addr) {
 
 void i2c_bus_test_reset(void) {
     (void)memset(s_sim_devices, 0, sizeof(s_sim_devices));
-    s_sim_initialized = false;
+    s_sim_initialized = true;
     s_sim_speed_hz = I2C_BUS_SPEED_FAST_HZ;
     s_sim_sda_stuck = false;
     s_sim_recovery_pulse_count = 0;
     s_sim_stop_condition_emitted = false;
     s_sim_injected_fault = STATUS_OK;
+    s_sim_fault_trigger_delay = 0;
+    s_sim_transaction_count = 0;
+    s_sim_active_fault_type = 0;
 }
 
 void i2c_bus_test_set_sda_stuck(bool stuck_low) {
@@ -319,16 +328,56 @@ void i2c_bus_test_inject_fault(status_t fault) {
     s_sim_injected_fault = fault;
 }
 
-void i2c_bus_test_set_slave_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t value) {
+void i2c_bus_test_inject_fault_advanced(uint32_t fault_type, uint32_t trigger_after_n_calls) {
+    s_sim_active_fault_type = fault_type;
+    s_sim_fault_trigger_delay = trigger_after_n_calls;
+}
+
+void i2c_bus_test_clear_faults(void) {
+    s_sim_injected_fault = STATUS_OK;
+    s_sim_active_fault_type = 0;
+    s_sim_fault_trigger_delay = 0;
+}
+
+status_t i2c_bus_test_set_slave_reg(uint8_t dev_addr, uint8_t reg_addr, uint8_t value) {
     sim_i2c_device_t *p_dev = sim_find_or_create_device(dev_addr);
-    if (p_dev != NULL) {
-        p_dev->registers[reg_addr] = value;
+    if (p_dev == NULL) {
+        return STATUS_ERR_INVALID_PARAM;
     }
+    p_dev->registers[reg_addr] = value;
+    return STATUS_OK;
+}
+
+status_t i2c_bus_test_set_slave_regs(uint8_t dev_addr, uint8_t start_reg, const uint8_t *p_data, uint16_t length) {
+    if (p_data == NULL || ((uint32_t)start_reg + (uint32_t)length) > SIM_I2C_REG_SPACE) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    sim_i2c_device_t *p_dev = sim_find_or_create_device(dev_addr);
+    if (p_dev == NULL) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    (void)memcpy(&p_dev->registers[start_reg], p_data, (size_t)length);
+    return STATUS_OK;
 }
 
 uint8_t i2c_bus_test_get_slave_reg(uint8_t dev_addr, uint8_t reg_addr) {
     sim_i2c_device_t *p_dev = sim_find_device(dev_addr);
     return (p_dev != NULL) ? p_dev->registers[reg_addr] : 0x00U;
+}
+
+uint32_t i2c_bus_test_get_read_count(uint8_t dev_addr) {
+    sim_i2c_device_t *p_dev = sim_find_device(dev_addr);
+    return (p_dev != NULL) ? p_dev->read_count : 0U;
+}
+
+uint32_t i2c_bus_test_get_write_count(uint8_t dev_addr) {
+    sim_i2c_device_t *p_dev = sim_find_device(dev_addr);
+    return (p_dev != NULL) ? p_dev->write_count : 0U;
+}
+
+uint8_t i2c_bus_test_get_last_reg(uint8_t dev_addr) {
+    sim_i2c_device_t *p_dev = sim_find_device(dev_addr);
+    return (p_dev != NULL) ? p_dev->last_reg : 0x00U;
 }
 
 status_t i2c_bus_init(uint32_t speed_hz) {
@@ -357,6 +406,28 @@ status_t i2c_bus_read(uint8_t dev_addr,
     if (!s_sim_initialized) {
         return STATUS_ERR_INVALID_PARAM;
     }
+
+    s_sim_transaction_count++;
+
+    /* Process advanced mock fault injection if configured */
+    if (s_sim_active_fault_type != 0U) {
+        if (s_sim_fault_trigger_delay == 0U || s_sim_transaction_count >= s_sim_fault_trigger_delay) {
+            switch (s_sim_active_fault_type) {
+                case 1: /* MOCK_I2C_FAULT_NACK_ADDR */
+                    return STATUS_ERR_SENSOR_NO_RESPONSE;
+                case 2: /* MOCK_I2C_FAULT_NACK_DATA */
+                case 4: /* MOCK_I2C_FAULT_BUS_ERROR */
+                    return STATUS_ERR_I2C;
+                case 3: /* MOCK_I2C_FAULT_TIMEOUT */
+                    return STATUS_ERR_TIMEOUT;
+                case 5: /* MOCK_I2C_FAULT_CORRUPT_DATA */
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
     if (s_sim_injected_fault != STATUS_OK) {
         status_t fault = s_sim_injected_fault;
         if (fault == STATUS_ERR_TIMEOUT || fault == STATUS_ERR_SENSOR_NO_RESPONSE) {
@@ -374,9 +445,17 @@ status_t i2c_bus_read(uint8_t dev_addr,
         return STATUS_ERR_SENSOR_NO_RESPONSE;
     }
 
+    p_dev->read_count++;
+    p_dev->last_reg = reg_addr;
+
     for (uint16_t i = 0; i < length; i++) {
         uint8_t curr_reg = (uint8_t)(reg_addr + i);
-        p_data[i] = p_dev->registers[curr_reg];
+        uint8_t val = p_dev->registers[curr_reg];
+        if (s_sim_active_fault_type == 5U &&
+            (s_sim_fault_trigger_delay == 0U || s_sim_transaction_count >= s_sim_fault_trigger_delay)) {
+            val ^= 0xFFU;
+        }
+        p_data[i] = val;
     }
     return STATUS_OK;
 }
@@ -393,6 +472,25 @@ status_t i2c_bus_write(uint8_t dev_addr,
     if (!s_sim_initialized) {
         return STATUS_ERR_INVALID_PARAM;
     }
+
+    s_sim_transaction_count++;
+
+    if (s_sim_active_fault_type != 0U) {
+        if (s_sim_fault_trigger_delay == 0U || s_sim_transaction_count >= s_sim_fault_trigger_delay) {
+            switch (s_sim_active_fault_type) {
+                case 1: /* MOCK_I2C_FAULT_NACK_ADDR */
+                    return STATUS_ERR_SENSOR_NO_RESPONSE;
+                case 2: /* MOCK_I2C_FAULT_NACK_DATA */
+                case 4: /* MOCK_I2C_FAULT_BUS_ERROR */
+                    return STATUS_ERR_I2C;
+                case 3: /* MOCK_I2C_FAULT_TIMEOUT */
+                    return STATUS_ERR_TIMEOUT;
+                default:
+                    break;
+            }
+        }
+    }
+
     if (s_sim_injected_fault != STATUS_OK) {
         status_t fault = s_sim_injected_fault;
         if (fault == STATUS_ERR_TIMEOUT || fault == STATUS_ERR_SENSOR_NO_RESPONSE) {
@@ -409,6 +507,9 @@ status_t i2c_bus_write(uint8_t dev_addr,
     if (p_dev == NULL) {
         return STATUS_ERR_SENSOR_NO_RESPONSE;
     }
+
+    p_dev->write_count++;
+    p_dev->last_reg = reg_addr;
 
     for (uint16_t i = 0; i < length; i++) {
         uint8_t curr_reg = (uint8_t)(reg_addr + i);
@@ -449,6 +550,9 @@ status_t i2c_bus_is_device_ready(uint8_t dev_addr, uint32_t trials, uint32_t tim
     (void)timeout_ms;
     if (!s_sim_initialized) {
         return STATUS_ERR_INVALID_PARAM;
+    }
+    if (s_sim_active_fault_type == 1U) { /* MOCK_I2C_FAULT_NACK_ADDR */
+        return STATUS_ERR_SENSOR_NO_RESPONSE;
     }
     if (s_sim_injected_fault != STATUS_OK) {
         return s_sim_injected_fault;
