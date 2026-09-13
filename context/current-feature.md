@@ -1,28 +1,16 @@
-# Current Feature: S3-T3.2 - Board Indicators & Alarm Actuator Driver
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Create `firmware/drivers/inc/bsp_indicators.h` adhering to ISO C99 standards with complete Doxygen documentation and driver APIs (`bsp_indicators_init`, `bsp_led_set`, `bsp_led_toggle`, `bsp_buzzer_set`, `bsp_relay_set`, `bsp_relay_trigger_timed`, `bsp_indicator_set_pattern`, `bsp_indicators_process`, `bsp_indicators_all_off`).
-- Implement `firmware/drivers/src/bsp_indicators.c` targeting STM32WLE5 GPIO outputs: Green LED (`PB8`), Red LED (`PB9`), Piezo Buzzer gate (`PB2`), and Optocoupled Siren Relay gate (`PB4`).
-- Implement non-blocking autonomous pattern generator (`bsp_indicator_set_pattern`, `bsp_indicators_process`) supporting Heartbeat, Watch, Warning, and Storm Alert sequences without busy-waits.
-- Implement hardware-safety timed relay activation (`bsp_relay_trigger_timed`) with automatic auto-cutoff clamped to a strict $10\text{s}$ maximum guard duration (`BSP_RELAY_MAX_PULSE_DURATION_MS`).
-- Implement master pre-sleep actuator shutdown (`bsp_indicators_all_off`) driving all actuator gates firmly to ground prior to Stop 2 deep sleep (< 3.0 µA).
-- Ensure cross-target compilation hygiene with `__has_include` / `HAVE_STM32WLXX_HAL` preprocessor guards and unified host simulation backend.
-- Implement comprehensive ThrowTheSwitch Unity test suite (`tests/unit/test_bsp_indicators.c`) covering default power-on states, direct LED/buzzer/relay control, timed relay auto-cutoff with $10\text{s}$ clamping, pattern state progression, and pre-sleep master shutdown.
+<!-- To be populated when a feature is loaded via /feature load -->
 
 ## Notes
 
-- Target SoC: STM32WLE5CCU6 / STM32WLE5J8 (ARM Cortex-M4 @ 48 MHz).
-- Green LED (`PB8`): Status OK / Heartbeat (4.0 mA, 470 ohm).
-- Red LED (`PB9`): Warning / Storm Alert Strobe (4.0 mA, 330 ohm).
-- Piezo Buzzer (`PB2`): 90dB Sounder via 2N7002 N-MOSFET gate (< 15 mA).
-- Alert Relay (`PB4`): Optocoupler PC817 gate controlling 12V/24V estate siren rail (< 10 mA).
-- Safety: Relay maximum pulse duration clamped to 10,000 ms.
-- Memory: Zero dynamic allocation (`malloc`/`free` prohibited). Non-blocking tick-based pattern processing.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -80,3 +68,4 @@ In Progress
 - 2026-09-13: S3-T2.1 - Implemented bounded non-blocking I2C master bus driver with 9-clock lockup recovery (firmware/drivers/inc/i2c_bus.h, firmware/drivers/src/i2c_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_i2c_bus.c, tests/CMakeLists.txt) covering STM32WLE5 I2C1 (PB6/PB7) hardware integration, Standard Mode (100 kHz) & Fast Mode (400 kHz) timing, 25ms bounded transaction timeouts, bit-bang 9-clock SCL pulse recovery engine with manual STOP generation, 16-bit big-endian register serialization (OPT3001), pre-sleep clock gating and deinitialization (i2c_bus_deinit), host simulation state tracking, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T2.2 - Implemented bounded non-blocking dual-port UART and SDI-12 bus driver (firmware/drivers/inc/uart_bus.h, firmware/drivers/src/uart_bus.c, firmware/drivers/CMakeLists.txt, tests/unit/test_uart_bus.c, tests/CMakeLists.txt) covering STM32WLE5 USART1 (RS-485 Modbus RTU on PA2 TX, PA3 RX, PA1 DE/RE) with 25µs pre-delay and 35µs post-delay guard timing, LPUART1 (SDI-12 on PC0 TX, PC1 RX, PC2 DIR) with 13ms break spacing and 9ms mark wakeup sequencing, 256-byte static circular RX ring buffers per port with interrupt-driven reception, bounded 50-250ms timeouts, pre-sleep serial deinitialization (uart_bus_deinit), host simulation backend, and comprehensive ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T3.1 - Implemented switched sensor power rails driver with high-side P-MOSFET load switch management and stabilization guard delays (firmware/drivers/inc/bsp_power_rails.h, firmware/drivers/src/bsp_power_rails.c, firmware/drivers/CMakeLists.txt, tests/unit/test_bsp_power_rails.c, tests/CMakeLists.txt) covering STM32WLE5 PA4 (3.3V switched sensor rail VSENS_SW) with 20ms calibrated RC stabilization delay, PB1 active-LOW battery divider gate with 2ms stabilization delay (< 10 nA standby leakage), pre-sleep all-off shutdown (bsp_power_rails_all_off) for Stop 2 deep sleep (< 3.0 µA), host simulation state tracking, and ThrowTheSwitch Unity test suite.
+- 2026-09-13: S3-T3.2 - Implemented board indicators and alarm actuator driver with non-blocking pattern generator and timed relay auto-cutoff (firmware/drivers/inc/bsp_indicators.h, firmware/drivers/src/bsp_indicators.c, firmware/drivers/CMakeLists.txt, tests/unit/test_bsp_indicators.c, tests/CMakeLists.txt) covering STM32WLE5 PB8 (Green Status LED), PB9 (Red Warning LED), PB2 (90dB Piezo Buzzer gate), PB4 (Optocoupled Siren Relay gate), tick-based non-blocking pattern generator (Heartbeat, Watch, Warning, Storm Alert), 10s maximum relay safety auto-cutoff (BSP_RELAY_MAX_PULSE_DURATION_MS), pre-sleep all-off shutdown (bsp_indicators_all_off) for Stop 2 deep sleep (< 3.0 µA), host simulation state tracking, and ThrowTheSwitch Unity test suite.
