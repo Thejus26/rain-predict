@@ -76,11 +76,58 @@ typedef struct {
 
 /**
  * @brief  Computes standard Modbus RTU CRC-16 (Polynomial: 0xA001, Init: 0xFFFF).
+ * @note   Maps directly to modbus_crc16_lut() for maximum throughput.
  * @param  p_buffer Pointer to data buffer.
  * @param  length Number of bytes to calculate.
  * @return 16-bit CRC checksum (Low-byte in lower 8 bits).
  */
 uint16_t modbus_crc16(const uint8_t *p_buffer, uint16_t length);
+
+/**
+ * @brief  Computes Modbus RTU CRC-16 using bitwise shift method.
+ * @param  p_buffer Pointer to byte buffer.
+ * @param  length Number of bytes to compute over.
+ * @return 16-bit CRC checksum.
+ */
+uint16_t modbus_crc16_bitwise(const uint8_t *p_buffer, uint16_t length);
+
+/**
+ * @brief  Computes Modbus RTU CRC-16 using 256-entry Flash lookup table.
+ * @param  p_buffer Pointer to byte buffer.
+ * @param  length Number of bytes to compute over.
+ * @return 16-bit CRC checksum.
+ */
+uint16_t modbus_crc16_lut(const uint8_t *p_buffer, uint16_t length);
+
+/**
+ * @brief  Incremental/streaming CRC-16 update function.
+ * @param  current_crc Running CRC accumulator (initialize to 0xFFFF for first block).
+ * @param  p_data Pointer to next chunk of data bytes.
+ * @param  length Number of bytes in this chunk.
+ * @return Updated 16-bit CRC value.
+ */
+uint16_t modbus_crc16_update(uint16_t current_crc, const uint8_t *p_data, uint16_t length);
+
+/**
+ * @brief  Validates whether the trailing 2 bytes of a Modbus frame match its computed CRC-16.
+ * @param  p_frame Pointer to complete Modbus frame (including trailing 2 CRC bytes).
+ * @param  frame_len Total frame length (must be >= 3).
+ * @return true if CRC matches perfectly, false otherwise.
+ */
+bool modbus_validate_frame_crc(const uint8_t *p_frame, uint16_t frame_len);
+
+/**
+ * @brief  Appends 2-byte CRC-16 (Low-byte first) to the end of a payload buffer.
+ * @param[in,out] p_frame Pointer to buffer containing payload.
+ * @param  data_len Number of payload bytes currently in buffer.
+ * @param  max_buf_len Total allocated capacity of p_frame.
+ * @param[out] p_total_len Pointer to store resulting total length (data_len + 2).
+ * @return STATUS_OK on success, or structured error code.
+ */
+status_t modbus_append_crc16(uint8_t *p_frame,
+                             uint16_t data_len,
+                             uint16_t max_buf_len,
+                             uint16_t *p_total_len);
 
 /**
  * @brief  Constructs an 8-byte Modbus RTU FC03 Read Holding Registers query frame.
