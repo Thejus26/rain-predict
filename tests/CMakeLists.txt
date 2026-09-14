@@ -246,6 +246,17 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bsp_adc.c")
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 8. Sensor Drivers & Field Bus Tests
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bme280.c")
+    add_firmware_test(bme280
+        SOURCES unit/test_bme280.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
+
 
 
 
