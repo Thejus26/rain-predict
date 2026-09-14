@@ -1,32 +1,16 @@
-# Current Feature: S5-T1.1 - LoRaWAN 12-Byte Periodic Binary Telemetry Packet Serializer
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Define `telemetry_rain_state_t` enum and `telemetry_periodic_data_t` engineering unit structure in `firmware/middleware/inc/telemetry_codec.h`.
-- Implement `telemetry_encode_periodic()` in `firmware/middleware/src/telemetry_codec.c` to pack 8 meteorological variables, nowcast alert state, Zambretti index, CPI%, solar cloud alarm, and battery diagnostics into a fixed 12-byte big-endian payload.
-- Implement `telemetry_decode_periodic()` in `firmware/middleware/src/telemetry_codec.c` to deserialize a 12-byte payload back into floating-point physical units.
-- Enforce big-endian network byte order (MSB-first) on all 16-bit multi-byte integer quantities.
-- Implement signed two's-complement quantization for sub-zero temperatures (-40.00°C to +85.00°C).
-- Implement defensive range clamping against physical sensor boundaries to prevent integer wrap-around.
-- Ensure zero dynamic allocation (malloc/free strictly forbidden) and deterministic stack bounds (< 48 bytes).
-- Update `firmware/middleware/CMakeLists.txt` to include `src/telemetry_codec.c`.
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- **Payload Size**: Exactly 12 bytes (96 bits) on LoRaWAN FPort 1.
-- **Byte 0..1**: Temperature (int16_t BE, 0.01 °C step, range -40.00 .. +85.00 °C, raw -4000 .. +8500).
-- **Byte 2..3**: Humidity (uint16_t BE, 0.01 %RH step, range 0.00 .. 100.00 %RH, raw 0 .. 10000).
-- **Byte 4..5**: Pressure (uint16_t BE, base 300.00 hPa, 0.02 hPa step, range 300.00 .. 1100.00 hPa, raw 0 .. 40000).
-- **Byte 6..7**: Ambient Solar Lux (uint16_t BE, 2.0 Lux step, range 0.0 .. 83,000.0 Lux, raw 0 .. 41500).
-- **Byte 8**: Interval Accumulated Rain (uint8_t, 0.2 mm step, range 0.0 .. 51.0 mm, raw 0 .. 255).
-- **Byte 9**: State [7:6] (0..3) | Zambretti Index [5:0] (1..26).
-- **Byte 10**: Solar Cloud Drop Alarm [7] (0/1) | CPI Probability [6:0] (0..100%).
-- **Byte 11**: Unexpected Reset [7] | Sensor Fault [6] | Battery Vbat [5:0] (base 2.50 V, 20 mV step, raw 0..63 for 2.50 .. 3.76 V).
-- Target files: `firmware/middleware/inc/telemetry_codec.h`, `firmware/middleware/src/telemetry_codec.c`.
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -106,3 +90,4 @@ In Progress
 - 2026-09-14: S4-T5.1 - Implemented SDI-12 Bus Break & Mark Timing Engine (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, firmware/drivers/CMakeLists.txt, tests/unit/test_sdi12.c, tests/CMakeLists.txt) covering STM32WLE5 LPUART1 1200-baud 7E1 physical layer, PC2 half-duplex direction control, 13.0ms break spacing (+5V) and 9.0ms mark sequence (0V) with GPIO dynamic mode switching, command transmission with hardware TC synchronization, \r\n ASCII response acquisition with 1000ms timeout guard, fail-safe RX line release, zero dynamic memory allocation, and ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T5.2 - Implemented SDI-12 Command Formatter & Multi-Parameter ASCII Response Parser (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, tests/unit/test_sdi12.c) covering command formatting (?!, a!, aI!, aM!, aC!, aD0!, aAb!) with address validation and ! delimiter enforcement, measurement info parsing (atttn\r\n), deterministic zero-heap floating-point token extraction (including negative and scientific notation), sensor identification decoding (aI!), high-level 2-stage soil probe acquisition orchestrator (sdi12_query_soil_probe) with agronomic clamping, probe address discovery (sdi12_query_address), and ThrowTheSwitch Unity unit test suite.
 - 2026-09-14: S4-T5.3 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for SDI-12 Bus Driver (tests/unit/test_sdi12.c) covering 29 unit tests across physical break/mark timing (13ms/9ms), half-duplex PC2 direction toggling, command syntax (?!, a!, aM!, aD0!, aI!), measurement info parsing (atttn\r\n), multi-parameter floating-point data response parsing (positive, negative, scientific notation), sensor identification decoding (22-byte string), 2-stage soil moisture query orchestration (sdi12_query_soil_probe) with agronomic clamping, address discovery (sdi12_query_address), and timeout/fault resilience. Completed Sprint 4 (Sensor Drivers & Remote Field Bus Interfaces).
+- 2026-09-14: S5-T1.1 - Implemented LoRaWAN 12-Byte Periodic Binary Telemetry Packet Serializer & Deserializer (firmware/middleware/inc/telemetry_codec.h, firmware/middleware/src/telemetry_codec.c, firmware/middleware/CMakeLists.txt) covering fixed-point quantization (T 0.01°C, RH 0.01%, P 0.02hPa, Lux 2.0, Rain 0.2mm, Vbat 20mV), Big-Endian network byte order, signed two's-complement sub-zero temperature preservation, sub-byte bitfield packing (State/Zambretti, Solar Drop/CPI, Reset/Fault/Vbat), defensive boundary clamping, and zero dynamic memory allocation.
