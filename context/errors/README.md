@@ -33,6 +33,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-023`** | 2026-09-13 17:32:10 | [`dc4c3df`](https://github.com/Thejus26/rain-predict/commit/dc4c3dfd19ce44f7f2f1869bae9884eab024a512) | Testing & Middleware | **Stale LOW_BAT_SLEEP_SEC Assertion Mismatch**: Unit test asserted obsolete 1800s interval instead of 900s multi-tier value. | [ERR-023 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-023-2026-09-13-stale-low-bat-sleep-sec-assertion-in-test-power-mgr.md) |
 | **`ERR-024`** | 2026-09-14 08:24:23 | [`c8c8279`](https://github.com/Thejus26/rain-predict/commit/c8c8279c7d5e5b0b5e7f261ce0d551e1cdc9459c) | Testing (Unity / BME280) | **Non-Existent Integer Tolerance Macros in test_bme280**: Undefined `TEST_ASSERT_INT16_WITHIN` / `UINT32_WITHIN` / `UINT16_WITHIN`. | [ERR-024 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-024-2026-09-14-invalid-unity-assertion-macros-in-test-bme280.md) |
 | **`ERR-025`** | 2026-09-14 08:29:37 | [`5a2a635`](https://github.com/Thejus26/rain-predict/commit/5a2a6353ea0ad47fd2fe3cf79cade0295cb6bd43) | Testing & Driver Math (BME280) | **BME280 Humidity Test Vector Constant Discrepancy**: Expected 54.32% instead of analytically computed 29.81%. | [ERR-025 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-025-2026-09-14-bme280-humidity-test-vector-constant-discrepancy.md) |
+| **`ERR-026`** | 2026-09-14 10:09:00 | [`82bc551`](https://github.com/Thejus26/rain-predict/commit/82bc55173ec00d8806d6acec27bbaac17b50bbcc) | Testing & Driver Simulation (OPT3001) | **OPT3001 Config Word Discrepancy & Mock CRF Timeout**: Single-shot config test expected 0xCA10 vs 0xC210, and mock write cleared CRF causing timeout. | [ERR-026 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-026-2026-09-14-opt3001-config-word-discrepancy-and-mock-crf-timeout.md) |
 
 ---
 
@@ -40,8 +41,8 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
+    "Testing Macros & Mock Architectural Collisions" : 9
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 8
-    "Testing Macros & Mock Architectural Collisions" : 8
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2
