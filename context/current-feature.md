@@ -1,16 +1,32 @@
-# Current Feature
+# Current Feature: S4-T4.1 Modbus RTU Frame Generator (FC03 Read Holding Registers)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Implement Modbus RTU CRC-16 computation (`modbus_crc16`) using polynomial `0xA001` with `0xFFFF` seed and bitwise calculation.
+- Implement 8-byte Modbus RTU FC03 Read Holding Registers request frame generator (`modbus_build_read_holding_registers_req`) in `firmware/drivers/inc/modbus_rtu.h` and `firmware/drivers/src/modbus_rtu.c`.
+- Enforce strict parameter validation: slave address unicast range [1, 247] (rejecting broadcast 0x00), register count range [1, 125], and buffer capacity bounds (>= 8 bytes).
+- Implement response frame validation and unpacking engine (`modbus_parse_read_holding_registers_resp`) with CRC-16 verification, slave address matching, byte count validation (2 * reg_count), and big-endian 16-bit register word unpacking.
+- Implement Modbus exception frame detection (`0x83` = `0x03 | 0x80`), exception code extraction (`0x01` to `0x08`), and human-readable diagnostic string conversion (`modbus_exception_to_str`).
+- Implement meteorological engineering unit decoding (`modbus_decode_thp_registers`) converting raw 16-bit registers into calibrated floating-point units for ambient temperature (0.01 °C, signed), relative humidity (0.01 %RH, [0, 100] bounded), barometric pressure (0.1 hPa), and optional wind speed (0.01 m/s) / wind direction (0.1°).
+- Ensure strict C99 MISRA-C compliance, zero dynamic memory allocation (`malloc`/`free` prohibited), and static caller buffer allocation.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- Target Files: `firmware/drivers/inc/modbus_rtu.h`, `firmware/drivers/src/modbus_rtu.c`
+- Protocol: Modbus RTU Master, Function Code 0x03 (Read Holding Registers)
+- Physical Layer: RS-485 differential bus on STM32WLE5 USART1 (PA2 TX, PA3 RX, PA1 DE/RE)
+- Baud Rate: 9600 bps, 8-N-1
+- Request Frame Size: Exactly 8 bytes (`[Slave][0x03][Start Hi:Lo][Count Hi:Lo][CRC Lo:Hi]`)
+- Minimum Response Frame Size: 5 bytes (Exception frame: `[Slave][0x83][ExCode][CRC Lo:Hi]`)
+- Normal Response Frame Size: `5 + 2 * N` bytes (`[Slave][0x03][ByteCount][Data 2*N bytes][CRC Lo:Hi]`)
+- Max Read Registers: 125 (<= 250 data bytes, within 256-byte Modbus ADU limit)
+- CRC-16: Polynomial `0xA001`, initial value `0xFFFF`, low byte transmitted first
+- Status codes mapped to `firmware/core/inc/status.h` (`STATUS_OK`, `STATUS_ERR_INVALID_PARAM`, `STATUS_ERR_NULL_PTR`, `STATUS_ERR_OVERFLOW`, `STATUS_ERR_CRC_MISMATCH`, `STATUS_ERR_DATA_CORRUPT`)
+
 
 ## History
 

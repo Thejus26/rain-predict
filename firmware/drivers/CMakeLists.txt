@@ -12,6 +12,7 @@ add_library(firmware_drivers STATIC
     src/bme280_driver.c
     src/opt3001_driver.c
     src/rain_gauge_driver.c
+    src/modbus_rtu.c
 )
 
 target_include_directories(firmware_drivers PUBLIC
