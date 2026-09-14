@@ -1,16 +1,29 @@
-# Current Feature
+# Current Feature: S4-T3.1 - Tipping-Bucket Rain Gauge EXTI & Debounce Filter
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Implement tipping-bucket rain gauge driver header ([`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h)) and implementation ([`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c)).
+- Configure STM32WLE5 `PA0` / `EXTI0` in `GPIO_MODE_IT_FALLING` with internal pull-up and NVIC interrupt priority 2.
+- Implement dual-stage chatter filter: hardware RC filtering ($\tau = 1.0\text{ ms}$) and software $50\text{ ms}$ lockout window (`RAIN_GAUGE_DEBOUNCE_MS`).
+- Implement fast, non-blocking ISR handler `rain_gauge_exti_isr(uint32_t current_tick_ms)` executing in $< 20$ CPU cycles.
+- Implement atomic 32-bit tick subtraction `(current_tick_ms - last_pulse_timestamp_ms)` with seamless SysTick rollover handling.
+- Implement diagnostic getters and clear APIs (`rain_gauge_is_rain_active`, `rain_gauge_get_last_pulse_timestamp`, `rain_gauge_get_rejected_bounce_count`, `rain_gauge_reset_diagnostics`).
+- Implement driver initialization (`rain_gauge_init`), de-initialization (`rain_gauge_deinit` tri-stating `PA0` to analog mode), and NVIC masking (`rain_gauge_enable_irq`).
+- Verify 100% test pass rate for all Section 7 test cases in simulation and host unit test harnesses.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- Spec File: [`context/specs/s4-t3.1-rain-gauge-exti-debounce.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.1-rain-gauge-exti-debounce.md)
+- Target Files: [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h), [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c)
+- Target Hardware: STM32WLE5CCU6 `PA0` (EXTI0, Pin 10), Pull-Up, Falling-Edge Interrupt.
+- Calibration Constant: $0.20\text{ mm}$ equivalent rainfall depth per tip (`RAIN_GAUGE_CALIB_MM_PER_TIP`).
+- Debounce Lockout Window: $50\text{ ms}$ (`RAIN_GAUGE_DEBOUNCE_MS`), Max measurable rain rate: $14.4\text{ mm/min}$ ($864\text{ mm/hr}$).
+- Power Management: `PA0` serves as Stop 2 deep sleep asynchronous wakeup line; de-init transitions pin to `GPIO_MODE_ANALOG` (`GPIO_NOPULL`) for $< 3.0\,\mu\text{A}$ sleep current.
+- Execution Constraints: $< 20$ CPU cycles per ISR execution, zero dynamic allocation, MISRA-C compliant C99.
 
 ## History
 
