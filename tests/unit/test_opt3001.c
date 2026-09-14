@@ -1,8 +1,9 @@
 /**
  * @file    test_opt3001.c
- * @brief   ThrowTheSwitch Unity unit test suite for TI OPT3001 Driver (S4-T2.1).
- * @details Validates device ID verification, single-shot triggering, conversion polling,
- *          timeout handling, and raw register exponent/mantissa bitfield unpacking.
+ * @brief   ThrowTheSwitch Unity unit test suite for TI OPT3001 Driver (S4-T2.1 - S4-T2.4).
+ * @details Validates device ID verification, single-shot acquisition, conversion polling,
+ *          timeout handling, raw register unpacking, exponential lux math, broadband
+ *          solar irradiance, telemetry serialization, day/night hysteresis, and storm attenuation.
  */
 
 #include "unity.h"
