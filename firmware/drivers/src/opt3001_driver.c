@@ -191,3 +191,86 @@ status_t opt3001_sample_forced_raw(opt3001_dev_t *dev, opt3001_raw_data_t *p_raw
     /* 3. Read and unpack result register */
     return opt3001_read_raw_result(dev, p_raw);
 }
+
+float opt3001_raw_to_lux(uint16_t raw_result) {
+    uint8_t exponent = (uint8_t)((raw_result >> 12) & 0x0FU);
+    uint16_t mantissa = (uint16_t)(raw_result & 0x0FFFU);
+
+    if (exponent > OPT3001_MAX_EXPONENT) {
+        exponent = OPT3001_MAX_EXPONENT; /* Clamp exponent to 11 */
+    }
+
+    /* Lux = 0.01f * (1 << E) * (float)R */
+    float lsb_size = 0.01f * (float)(1U << exponent);
+    float lux = lsb_size * (float)mantissa;
+
+    if (lux > OPT3001_MAX_LUX) {
+        lux = OPT3001_MAX_LUX;
+    }
+
+    return lux;
+}
+
+uint32_t opt3001_raw_to_centi_lux(uint16_t raw_result) {
+    uint8_t exponent = (uint8_t)((raw_result >> 12) & 0x0FU);
+    uint16_t mantissa = (uint16_t)(raw_result & 0x0FFFU);
+
+    if (exponent > OPT3001_MAX_EXPONENT) {
+        exponent = OPT3001_MAX_EXPONENT;
+    }
+
+    /* Centi_Lux = mantissa << exponent */
+    return ((uint32_t)mantissa << exponent);
+}
+
+float opt3001_lux_to_irradiance(float lux) {
+    if (lux <= 0.0f) {
+        return 0.0f;
+    }
+    return (lux / OPT3001_SOLAR_LUMINOUS_EFFICACY);
+}
+
+uint16_t opt3001_lux_to_telemetry_u16(float lux) {
+    if (lux <= 0.0f) {
+        return 0U;
+    }
+
+    /* Scale: 2.0 Lux per count with half-LSB rounding */
+    uint32_t scaled = (uint32_t)((lux + 1.0f) / OPT3001_TELEMETRY_LUX_SCALE);
+
+    if (scaled > OPT3001_TELEMETRY_MAX_RAW) {
+        scaled = OPT3001_TELEMETRY_MAX_RAW;
+    }
+
+    return (uint16_t)scaled;
+}
+
+status_t opt3001_convert_raw(const opt3001_raw_data_t *p_raw, opt3001_reading_t *p_out) {
+    if (p_raw == NULL || p_out == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    float lux = opt3001_raw_to_lux(p_raw->raw_result);
+    p_out->lux              = lux;
+    p_out->irradiance_w_m2  = opt3001_lux_to_irradiance(lux);
+    p_out->centi_lux        = opt3001_raw_to_centi_lux(p_raw->raw_result);
+    p_out->telemetry_raw    = opt3001_lux_to_telemetry_u16(lux);
+    p_out->is_valid         = (p_raw->exponent <= OPT3001_MAX_EXPONENT);
+
+    return STATUS_OK;
+}
+
+status_t opt3001_read_lux(opt3001_dev_t *dev, opt3001_reading_t *p_out) {
+    if (dev == NULL || p_out == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    opt3001_raw_data_t raw = {0};
+    status_t status = opt3001_sample_forced_raw(dev, &raw);
+    if (status != STATUS_OK) {
+        p_out->is_valid = false;
+        return status;
+    }
+
+    return opt3001_convert_raw(&raw, p_out);
+}
