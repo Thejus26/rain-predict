@@ -35,6 +35,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-025`** | 2026-09-14 08:29:37 | [`5a2a635`](https://github.com/Thejus26/rain-predict/commit/5a2a6353ea0ad47fd2fe3cf79cade0295cb6bd43) | Testing & Driver Math (BME280) | **BME280 Humidity Test Vector Constant Discrepancy**: Expected 54.32% instead of analytically computed 29.81%. | [ERR-025 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-025-2026-09-14-bme280-humidity-test-vector-constant-discrepancy.md) |
 | **`ERR-026`** | 2026-09-14 10:09:00 | [`82bc551`](https://github.com/Thejus26/rain-predict/commit/82bc55173ec00d8806d6acec27bbaac17b50bbcc) | Testing & Driver Simulation (OPT3001) | **OPT3001 Config Word Discrepancy & Mock CRF Timeout**: Single-shot config test expected 0xCA10 vs 0xC210, and mock write cleared CRF causing timeout. | [ERR-026 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-026-2026-09-14-opt3001-config-word-discrepancy-and-mock-crf-timeout.md) |
 | **`ERR-027`** | 2026-09-14 10:16:00 | [`e92b8d0`](https://github.com/Thejus26/rain-predict/commit/e92b8d0c2d7b126edc107fefb67bea65dd5a6dcc) | Testing & Driver Simulation (I2C Bus) | **Mock I2C Over-Aggressive CRF Bit Mutation in test_i2c_bus**: Bus simulation mutated test word 0x1234 to 0x12B4. | [ERR-027 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-027-2026-09-14-mock-i2c-crf-mutation-in-test-i2c-bus.md) |
+| **`ERR-028`** | 2026-09-14 11:48:21 | [`080e1e0`](https://github.com/Thejus26/rain-predict/commit/080e1e0e4687c3039a2a841c6675df5c2c5ef89a) | Drivers & Metrics (Rain Gauge) | **Rain Gauge Peak Rate State Mutation on Read Queries**: Getters mutated peak rate state upon query, causing peak retention failures after reset. | [ERR-028 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-028-2026-09-14-rain-gauge-peak-rate-mutation-on-read.md) |
 
 ---
 
@@ -42,7 +43,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Testing Macros & Mock Architectural Collisions" : 10
+    "Testing Macros & Mock Architectural Collisions" : 11
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 8
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3

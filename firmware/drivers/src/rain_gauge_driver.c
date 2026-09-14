@@ -177,6 +177,15 @@ void rain_gauge_exti_isr(uint32_t current_tick_ms) {
         if (s_total_lifetime_tips < 0xFFFFFFFFUL) {
             s_total_lifetime_tips++;
         }
+
+        /* Calculate and update peak instantaneous rate upon valid tip event */
+        float tip_rate = RAIN_RATE_NUMERATOR_MS / (float)elapsed_ms;
+        if (tip_rate > RAIN_RATE_MAX_MM_HR) {
+            tip_rate = RAIN_RATE_MAX_MM_HR;
+        }
+        if (tip_rate > s_peak_instantaneous_mm_hr) {
+            s_peak_instantaneous_mm_hr = tip_rate;
+        }
     } else {
         /* Spurious contact bounce / chatter spike (< 50ms) rejected */
         s_rejected_bounce_count++;
@@ -206,6 +215,15 @@ uint16_t rain_gauge_read_and_clear_interval(float *p_interval_mm) {
 void rain_gauge_update_hourly_history(uint16_t interval_tips) {
     s_hourly_fifo[s_hourly_fifo_index] = interval_tips;
     s_hourly_fifo_index = (uint8_t)((s_hourly_fifo_index + 1U) % RAIN_GAUGE_HOURLY_FIFO_SIZE);
+
+    /* Update peak interval rate on completed interval */
+    float rate = ((float)interval_tips * RAIN_RATE_NUMERATOR_SEC) / (float)RAIN_GAUGE_INTERVAL_DURATION_SEC;
+    if (rate > RAIN_RATE_MAX_MM_HR) {
+        rate = RAIN_RATE_MAX_MM_HR;
+    }
+    if (rate > s_peak_interval_mm_hr) {
+        s_peak_interval_mm_hr = rate;
+    }
 }
 
 uint8_t rain_gauge_encode_telemetry_byte(uint16_t interval_tips) {
@@ -307,11 +325,6 @@ float rain_gauge_get_instantaneous_rate(uint32_t current_tick_ms) {
         base_rate = 0.0f;
     }
 
-    /* Update peak instantaneous rate */
-    if (base_rate > s_peak_instantaneous_mm_hr) {
-        s_peak_instantaneous_mm_hr = base_rate;
-    }
-
     return base_rate;
 }
 
@@ -326,11 +339,6 @@ float rain_gauge_compute_interval_rate(uint16_t interval_tips, uint32_t interval
         rate = RAIN_RATE_MAX_MM_HR;
     } else if (rate < 0.0f) {
         rate = 0.0f;
-    }
-
-    /* Update peak interval rate */
-    if (rate > s_peak_interval_mm_hr) {
-        s_peak_interval_mm_hr = rate;
     }
 
     return rate;
