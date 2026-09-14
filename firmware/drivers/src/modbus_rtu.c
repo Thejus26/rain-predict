@@ -7,34 +7,19 @@
 #include "uart_bus.h"
 #include <string.h>
 
-#ifdef STM32WLE5xx
-#include "stm32wlxx_hal.h"
-extern UART_HandleTypeDef huart1;
-#define RS485_UART_HANDLE (&huart1)
-#else
-/* Host unit test simulation state */
-static uint8_t s_mock_pa1_state = 0U;
-#define RS485_UART_HANDLE NULL
-#endif
-
 #define MODBUS_CRC16_INIT_VAL   0xFFFFU
 #define MODBUS_CRC16_POLYNOMIAL 0xA001U
 
 /* ========================================================================== */
-/* Precise Microsecond Delay Utility (@ 48 MHz)                               */
+/* Precise Microsecond Delay Utility                                          */
 /* ========================================================================== */
 
 static void delay_us(uint32_t us)
 {
-#ifdef STM32WLE5xx
-    /* 48 cycles per microsecond at 48 MHz MSI clock */
-    uint32_t count = us * 12U; /* ~4 CPU cycles per loop iteration */
-    while (count-- > 0U) {
-        __NOP();
+    volatile uint32_t count = us * 12U;
+    while (count > 0U) {
+        count--;
     }
-#else
-    (void)us;
-#endif
 }
 
 /* ========================================================================== */
@@ -404,22 +389,12 @@ const char *modbus_exception_to_str(modbus_exception_t exception_code)
 
 void modbus_set_direction_tx(void)
 {
-#ifdef STM32WLE5xx
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
-#else
-    s_mock_pa1_state = 1U;
-    uart_bus_test_set_direction(UART_PORT_RS485, UART_DIR_TX);
-#endif
+    (void)uart_bus_set_direction(UART_PORT_RS485, UART_DIR_TX);
 }
 
 void modbus_set_direction_rx(void)
 {
-#ifdef STM32WLE5xx
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-#else
-    s_mock_pa1_state = 0U;
-    uart_bus_test_set_direction(UART_PORT_RS485, UART_DIR_RX);
-#endif
+    (void)uart_bus_set_direction(UART_PORT_RS485, UART_DIR_RX);
 }
 
 /* ========================================================================== */
@@ -480,21 +455,13 @@ status_t modbus_query_slave_raw(uint8_t slave_addr,
         return status;
     }
 
-#ifdef STM32WLE5xx
-    /* Step 6: Wait for Hardware Transmission Complete (TC) Flag */
-    uint32_t tc_timeout = 10000U;
-    while (!__HAL_UART_GET_FLAG(RS485_UART_HANDLE, UART_FLAG_TC) && (tc_timeout-- > 0U)) {
-        __NOP();
-    }
-#endif
-
-    /* Step 7: Post-Transmission Guard Delay (35 µs) */
+    /* Step 6: Post-Transmission Guard Delay (35 µs) */
     delay_us(MODBUS_GUARD_TIME_POST_US);
 
-    /* Step 8: De-assert DE=LOW (Receiver Mode Active) */
+    /* Step 7: De-assert DE=LOW (Receiver Mode Active) */
     modbus_set_direction_rx();
 
-    /* Step 9: Await Slave Response with Bounded Software Timeout */
+    /* Step 8: Await Slave Response with Bounded Software Timeout */
     status = uart_bus_receive(UART_PORT_RS485,
                               rx_buf,
                               sizeof(rx_buf),
@@ -504,7 +471,7 @@ status_t modbus_query_slave_raw(uint8_t slave_addr,
         return status;
     }
 
-    /* Step 10: Parse Response Frame, Verify CRC, and Unpack 16-Bit Words */
+    /* Step 9: Parse Response Frame, Verify CRC, and Unpack 16-Bit Words */
     modbus_exception_t exception = MODBUS_EX_NONE;
     status = modbus_parse_read_holding_registers_resp(slave_addr,
                                                       reg_count,
