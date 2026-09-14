@@ -1,16 +1,28 @@
-# Current Feature
+# Current Feature: S4-T1.3 - Bosch BME280 Single-Precision FPU Compensation Calculations
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Update [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) with 32-bit single-precision float ([`bme280_data_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h)) and fixed-point ([`bme280_fixed_data_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h)) compensation routines adhering to C99 standards, Doxygen documentation, and zero dynamic memory allocation.
+- Implement single-precision temperature compensation `bme280_compensate_temperature()` computing ambient temperature in $^\circ\text{C}$ and intermediate fine resolution variable $t_{\text{fine}}$.
+- Implement single-precision pressure compensation `bme280_compensate_pressure()` computing barometric pressure in $\text{hPa}$ with zero-division protection on $var_1 \le 0.0\text{f}$ and terrestrial bounds clamping $[300.0, 1100.0]\text{ hPa}$.
+- Implement single-precision humidity compensation `bme280_compensate_humidity()` computing relative humidity in $\%\text{RH}$ with strict $[0.0, 100.0]\%\text{RH}$ clamping.
+- Implement master float conversion routine `bme280_compensate_raw()` and fixed-point scaled conversion `bme280_compensate_raw_fixed()`.
+- Implement master sampling convenience routine `bme280_read_data()` (trigger forced mode, wait, burst read raw ADC, and execute float compensation).
+- Update unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering official Bosch reference test vectors ($T = 25.08^\circ\text{C}$, $P = 1006.53\text{ hPa}$, $RH = 54.32\%$), sub-zero temperature calculations, zero-division pressure guards, upper/lower humidity clamping, fixed-point integer scaling, and parameter guards.
 
 ## Notes
 
-<!-- Add notes here -->
+- **FPU Optimization**: Native single-precision IEEE 754 `float` with `f` literal suffixes (`16384.0f`, `5120.0f`) preventing soft-float `double` emulation overhead.
+- **Physical Boundary Constants**:
+  - Pressure: `[300.0f, 1100.0f]` hPa (`BME280_PRESS_MIN_HPA`, `BME280_PRESS_MAX_HPA`)
+  - Temperature: `[-40.0f, 85.0f]` °C (`BME280_TEMP_MIN_C`, `BME280_TEMP_MAX_C`)
+  - Humidity: `[0.0f, 100.0f]` %RH (`BME280_HUM_MIN_PERCENT`, `BME280_HUM_MAX_PERCENT`)
+- **Intermediate Variable**: `t_fine` is computed during temperature compensation and passed into pressure/humidity algorithms.
+- **Fixed-Point Scaling**: Centi-degrees Celsius (`temp_centi_c = T * 100`), Pascals (`press_pascals = P * 100`), Centi-%RH (`hum_centi_percent = RH * 100`).
 
 ## History
 

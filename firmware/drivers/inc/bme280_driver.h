@@ -1,7 +1,8 @@
 /**
  * @file    bme280_driver.h
  * @brief   Bosch BME280 environmental sensor driver header for STM32WLE5 SoC.
- * @details Handles I2C communication, trimming calibration readout, and forced-mode sampling.
+ * @details Handles I2C communication, trimming calibration readout, forced-mode sampling,
+ *          and Cortex-M4 single-precision floating-point / fixed-point compensation.
  *          Adheres to C99 standards, MISRA-C guidelines, and zero-dynamic-memory allocation.
  */
 
@@ -58,6 +59,17 @@ extern "C" {
 #define BME280_MEASUREMENT_TIMEOUT_MS   60U
 
 /* ========================================================================== */
+/* Physical Boundary Constants                                                */
+/* ========================================================================== */
+
+#define BME280_PRESS_MIN_HPA            300.0f      /**< Minimum valid terrestrial pressure (hPa) */
+#define BME280_PRESS_MAX_HPA            1100.0f     /**< Maximum valid terrestrial pressure (hPa) */
+#define BME280_TEMP_MIN_C               -40.0f      /**< Minimum valid operating temperature (°C) */
+#define BME280_TEMP_MAX_C               85.0f       /**< Maximum valid operating temperature (°C) */
+#define BME280_HUM_MIN_PERCENT          0.0f        /**< Minimum relative humidity (%RH) */
+#define BME280_HUM_MAX_PERCENT          100.0f      /**< Maximum relative humidity (%RH) */
+
+/* ========================================================================== */
 /* Data Types                                                                 */
 /* ========================================================================== */
 
@@ -111,6 +123,26 @@ typedef struct {
     int32_t adc_P;      /**< 20-bit uncompensated raw pressure */
     int32_t adc_H;      /**< 16-bit uncompensated raw humidity */
 } bme280_raw_data_t;
+
+/**
+ * @brief Floating-point compensated physical sensor readings.
+ */
+typedef struct {
+    float   temperature_c;      /**< Ambient temperature in degrees Celsius (°C) */
+    float   pressure_hpa;       /**< Barometric pressure in hectopascals (hPa) */
+    float   humidity_percent;   /**< Relative humidity in %RH (0.0 to 100.0) */
+    bool    is_valid;           /**< True if readings passed all boundary validations */
+} bme280_data_t;
+
+/**
+ * @brief Fixed-point scaled integer compensated sensor readings for compact telemetry.
+ */
+typedef struct {
+    int16_t     temp_centi_c;       /**< Scaled temperature: 0.01 °C (e.g. 2452 = 24.52 °C) */
+    uint32_t    press_pascals;      /**< Absolute pressure: Pascals (e.g. 101325 Pa) */
+    uint16_t    hum_centi_percent;  /**< Scaled humidity: 0.01 %RH (e.g. 8540 = 85.40%) */
+    bool        is_valid;           /**< True if valid */
+} bme280_fixed_data_t;
 
 /**
  * @brief Bosch BME280 factory calibration trimming coefficients structure.
@@ -234,6 +266,63 @@ status_t bme280_read_raw_data(bme280_dev_t *dev, bme280_raw_data_t *p_raw);
  * @return STATUS_OK on success, or error status code.
  */
 status_t bme280_sample_forced_raw(bme280_dev_t *dev, bme280_raw_data_t *p_raw);
+
+/**
+ * @brief  Compensates raw temperature ADC value into degrees Celsius using single-precision FPU math.
+ * @param[in]  adc_T Raw 20-bit temperature ADC reading.
+ * @param[in]  calib Pointer to calibration data structure.
+ * @param[out] p_t_fine Pointer to store internal high-resolution temperature.
+ * @return Temperature in degrees Celsius.
+ */
+float bme280_compensate_temperature(int32_t adc_T, const bme280_calib_data_t *calib, float *p_t_fine);
+
+/**
+ * @brief  Compensates raw pressure ADC value into hectopascals (hPa) using single-precision FPU math.
+ * @param[in] adc_P Raw 20-bit pressure ADC reading.
+ * @param[in] calib Pointer to calibration data structure.
+ * @param[in] t_fine High-resolution temperature from bme280_compensate_temperature().
+ * @return Barometric pressure in hPa with zero-division protection and range clamping.
+ */
+float bme280_compensate_pressure(int32_t adc_P, const bme280_calib_data_t *calib, float t_fine);
+
+/**
+ * @brief  Compensates raw humidity ADC value into relative humidity (%RH) using single-precision FPU math.
+ * @param[in] adc_H Raw 16-bit humidity ADC reading.
+ * @param[in] calib Pointer to calibration data structure.
+ * @param[in] t_fine High-resolution temperature from bme280_compensate_temperature().
+ * @return Relative humidity in %RH clamped between 0.0% and 100.0%.
+ */
+float bme280_compensate_humidity(int32_t adc_H, const bme280_calib_data_t *calib, float t_fine);
+
+/**
+ * @brief  Executes full single-precision floating-point compensation for temperature, pressure, and humidity.
+ * @param[in]  raw Pointer to raw ADC values.
+ * @param[in]  calib Pointer to calibration structure.
+ * @param[out] out_data Pointer to output structure in physical engineering units.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_compensate_raw(const bme280_raw_data_t *raw,
+                               const bme280_calib_data_t *calib,
+                               bme280_data_t *out_data);
+
+/**
+ * @brief  Executes fixed-point integer compensation for compact LoRaWAN serialization.
+ * @param[in]  raw Pointer to raw ADC values.
+ * @param[in]  calib Pointer to calibration structure.
+ * @param[out] out_data Pointer to fixed-point output structure.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_compensate_raw_fixed(const bme280_raw_data_t *raw,
+                                     const bme280_calib_data_t *calib,
+                                     bme280_fixed_data_t *out_data);
+
+/**
+ * @brief  Master sampling routine: triggers forced mode, waits, reads ADC, and executes float compensation.
+ * @param[in,out] dev Pointer to initialized BME280 device context.
+ * @param[out]    out_data Pointer to store compensated environmental readings.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_read_data(bme280_dev_t *dev, bme280_data_t *out_data);
 
 #ifdef __cplusplus
 }

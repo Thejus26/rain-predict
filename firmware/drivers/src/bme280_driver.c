@@ -3,7 +3,8 @@
  * @brief   Bosch BME280 sensor driver implementation for STM32WLE5 SoC.
  * @details Implements 2-phase burst NVM calibration readout, hardware ID verification,
  *          forced-mode single-shot trigger, bounded conversion completion polling,
- *          atomic 8-byte raw ADC readout, and coefficient sanity validation.
+ *          atomic 8-byte raw ADC readout, Cortex-M4 single-precision FPU mathematical
+ *          compensation (T, P, RH), and fixed-point telemetry serialization.
  *          Adheres to C99 standards, MISRA-C guidelines, and zero-dynamic-memory allocation.
  */
 
@@ -335,4 +336,139 @@ status_t bme280_sample_forced_raw(bme280_dev_t *dev, bme280_raw_data_t *p_raw) {
 
     /* 4. Burst-read raw ADC registers */
     return bme280_read_raw_data(dev, p_raw);
+}
+
+float bme280_compensate_temperature(int32_t adc_T, const bme280_calib_data_t *calib, float *p_t_fine) {
+    if (calib == NULL || p_t_fine == NULL) {
+        return 0.0f;
+    }
+
+    float var1 = (((float)adc_T) / 16384.0f - ((float)calib->dig_T1) / 1024.0f) * ((float)calib->dig_T2);
+    float var2 = ((((float)adc_T) / 131072.0f - ((float)calib->dig_T1) / 8192.0f) *
+                  (((float)adc_T) / 131072.0f - ((float)calib->dig_T1) / 8192.0f)) * ((float)calib->dig_T3);
+
+    *p_t_fine = var1 + var2;
+    return (*p_t_fine) / 5120.0f;
+}
+
+float bme280_compensate_pressure(int32_t adc_P, const bme280_calib_data_t *calib, float t_fine) {
+    if (calib == NULL) {
+        return 0.0f;
+    }
+
+    float var1 = (t_fine / 2.0f) - 64000.0f;
+    float var2 = var1 * var1 * ((float)calib->dig_P6) / 32768.0f;
+    var2 = var2 + var1 * ((float)calib->dig_P5) * 2.0f;
+    var2 = (var2 / 4.0f) + (((float)calib->dig_P4) * 65536.0f);
+    var1 = (((float)calib->dig_P3) * var1 * var1 / 524288.0f + ((float)calib->dig_P2) * var1) / 524288.0f;
+    var1 = (1.0f + var1 / 32768.0f) * ((float)calib->dig_P1);
+
+    if (var1 <= 0.0f) {
+        return 0.0f; /* Avoid division by zero */
+    }
+
+    float p = 1048576.0f - (float)adc_P;
+    p = (p - (var2 / 4096.0f)) * 6250.0f / var1;
+    var1 = ((float)calib->dig_P9) * p * p / 2147483648.0f;
+    var2 = p * ((float)calib->dig_P8) / 32768.0f;
+    p = p + (var1 + var2 + ((float)calib->dig_P7)) / 16.0f;
+
+    float p_hpa = p / 100.0f;
+
+    /* Physical boundary clamping */
+    if (p_hpa < BME280_PRESS_MIN_HPA) {
+        p_hpa = BME280_PRESS_MIN_HPA;
+    } else if (p_hpa > BME280_PRESS_MAX_HPA) {
+        p_hpa = BME280_PRESS_MAX_HPA;
+    }
+
+    return p_hpa;
+}
+
+float bme280_compensate_humidity(int32_t adc_H, const bme280_calib_data_t *calib, float t_fine) {
+    if (calib == NULL) {
+        return 0.0f;
+    }
+
+    float var_H = t_fine - 76800.0f;
+    var_H = ((float)adc_H - (((float)calib->dig_H4) * 64.0f + ((float)calib->dig_H5) / 16384.0f * var_H)) *
+            (((float)calib->dig_H2) / 65536.0f * (1.0f + ((float)calib->dig_H6) / 67108864.0f * var_H *
+            (1.0f + ((float)calib->dig_H3) / 67108864.0f * var_H)));
+    var_H = var_H * (1.0f - ((float)calib->dig_H1) * var_H / 524288.0f);
+
+    /* Clamp relative humidity to [0.0%, 100.0%] */
+    if (var_H > BME280_HUM_MAX_PERCENT) {
+        var_H = BME280_HUM_MAX_PERCENT;
+    } else if (var_H < BME280_HUM_MIN_PERCENT) {
+        var_H = BME280_HUM_MIN_PERCENT;
+    }
+
+    return var_H;
+}
+
+status_t bme280_compensate_raw(const bme280_raw_data_t *raw,
+                               const bme280_calib_data_t *calib,
+                               bme280_data_t *out_data) {
+    if (raw == NULL || calib == NULL || out_data == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    memset(out_data, 0, sizeof(bme280_data_t));
+
+    float t_fine = 0.0f;
+    out_data->temperature_c   = bme280_compensate_temperature(raw->adc_T, calib, &t_fine);
+    out_data->pressure_hpa    = bme280_compensate_pressure(raw->adc_P, calib, t_fine);
+    out_data->humidity_percent = bme280_compensate_humidity(raw->adc_H, calib, t_fine);
+
+    /* Plausibility verification against physical boundaries */
+    if (out_data->temperature_c >= BME280_TEMP_MIN_C &&
+        out_data->temperature_c <= BME280_TEMP_MAX_C &&
+        out_data->pressure_hpa >= BME280_PRESS_MIN_HPA &&
+        out_data->pressure_hpa <= BME280_PRESS_MAX_HPA) {
+        out_data->is_valid = true;
+        return STATUS_OK;
+    }
+
+    out_data->is_valid = false;
+    return STATUS_ERR_OUT_OF_RANGE;
+}
+
+status_t bme280_compensate_raw_fixed(const bme280_raw_data_t *raw,
+                                     const bme280_calib_data_t *calib,
+                                     bme280_fixed_data_t *out_data) {
+    if (raw == NULL || calib == NULL || out_data == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    memset(out_data, 0, sizeof(bme280_fixed_data_t));
+
+    bme280_data_t float_data;
+    status_t status = bme280_compensate_raw(raw, calib, &float_data);
+    if (status != STATUS_OK && status != STATUS_ERR_OUT_OF_RANGE) {
+        return status;
+    }
+
+    out_data->temp_centi_c      = (int16_t)(float_data.temperature_c * 100.0f);
+    out_data->press_pascals     = (uint32_t)(float_data.pressure_hpa * 100.0f);
+    out_data->hum_centi_percent = (uint16_t)(float_data.humidity_percent * 100.0f);
+    out_data->is_valid          = float_data.is_valid;
+
+    return status;
+}
+
+status_t bme280_read_data(bme280_dev_t *dev, bme280_data_t *out_data) {
+    if (dev == NULL || out_data == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    bme280_raw_data_t raw;
+    memset(&raw, 0, sizeof(raw));
+
+    status_t status = bme280_sample_forced_raw(dev, &raw);
+    if (status != STATUS_OK) {
+        out_data->is_valid = false;
+        return status;
+    }
+
+    return bme280_compensate_raw(&raw, &dev->calib, out_data);
 }

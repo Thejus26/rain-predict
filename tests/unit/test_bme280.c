@@ -1,11 +1,13 @@
 /**
  * @file    test_bme280.c
- * @brief   Unit test suite for Bosch BME280 Driver (Calibration & Forced-Mode Measurement).
+ * @brief   Unit test suite for Bosch BME280 Driver (Calibration, Forced Mode & FPU Compensation).
  * @details Validates Chip ID verification, 2-phase burst NVM readout, little-endian and bit-split unpacking,
  *          signed sign-extension, corrupt NVM validation, forced-mode triggering, bounded conversion polling,
- *          atomic 8-byte raw ADC readout, and parameter guards.
+ *          atomic 8-byte raw ADC readout, single-precision FPU mathematical compensation (T, P, RH),
+ *          zero-division guards, physical boundary clamping, and fixed-point integer scaling.
  */
 
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -15,7 +17,7 @@
 #include "i2c_bus.h"
 #include "bme280_driver.h"
 
-/* Standard Bosch Datasheet Test Vectors (BST-BME280-DS002-15 Appendix 8.1) */
+/* Standard Bosch Datasheet Trimming Test Vectors (BST-BME280-DS002-15 Appendix 8.1) */
 #define VECTOR_DIG_T1       27504U
 #define VECTOR_DIG_T2       26435
 #define VECTOR_DIG_T3       (-1000)
@@ -37,7 +39,16 @@
 #define VECTOR_DIG_H5       50
 #define VECTOR_DIG_H6       30
 
-/* Raw ADC Test Vectors (BST-BME280-DS002-15 Table 18) */
+/* Raw ADC Test Vectors (BST-BME280-DS002-15 Appendix 8.1) */
+#define VECTOR_BOSCH_RAW_ADC_T  519888
+#define VECTOR_BOSCH_RAW_ADC_P  415148
+#define VECTOR_BOSCH_RAW_ADC_H  25600
+
+#define EXPECTED_BOSCH_COMP_T   25.08f   /* °C */
+#define EXPECTED_BOSCH_COMP_P   1006.53f /* hPa */
+#define EXPECTED_BOSCH_COMP_H   54.32f   /* %RH */
+
+/* Raw ADC Test Vectors for Table 18 */
 #define VECTOR_RAW_PRESS_MSB    0x5DU
 #define VECTOR_RAW_PRESS_LSB    0x8AU
 #define VECTOR_RAW_PRESS_XLSB   0xC0U
@@ -105,11 +116,14 @@ static void setup_mock_bme280_registers(uint8_t addr) {
 
     (void)i2c_bus_test_set_slave_regs(addr, BME280_REG_CALIB_26_41, b2, sizeof(b2));
 
-    /* Data registers (0xF7..0xFE) */
+    /* Data registers (0xF7..0xFE) with Bosch test vector */
+    /* adc_P: 415148 = 0x655AC -> F7=0x65, F8=0x5A, F9=0xC0 */
+    /* adc_T: 519888 = 0x7EE90 -> FA=0x7E, FB=0xE9, FC=0x00 */
+    /* adc_H: 25600  = 0x6400  -> FD=0x64, FE=0x00 */
     uint8_t raw_data[8] = {
-        VECTOR_RAW_PRESS_MSB,  VECTOR_RAW_PRESS_LSB,  VECTOR_RAW_PRESS_XLSB,
-        VECTOR_RAW_TEMP_MSB,   VECTOR_RAW_TEMP_LSB,   VECTOR_RAW_TEMP_XLSB,
-        VECTOR_RAW_HUM_MSB,    VECTOR_RAW_HUM_LSB
+        0x65U, 0x5AU, 0xC0U,
+        0x7EU, 0xE9U, 0x00U,
+        0x64U, 0x00U
     };
     (void)i2c_bus_test_set_slave_regs(addr, BME280_REG_PRESS_MSB, raw_data, sizeof(raw_data));
 }
@@ -443,6 +457,13 @@ static void test_bme280_read_raw_data_and_burst(void) {
     memset(&dev, 0, sizeof(dev));
     dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
 
+    uint8_t raw_data[8] = {
+        VECTOR_RAW_PRESS_MSB,  VECTOR_RAW_PRESS_LSB,  VECTOR_RAW_PRESS_XLSB,
+        VECTOR_RAW_TEMP_MSB,   VECTOR_RAW_TEMP_LSB,   VECTOR_RAW_TEMP_XLSB,
+        VECTOR_RAW_HUM_MSB,    VECTOR_RAW_HUM_LSB
+    };
+    (void)i2c_bus_test_set_slave_regs(BME280_I2C_ADDR_PRIMARY, BME280_REG_PRESS_MSB, raw_data, sizeof(raw_data));
+
     uint32_t reads_before = i2c_bus_test_get_read_count(BME280_I2C_ADDR_PRIMARY);
 
     bme280_raw_data_t raw;
@@ -462,29 +483,186 @@ static void test_bme280_read_raw_data_and_burst(void) {
 }
 
 /**
- * @brief TC-S4-T1.2-11: Master Forced-Mode Sampling Coordinator (sample_forced_raw).
+ * @brief TC-S4-T1.3-02: Bosch Reference Vector Temperature Compensation.
  */
-static void test_bme280_sample_forced_raw(void) {
+static void test_bme280_compensation_temperature_vector(void) {
+    bme280_calib_data_t calib = {
+        .dig_T1 = VECTOR_DIG_T1,
+        .dig_T2 = VECTOR_DIG_T2,
+        .dig_T3 = VECTOR_DIG_T3
+    };
+
+    float t_fine = 0.0f;
+    float temp_c = bme280_compensate_temperature(VECTOR_BOSCH_RAW_ADC_T, &calib, &t_fine);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.02f, EXPECTED_BOSCH_COMP_T, temp_c);
+    TEST_ASSERT_FLOAT_WITHIN(10.0f, 128422.0f, t_fine);
+}
+
+/**
+ * @brief TC-S4-T1.3-03: Bosch Reference Vector Pressure Compensation.
+ */
+static void test_bme280_compensation_pressure_vector(void) {
+    bme280_calib_data_t calib = {
+        .dig_T1 = VECTOR_DIG_T1,
+        .dig_T2 = VECTOR_DIG_T2,
+        .dig_T3 = VECTOR_DIG_T3,
+        .dig_P1 = VECTOR_DIG_P1,
+        .dig_P2 = VECTOR_DIG_P2,
+        .dig_P3 = VECTOR_DIG_P3,
+        .dig_P4 = VECTOR_DIG_P4,
+        .dig_P5 = VECTOR_DIG_P5,
+        .dig_P6 = VECTOR_DIG_P6,
+        .dig_P7 = VECTOR_DIG_P7,
+        .dig_P8 = VECTOR_DIG_P8,
+        .dig_P9 = VECTOR_DIG_P9
+    };
+
+    float t_fine = 0.0f;
+    (void)bme280_compensate_temperature(VECTOR_BOSCH_RAW_ADC_T, &calib, &t_fine);
+
+    float press_hpa = bme280_compensate_pressure(VECTOR_BOSCH_RAW_ADC_P, &calib, t_fine);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, EXPECTED_BOSCH_COMP_P, press_hpa);
+}
+
+/**
+ * @brief TC-S4-T1.3-04: Bosch Reference Vector Humidity Compensation.
+ */
+static void test_bme280_compensation_humidity_vector(void) {
+    bme280_calib_data_t calib = {
+        .dig_T1 = VECTOR_DIG_T1,
+        .dig_T2 = VECTOR_DIG_T2,
+        .dig_T3 = VECTOR_DIG_T3,
+        .dig_H1 = VECTOR_DIG_H1,
+        .dig_H2 = VECTOR_DIG_H2,
+        .dig_H3 = VECTOR_DIG_H3,
+        .dig_H4 = VECTOR_DIG_H4,
+        .dig_H5 = VECTOR_DIG_H5,
+        .dig_H6 = VECTOR_DIG_H6
+    };
+
+    float t_fine = 0.0f;
+    (void)bme280_compensate_temperature(VECTOR_BOSCH_RAW_ADC_T, &calib, &t_fine);
+
+    float hum_pct = bme280_compensate_humidity(VECTOR_BOSCH_RAW_ADC_H, &calib, t_fine);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, EXPECTED_BOSCH_COMP_H, hum_pct);
+}
+
+/**
+ * @brief TC-S4-T1.3-05: Sub-Zero Negative Temperature Handling.
+ */
+static void test_bme280_compensation_negative_temperature(void) {
+    bme280_calib_data_t calib = {
+        .dig_T1 = VECTOR_DIG_T1,
+        .dig_T2 = VECTOR_DIG_T2,
+        .dig_T3 = VECTOR_DIG_T3
+    };
+
+    float t_fine = 0.0f;
+    /* adc_T = 400000 is sub-zero */
+    float temp_c = bme280_compensate_temperature(400000, &calib, &t_fine);
+
+    TEST_ASSERT_TRUE(temp_c < 0.0f);
+    TEST_ASSERT_TRUE(temp_c >= BME280_TEMP_MIN_C);
+}
+
+/**
+ * @brief TC-S4-T1.3-06: Zero-Division Protection in Pressure Math.
+ */
+static void test_bme280_compensation_zero_division_guard(void) {
+    bme280_calib_data_t calib = {0};
+    calib.dig_P1 = 0; /* Zero multiplier causing var1 <= 0 */
+
+    float press_hpa = bme280_compensate_pressure(VECTOR_BOSCH_RAW_ADC_P, &calib, 128422.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, press_hpa);
+}
+
+/**
+ * @brief TC-S4-T1.3-07 & 08: Humidity Boundary Clamping ([0.0%, 100.0%]).
+ */
+static void test_bme280_compensation_humidity_clamping(void) {
+    bme280_calib_data_t calib = {
+        .dig_H1 = 10,
+        .dig_H2 = 1000,
+        .dig_H3 = 0,
+        .dig_H4 = 100,
+        .dig_H5 = 10,
+        .dig_H6 = 10
+    };
+
+    /* High humidity saturation */
+    float high_hum = bme280_compensate_humidity(60000, &calib, 128422.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 100.0f, high_hum);
+
+    /* Low/negative unconstrained */
+    float low_hum = bme280_compensate_humidity(0, &calib, 128422.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, low_hum);
+}
+
+/**
+ * @brief TC-S4-T1.3-09: Fixed-Point Scaled Integer Conversion.
+ */
+static void test_bme280_compensation_fixed_point_scaling(void) {
+    bme280_calib_data_t calib = {
+        .dig_T1 = VECTOR_DIG_T1,
+        .dig_T2 = VECTOR_DIG_T2,
+        .dig_T3 = VECTOR_DIG_T3,
+        .dig_P1 = VECTOR_DIG_P1,
+        .dig_P2 = VECTOR_DIG_P2,
+        .dig_P3 = VECTOR_DIG_P3,
+        .dig_P4 = VECTOR_DIG_P4,
+        .dig_P5 = VECTOR_DIG_P5,
+        .dig_P6 = VECTOR_DIG_P6,
+        .dig_P7 = VECTOR_DIG_P7,
+        .dig_P8 = VECTOR_DIG_P8,
+        .dig_P9 = VECTOR_DIG_P9,
+        .dig_H1 = VECTOR_DIG_H1,
+        .dig_H2 = VECTOR_DIG_H2,
+        .dig_H3 = VECTOR_DIG_H3,
+        .dig_H4 = VECTOR_DIG_H4,
+        .dig_H5 = VECTOR_DIG_H5,
+        .dig_H6 = VECTOR_DIG_H6
+    };
+
+    bme280_raw_data_t raw = {
+        .adc_T = VECTOR_BOSCH_RAW_ADC_T,
+        .adc_P = VECTOR_BOSCH_RAW_ADC_P,
+        .adc_H = VECTOR_BOSCH_RAW_ADC_H
+    };
+
+    bme280_fixed_data_t fixed_data;
+    status_t status = bme280_compensate_raw_fixed(&raw, &calib, &fixed_data);
+
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(fixed_data.is_valid);
+    /* 25.08 °C -> 2508 centi-°C */
+    TEST_ASSERT_INT16_WITHIN(5, 2508, fixed_data.temp_centi_c);
+    /* 1006.53 hPa -> 100653 Pa */
+    TEST_ASSERT_UINT32_WITHIN(10, 100653U, fixed_data.press_pascals);
+    /* 54.32 % -> 5432 centi-% */
+    TEST_ASSERT_UINT16_WITHIN(10, 5432U, fixed_data.hum_centi_percent);
+}
+
+/**
+ * @brief TC-S4-T1.3-10: End-to-End read_data workflow.
+ */
+static void test_bme280_read_data_end_to_end(void) {
     bme280_dev_t dev;
-    memset(&dev, 0, sizeof(dev));
-    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
-    dev.config.osrs_t = BME280_OVERSAMPLING_2X;
-    dev.config.osrs_p = BME280_OVERSAMPLING_16X;
-    dev.config.osrs_h = BME280_OVERSAMPLING_1X;
-    dev.config.filter = BME280_FILTER_COEFF_4;
-
-    /* Sensor is ready */
-    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_STATUS, 0x00U);
-
-    bme280_raw_data_t raw;
-    memset(&raw, 0, sizeof(raw));
-
-    status_t status = bme280_sample_forced_raw(&dev, &raw);
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
     TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
 
-    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_P, raw.adc_P);
-    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_T, raw.adc_T);
-    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_H, raw.adc_H);
+    bme280_data_t data;
+    memset(&data, 0, sizeof(data));
+
+    status = bme280_read_data(&dev, &data);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(data.is_valid);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, EXPECTED_BOSCH_COMP_T, data.temperature_c);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, EXPECTED_BOSCH_COMP_P, data.pressure_hpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, EXPECTED_BOSCH_COMP_H, data.humidity_percent);
 }
 
 /**
@@ -496,6 +674,9 @@ static void test_bme280_null_and_invalid_params(void) {
     bool measuring = false;
     bme280_raw_data_t raw;
     bme280_config_t config;
+    bme280_data_t data;
+    bme280_fixed_data_t fixed_data;
+    float t_fine = 0.0f;
 
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_init(NULL, BME280_I2C_ADDR_PRIMARY));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, bme280_init(&dev, 0x12U));
@@ -514,6 +695,18 @@ static void test_bme280_null_and_invalid_params(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_raw_data(&dev, NULL));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_sample_forced_raw(NULL, &raw));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_sample_forced_raw(&dev, NULL));
+
+    /* Compensation NULL guards */
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, bme280_compensate_temperature(100, NULL, &t_fine));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, bme280_compensate_temperature(100, &dev.calib, NULL));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, bme280_compensate_pressure(100, NULL, 1000.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, bme280_compensate_humidity(100, NULL, 1000.0f));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_compensate_raw(NULL, &dev.calib, &data));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_compensate_raw(&raw, NULL, &data));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_compensate_raw(&raw, &dev.calib, NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_compensate_raw_fixed(NULL, &dev.calib, &fixed_data));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_data(NULL, &data));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_data(&dev, NULL));
 }
 
 int main(void) {
@@ -537,7 +730,16 @@ int main(void) {
     RUN_TEST(test_bme280_is_measuring);
     RUN_TEST(test_bme280_wait_for_completion);
     RUN_TEST(test_bme280_read_raw_data_and_burst);
-    RUN_TEST(test_bme280_sample_forced_raw);
+
+    /* Mathematical Compensation Tests (S4-T1.3) */
+    RUN_TEST(test_bme280_compensation_temperature_vector);
+    RUN_TEST(test_bme280_compensation_pressure_vector);
+    RUN_TEST(test_bme280_compensation_humidity_vector);
+    RUN_TEST(test_bme280_compensation_negative_temperature);
+    RUN_TEST(test_bme280_compensation_zero_division_guard);
+    RUN_TEST(test_bme280_compensation_humidity_clamping);
+    RUN_TEST(test_bme280_compensation_fixed_point_scaling);
+    RUN_TEST(test_bme280_read_data_end_to_end);
 
     /* Defensive Parameter Guards */
     RUN_TEST(test_bme280_null_and_invalid_params);
