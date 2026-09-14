@@ -37,6 +37,13 @@ extern "C" {
 #define MODBUS_REG_WIND_SPEED               0x0003U /**< 0.01 m/s (uint16) */
 #define MODBUS_REG_WIND_DIRECTION           0x0004U /**< 0.1 deg (uint16) */
 
+/* Timing and Retry Constants */
+#define MODBUS_DEFAULT_TIMEOUT_MS           150U    /**< Standard response timeout in ms */
+#define MODBUS_MAX_RETRIES                  3U      /**< Max query attempts on timeout/CRC error */
+#define MODBUS_GUARD_TIME_PRE_US            25U     /**< 25 µs pre-transmission guard delay */
+#define MODBUS_GUARD_TIME_POST_US           35U     /**< 35 µs post-transmission guard delay */
+#define MODBUS_RETRY_DELAY_US               4000U   /**< 4 ms inter-frame retry delay */
+
 /* Scaling Factors */
 #define MODBUS_SCALE_TEMP_C                 0.01f
 #define MODBUS_SCALE_HUMIDITY_PCT           0.01f
@@ -181,6 +188,53 @@ status_t modbus_decode_thp_registers(const uint16_t *p_reg_data,
  * @return Constant pointer to descriptive string.
  */
 const char *modbus_exception_to_str(modbus_exception_t exception_code);
+
+/* ========================================================================== */
+/* Master Transaction & Direction Control Prototypes                          */
+/* ========================================================================== */
+
+/**
+ * @brief  Initializes the Modbus RTU driver subsystem and configures direction GPIO.
+ * @return STATUS_OK on success, or structured error code.
+ */
+status_t modbus_rtu_init(void);
+
+/**
+ * @brief  Drives PA1 HIGH to enable the SP3485 differential transmitter (DE=1, /RE=1).
+ */
+void modbus_set_direction_tx(void);
+
+/**
+ * @brief  Drives PA1 LOW to enable the SP3485 differential receiver (DE=0, /RE=0).
+ */
+void modbus_set_direction_rx(void);
+
+/**
+ * @brief  Executes a complete master query transaction for raw holding registers.
+ * @param  slave_addr Unicast address of remote Modbus slave (1 to 247).
+ * @param  start_reg Starting 16-bit register address.
+ * @param  reg_count Number of registers to read (1 to 125).
+ * @param[out] p_reg_data_out Buffer to store received 16-bit register words.
+ * @param  timeout_ms Maximum response timeout in milliseconds (e.g. 150 ms).
+ * @return STATUS_OK on success, STATUS_ERROR_TIMEOUT, STATUS_ERROR_CRC,
+ *         STATUS_ERROR_MODBUS_EXCEPTION, or STATUS_ERROR_INVALID_FRAME.
+ */
+status_t modbus_query_slave_raw(uint8_t slave_addr,
+                                uint16_t start_reg,
+                                uint16_t reg_count,
+                                uint16_t *p_reg_data_out,
+                                uint32_t timeout_ms);
+
+/**
+ * @brief  Executes a standard microclimate mast query and decodes meteorological data.
+ * @param  slave_addr Slave address of the weather station mast (default 0x01).
+ * @param[out] p_reading Pointer to modbus_thp_reading_t structure to populate.
+ * @param  timeout_ms Maximum response timeout in milliseconds.
+ * @return STATUS_OK on success, or structured error code.
+ */
+status_t modbus_query_slave_thp(uint8_t slave_addr,
+                                modbus_thp_reading_t *p_reading,
+                                uint32_t timeout_ms);
 
 #ifdef __cplusplus
 }
