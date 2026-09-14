@@ -9,6 +9,7 @@ add_library(firmware_drivers STATIC
     src/bsp_power_rails.c
     src/bsp_indicators.c
     src/bsp_adc.c
+    src/bme280_driver.c
 )
 
 target_include_directories(firmware_drivers PUBLIC
