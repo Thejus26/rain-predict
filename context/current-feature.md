@@ -1,36 +1,16 @@
-# Current Feature: S4-T2.2 - TI OPT3001 Exponential Lux & Solar Irradiance Math
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement single-precision exponential Lux calculation (`opt3001_raw_to_lux`): $\text{Lux} = 0.01\text{f} \cdot (1 \ll E) \cdot (\text{float})R$ without standard library `powf()`.
-- Implement exact 32-bit fixed-point integer conversion (`opt3001_raw_to_centi_lux`): $\text{centi\_lux} = ((uint32\_t)R \ll E)$ in $0.01\text{ Lux/LSB}$ units.
-- Implement broadband solar irradiance approximation (`opt3001_lux_to_irradiance`): $G = \text{lux} / 120.0\text{f}\;(\text{W/m}^2)$ using daylight luminous efficacy.
-- Implement LoRaWAN telemetry integer scaling (`opt3001_lux_to_telemetry_u16`): $2.0\text{ Lux/LSB}$ with half-LSB rounding, clamped to $[0, 41500]$.
-- Implement exponent sanity guard to clamp undefined exponents ($E > 11$) to $11$.
-- Implement master conversion routine `opt3001_convert_raw()` to populate `opt3001_reading_t`.
-- Implement high-level single-shot sampling and conversion API `opt3001_read_lux()`.
-- Expand ThrowTheSwitch Unity unit test suite (`tests/unit/test_opt3001.c`) covering test cases TC-S4-T2.2-01 through TC-S4-T2.2-10.
+<!-- Add goals here -->
 
 ## Notes
 
-- Hardware constraints: STM32WLE5CCU6 (Cortex-M4 single-precision hardware FPU @ 48 MHz).
-- Base unit: $0.01\text{ Lux}$ per count at $E=0$. Dynamic range: $0.01\text{ Lux}$ to $83,865.60\text{ Lux}$.
-- Mathematical Constants:
-  - `OPT3001_MAX_EXPONENT` = $11\text{U}$
-  - `OPT3001_MAX_LUX` = $83865.60\text{f}$
-  - `OPT3001_MIN_LUX` = $0.0\text{f}$
-  - `OPT3001_SOLAR_LUMINOUS_EFFICACY` = $120.0\text{f}\;(\text{lm/W})$
-  - `OPT3001_TELEMETRY_LUX_SCALE` = $2.0\text{f}\;(\text{Lux/LSB})$
-  - `OPT3001_TELEMETRY_MAX_RAW` = $41500\text{U}$
-- Target Files:
-  - [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h)
-  - [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c)
-  - [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c)
-- Defensive programming: NULL pointer validation, shift overflow protection, half-LSB integer rounding, zero dynamic allocation, strict C99 compiler flags.
+<!-- Add notes here -->
 
 ## History
 
@@ -96,5 +76,6 @@ In Progress
 - 2026-09-14: S4-T1.4 - Implemented Bosch BME280 Humidity Saturation Detection, Condensation Recovery, and Hardware Soft-Reset (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering saturation state machine (bme280_saturation_state_t: NORMAL, HIGH_HUMIDITY_SAT, CONDENSATION_CREEP, SOFT_RECOVERY), diagnostic structure (bme280_saturation_status_t), 0xB6 hardware soft reset via register 0xE0 with 5ms settling delay and NVM calibration reload (bme280_soft_reset), saturation cycle tracking (RH >= 98.0% with 65535 overflow clamp), 1-hour saturation assertion (>= 6 cycles), 3.0% hysteresis de-assertion (RH < 95.0%), daylight condensation creep detection (Lux >= 10k, dT/dt >= +1.5°C/hr), dynamic -1.5% RH de-biasing offset, 24-hour zero-rain automated soft reset recovery (144 cycles), rain gauge reset suppression (rain_tips_24h > 0), and comprehensive ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T1.5 - Implemented and verified Bosch BME280 Driver Unit Test Suite (tests/unit/test_bme280.c) under ThrowTheSwitch Unity covering chip ID validation, 2-phase calibration NVM unpacking, signed bit-split math (dig_H4, dig_H5), all-zero corrupt NVM detection, forced-mode register write sequencing (0xF2 -> 0xF5 -> 0xF4), status polling timeout, atomic 8-byte burst ADC readout, Cortex-M4 single-precision FPU math (Bosch reference vectors, sub-zero temperatures, zero-division guards, physical boundary clamping, centi-unit integer scaling), and humidity saturation tracking (1-hour assertion, 3% hysteresis exit, daylight condensation creep detection with -1.5% offset, 24-hour zero-rain automated soft reset recovery, and active rain suppression). Completed S4-T1 (Bosch BME280 Sensor Driver).
 - 2026-09-14: S4-T2.1 - Implemented TI OPT3001 Ambient Light Sensor Hardware Initialization, 16-bit Big-Endian Register Readout, Device ID Verification (0x5449 / 0x3001), 100ms Auto-Range Single-Shot Trigger (0xCA10), Conversion Ready Flag (CRF) Polling with 150ms Timeout, Raw Exponent/Mantissa Bitfield Separation, and ThrowTheSwitch Unity Unit Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
+- 2026-09-14: S4-T2.2 - Implemented TI OPT3001 Exponential Lux Calculation (opt3001_raw_to_lux), 32-bit Exact Fixed-Point Integer Math (opt3001_raw_to_centi_lux), Solar Irradiance Estimation (opt3001_lux_to_irradiance), LoRaWAN 16-bit Telemetry Scaling (opt3001_lux_to_telemetry_u16), Master Reading APIs (opt3001_convert_raw, opt3001_read_lux), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 
 
