@@ -15,10 +15,27 @@
 
 #if defined(HAVE_STM32WLXX_HAL)
 #include "stm32wlxx_hal.h"
+#else
+#ifndef HAL_Delay
+#define HAL_Delay(ms)   ((void)(ms))
+#endif
 #endif
 
 #include "i2c_bus.h"
 #include "bme280_driver.h"
+
+/* ========================================================================== */
+/* Saturation & Recovery State Tracking                                       */
+/* ========================================================================== */
+
+static bme280_saturation_status_t g_sat_status = {
+    .is_saturated          = false,
+    .condensation_detected = false,
+    .recovery_triggered    = false,
+    .saturation_cycles     = 0U,
+    .state                 = BME280_STATE_NORMAL,
+    .debiased_humidity_pct = 0.0f
+};
 
 /* ========================================================================== */
 /* Public Driver API Implementation                                           */
@@ -471,4 +488,117 @@ status_t bme280_read_data(bme280_dev_t *dev, bme280_data_t *out_data) {
     }
 
     return bme280_compensate_raw(&raw, &dev->calib, out_data);
+}
+
+status_t bme280_soft_reset(bme280_dev_t *dev) {
+    if (dev == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    /* 1. Write soft reset command 0xB6 to register 0xE0 */
+    uint8_t reset_cmd = BME280_SOFT_RESET_KEY;
+    status_t status = i2c_bus_write(dev->i2c_address,
+                                    BME280_REG_RESET,
+                                    &reset_cmd,
+                                    1U,
+                                    BME280_I2C_TIMEOUT_MS);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 2. Wait 5 ms for internal power-on-reset and NVM copy */
+    HAL_Delay(BME280_SOFT_RESET_SETTLE_MS);
+
+    /* 3. Re-read calibration coefficients to guarantee memory integrity */
+    status = bme280_read_calibration(dev);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    g_sat_status.recovery_triggered = true;
+    g_sat_status.state = BME280_STATE_SOFT_RECOVERY;
+
+    return STATUS_OK;
+}
+
+status_t bme280_process_saturation(bme280_dev_t *dev,
+                                   float current_rh,
+                                   float temp_delta_1h,
+                                   uint16_t ambient_lux,
+                                   uint32_t rain_tips_24h) {
+    if (dev == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    g_sat_status.recovery_triggered = false;
+    g_sat_status.debiased_humidity_pct = current_rh;
+
+    /* 1. Check for High Humidity Saturation Entry / Exit */
+    if (current_rh >= BME280_SATURATION_THRESHOLD_RH) {
+        if (g_sat_status.saturation_cycles < 65535U) {
+            g_sat_status.saturation_cycles++;
+        }
+
+        if (g_sat_status.saturation_cycles >= BME280_SATURATION_MIN_CYCLES_1H) {
+            g_sat_status.is_saturated = true;
+            g_sat_status.state = BME280_STATE_HIGH_HUMIDITY_SAT;
+        }
+    } else if (current_rh < BME280_SATURATION_HYSTERESIS_RH) {
+        /* Hysteresis exit (< 95% RH) */
+        g_sat_status.saturation_cycles = 0U;
+        g_sat_status.is_saturated = false;
+        g_sat_status.condensation_detected = false;
+        g_sat_status.state = BME280_STATE_NORMAL;
+        return STATUS_OK;
+    }
+
+    /* 2. Check for Condensation Creep (Bright Sun + Warming + Saturated) */
+    if (g_sat_status.is_saturated &&
+        ambient_lux >= BME280_CONDENSATION_MIN_LUX &&
+        temp_delta_1h >= BME280_CONDENSATION_MIN_TEMP_RISE) {
+        
+        g_sat_status.condensation_detected = true;
+        g_sat_status.state = BME280_STATE_CONDENSATION_CREEP;
+
+        /* Apply dynamic -1.5% de-biasing offset */
+        float debiased = current_rh - BME280_CONDENSATION_DEBIAS_OFFSET;
+        if (debiased < BME280_HUM_MIN_PERCENT) {
+            debiased = BME280_HUM_MIN_PERCENT;
+        }
+        g_sat_status.debiased_humidity_pct = debiased;
+    } else {
+        g_sat_status.condensation_detected = false;
+        if (g_sat_status.is_saturated) {
+            g_sat_status.state = BME280_STATE_HIGH_HUMIDITY_SAT;
+        }
+    }
+
+    /* 3. Check for 24-Hour Sustained Saturation without Rain -> Trigger Soft Reset */
+    if (g_sat_status.saturation_cycles >= BME280_SATURATION_MAX_CYCLES_24H && rain_tips_24h == 0U) {
+        status_t status = bme280_soft_reset(dev);
+        if (status != STATUS_OK) {
+            return status;
+        }
+        /* Reset counter after recovery while maintaining saturation tracking baseline */
+        g_sat_status.saturation_cycles = BME280_SATURATION_MIN_CYCLES_1H;
+    }
+
+    return STATUS_OK;
+}
+
+const bme280_saturation_status_t* bme280_get_saturation_status(const bme280_dev_t *dev) {
+    if (dev == NULL) {
+        return NULL;
+    }
+    return &g_sat_status;
+}
+
+void bme280_reset_saturation_tracking(bme280_dev_t *dev) {
+    (void)dev;
+    g_sat_status.is_saturated          = false;
+    g_sat_status.condensation_detected = false;
+    g_sat_status.recovery_triggered    = false;
+    g_sat_status.saturation_cycles     = 0U;
+    g_sat_status.state                 = BME280_STATE_NORMAL;
+    g_sat_status.debiased_humidity_pct = 0.0f;
 }
