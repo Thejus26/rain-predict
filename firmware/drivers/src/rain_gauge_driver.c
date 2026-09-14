@@ -2,7 +2,8 @@
  * @file    rain_gauge_driver.c
  * @brief   Tipping-bucket rain gauge driver implementation for STM32WLE5 SoC.
  * @details Handles EXTI0 GPIO falling-edge interrupts, dual-stage chatter rejection,
- *          multi-horizon atomic accumulation registers, and LoRaWAN Byte 8 telemetry.
+ *          multi-horizon atomic accumulation registers, instantaneous and interval rain rate
+ *          math, peak tracking, meteorological classification, and LoRaWAN Byte 8 telemetry.
  */
 
 #include "rain_gauge_driver.h"
@@ -22,20 +23,25 @@ static uint32_t s_mock_primask = 0U;
 /* ========================================================================== */
 
 static volatile uint32_t s_last_pulse_timestamp_ms = 0U;
-static volatile uint32_t s_rejected_bounce_count    = 0U;
-static volatile bool     s_rain_active_flag         = false;
-static volatile bool     s_has_first_pulse          = false;
-static bool              s_is_initialized           = false;
-static bool              s_irq_enabled              = false;
+static volatile uint32_t s_inter_tip_delta_ms      = 0U;
+static volatile uint32_t s_rejected_bounce_count   = 0U;
+static volatile bool     s_rain_active_flag        = false;
+static volatile bool     s_has_first_pulse         = false;
+static bool              s_is_initialized          = false;
+static bool              s_irq_enabled             = false;
 
 /* Multi-Horizon Volatile Accumulators */
-static volatile uint16_t s_interval_tips            = 0U;
-static volatile uint32_t s_daily_tips               = 0U;
-static volatile uint32_t s_total_lifetime_tips      = 0U;
+static volatile uint16_t s_interval_tips           = 0U;
+static volatile uint32_t s_daily_tips              = 0U;
+static volatile uint32_t s_total_lifetime_tips     = 0U;
 
 /* Rolling 1-Hour FIFO Ring Buffer (6 x 10m intervals) */
 static uint16_t          s_hourly_fifo[RAIN_GAUGE_HOURLY_FIFO_SIZE] = {0U};
 static uint8_t           s_hourly_fifo_index       = 0U;
+
+/* Peak Rate Tracking Registers */
+static float             s_peak_instantaneous_mm_hr = 0.0f;
+static float             s_peak_interval_mm_hr      = 0.0f;
 
 /* ========================================================================== */
 /* Private Helper Functions                                                   */
@@ -76,13 +82,15 @@ status_t rain_gauge_init(void) {
 #endif
 
     s_last_pulse_timestamp_ms = 0U;
-    s_rejected_bounce_count    = 0U;
-    s_rain_active_flag         = false;
-    s_has_first_pulse          = false;
-    s_is_initialized           = true;
-    s_irq_enabled              = true;
+    s_inter_tip_delta_ms      = 0U;
+    s_rejected_bounce_count   = 0U;
+    s_rain_active_flag        = false;
+    s_has_first_pulse         = false;
+    s_is_initialized          = true;
+    s_irq_enabled             = true;
 
     rain_gauge_reset_all_accumulators();
+    rain_gauge_reset_peak_rates();
 
     return STATUS_OK;
 }
@@ -135,8 +143,9 @@ void rain_gauge_exti_isr(uint32_t current_tick_ms) {
     if (!s_has_first_pulse) {
         /* First registered physical bucket tip */
         s_last_pulse_timestamp_ms = current_tick_ms;
-        s_rain_active_flag         = true;
-        s_has_first_pulse          = true;
+        s_inter_tip_delta_ms      = 0U;
+        s_rain_active_flag        = true;
+        s_has_first_pulse         = true;
 
         if (s_interval_tips < 65535U) {
             s_interval_tips++;
@@ -155,8 +164,9 @@ void rain_gauge_exti_isr(uint32_t current_tick_ms) {
 
     if (elapsed_ms >= RAIN_GAUGE_DEBOUNCE_MS) {
         /* Valid physical bucket tip (>= 50ms lockout interval) */
+        s_inter_tip_delta_ms      = elapsed_ms;
         s_last_pulse_timestamp_ms = current_tick_ms;
-        s_rain_active_flag         = true;
+        s_rain_active_flag        = true;
 
         if (s_interval_tips < 65535U) {
             s_interval_tips++;
@@ -250,6 +260,156 @@ void rain_gauge_reset_all_accumulators(void) {
 
     (void)memset(s_hourly_fifo, 0, sizeof(s_hourly_fifo));
     s_hourly_fifo_index = 0U;
+}
+
+/* ========================================================================== */
+/* Rain Rate Calculation & Classification                                     */
+/* ========================================================================== */
+
+float rain_gauge_get_instantaneous_rate(uint32_t current_tick_ms) {
+    uint32_t last_tick = 0U;
+    uint32_t delta_ms  = 0U;
+    bool     has_tip   = false;
+
+    /* Thread-safe snapshot of timing variables */
+    __disable_irq();
+    last_tick = s_last_pulse_timestamp_ms;
+    delta_ms  = s_inter_tip_delta_ms;
+    has_tip   = s_has_first_pulse;
+    __enable_irq();
+
+    if (!has_tip || (delta_ms == 0U)) {
+        return 0.0f;
+    }
+
+    uint32_t elapsed_since_last = current_tick_ms - last_tick;
+
+    /* Inactivity timeout check (15 minutes of zero tips) */
+    if (elapsed_since_last >= RAIN_RATE_INACTIVITY_TIMEOUT_MS) {
+        return 0.0f;
+    }
+
+    /* Baseline rate from last inter-tip period (0.20 mm * 3,600,000 / delta_ms) */
+    float base_rate = RAIN_RATE_NUMERATOR_MS / (float)delta_ms;
+
+    /* Apply time-decay aging if elapsed time exceeds last delta */
+    if (elapsed_since_last > delta_ms) {
+        float decayed_rate = RAIN_RATE_NUMERATOR_MS / (float)elapsed_since_last;
+        if (decayed_rate < base_rate) {
+            base_rate = decayed_rate;
+        }
+    }
+
+    /* Clamp to physical sensor limit: [0.0, 300.0] mm/hr */
+    if (base_rate > RAIN_RATE_MAX_MM_HR) {
+        base_rate = RAIN_RATE_MAX_MM_HR;
+    } else if (base_rate < 0.0f) {
+        base_rate = 0.0f;
+    }
+
+    /* Update peak instantaneous rate */
+    if (base_rate > s_peak_instantaneous_mm_hr) {
+        s_peak_instantaneous_mm_hr = base_rate;
+    }
+
+    return base_rate;
+}
+
+float rain_gauge_compute_interval_rate(uint16_t interval_tips, uint32_t interval_duration_sec) {
+    if (interval_duration_sec == 0U) {
+        return 0.0f;
+    }
+
+    float rate = ((float)interval_tips * RAIN_RATE_NUMERATOR_SEC) / (float)interval_duration_sec;
+
+    if (rate > RAIN_RATE_MAX_MM_HR) {
+        rate = RAIN_RATE_MAX_MM_HR;
+    } else if (rate < 0.0f) {
+        rate = 0.0f;
+    }
+
+    /* Update peak interval rate */
+    if (rate > s_peak_interval_mm_hr) {
+        s_peak_interval_mm_hr = rate;
+    }
+
+    return rate;
+}
+
+rain_intensity_t rain_gauge_classify_intensity(float rain_rate_mm_hr) {
+    if (rain_rate_mm_hr < RAIN_THRESH_DRIZZLE_MIN_MM_HR) {
+        return RAIN_INTENSITY_NONE;
+    } else if (rain_rate_mm_hr < RAIN_THRESH_LIGHT_MIN_MM_HR) {
+        return RAIN_INTENSITY_DRIZZLE;
+    } else if (rain_rate_mm_hr < RAIN_THRESH_MODERATE_MIN_MM_HR) {
+        return RAIN_INTENSITY_LIGHT;
+    } else if (rain_rate_mm_hr < RAIN_THRESH_HEAVY_MIN_MM_HR) {
+        return RAIN_INTENSITY_MODERATE;
+    } else if (rain_rate_mm_hr < RAIN_THRESH_TORRENTIAL_MIN_MM_HR) {
+        return RAIN_INTENSITY_HEAVY;
+    } else if (rain_rate_mm_hr < RAIN_THRESH_CLOUDBURST_MIN_MM_HR) {
+        return RAIN_INTENSITY_TORRENTIAL;
+    } else {
+        return RAIN_INTENSITY_CLOUDBURST;
+    }
+}
+
+const char *rain_gauge_intensity_to_str(rain_intensity_t intensity) {
+    switch (intensity) {
+        case RAIN_INTENSITY_NONE:       return "None";
+        case RAIN_INTENSITY_DRIZZLE:     return "Drizzle";
+        case RAIN_INTENSITY_LIGHT:       return "Light";
+        case RAIN_INTENSITY_MODERATE:    return "Moderate";
+        case RAIN_INTENSITY_HEAVY:       return "Heavy";
+        case RAIN_INTENSITY_TORRENTIAL:  return "Torrential";
+        case RAIN_INTENSITY_CLOUDBURST:  return "Cloudburst";
+        default:                         return "Unknown";
+    }
+}
+
+bool rain_gauge_should_accelerate_sampling(float rain_rate_mm_hr) {
+    return (rain_rate_mm_hr >= RAIN_RATE_ACCELERATION_THRESH_MM_HR);
+}
+
+status_t rain_gauge_get_rate_metrics(uint32_t current_tick_ms,
+                                     uint32_t interval_duration_sec,
+                                     rain_rate_metrics_t *p_metrics) {
+    if (p_metrics == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    uint16_t cur_interval_tips = 0U;
+    uint32_t last_tick         = 0U;
+    uint32_t delta_ms          = 0U;
+
+    __disable_irq();
+    cur_interval_tips = s_interval_tips;
+    last_tick         = s_last_pulse_timestamp_ms;
+    delta_ms          = s_inter_tip_delta_ms;
+    __enable_irq();
+
+    p_metrics->last_tip_tick_ms   = last_tick;
+    p_metrics->inter_tip_delta_ms = delta_ms;
+
+    float inst_rate = rain_gauge_get_instantaneous_rate(current_tick_ms);
+    float int_rate  = rain_gauge_compute_interval_rate(cur_interval_tips, interval_duration_sec);
+    float hour_rate = (float)get_rolling_hourly_tips() * RAIN_GAUGE_CALIB_MM_PER_TIP;
+
+    p_metrics->instantaneous_rate_mm_hr = inst_rate;
+    p_metrics->interval_rate_mm_hr      = int_rate;
+    p_metrics->hourly_rate_mm_hr        = hour_rate;
+    p_metrics->peak_instantaneous_mm_hr = s_peak_instantaneous_mm_hr;
+    p_metrics->peak_interval_mm_hr      = s_peak_interval_mm_hr;
+
+    float active_rate = (inst_rate > int_rate) ? inst_rate : int_rate;
+    p_metrics->current_intensity        = rain_gauge_classify_intensity(active_rate);
+
+    return STATUS_OK;
+}
+
+void rain_gauge_reset_peak_rates(void) {
+    s_peak_instantaneous_mm_hr = 0.0f;
+    s_peak_interval_mm_hr      = 0.0f;
 }
 
 /* ========================================================================== */
