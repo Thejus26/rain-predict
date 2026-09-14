@@ -550,7 +550,15 @@ status_t i2c_bus_write(uint8_t dev_addr,
     p_dev->last_reg = reg_addr;
 
     if (length == 2U) {
-        p_dev->word_registers[reg_addr] = (uint16_t)(((uint16_t)p_data[0] << 8) | (uint16_t)p_data[1]);
+        uint16_t word_val = (uint16_t)(((uint16_t)p_data[0] << 8) | (uint16_t)p_data[1]);
+        /* For OPT3001 in single-shot mode (M[1:0] = 0b01 at bits 10:9), auto-assert CRF (bit 7) for simulated completion */
+        if (dev_addr >= 0x44U && dev_addr <= 0x47U && reg_addr == 0x01U) {
+            uint16_t mode = (word_val >> 9) & 0x03U;
+            if (mode == 0x01U) {
+                word_val |= (1U << 7); /* Assert CRF bit */
+            }
+        }
+        p_dev->word_registers[reg_addr] = word_val;
         p_dev->word_reg_valid[reg_addr] = true;
     }
 
