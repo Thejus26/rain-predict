@@ -1,30 +1,16 @@
-# Current Feature: S4-T5.2 - SDI-12 Command Formatter & Multi-Parameter ASCII Response Parser
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement `sdi12_format_command(addr, cmd_type, p_out_buf, max_len)` to construct standard SDI-12 commands (`?!`, `a!`, `aI!`, `aM!`, `aC!`, `aD0!`, `aAb!`) with alphanumeric/`?` address validation, buffer overflow protection, and trailing `'!'` delimiter enforcement.
-- Implement `sdi12_parse_measurement_info(p_resp, expected_addr, p_wait_sec, p_val_count)` to parse `atttn\r\n` responses from `aM!` / `aC!` commands, extracting preparation duration `ttt` (0-999 s) and value count `n` (1-9).
-- Implement deterministic floating-point token parser `sdi12_parse_data_response(p_resp, expected_addr, p_values_out, max_values, p_actual_count)` extracting variable-length signed floats (including negative and scientific notation `e`/`E`) from `a+values\r\n` without dynamic memory allocation.
-- Implement `sdi12_parse_identification(p_resp, expected_addr, p_info)` to decode probe identification (`aI!`) into structured `sdi12_sensor_info_t` fields (SDI version, vendor ID, model number, firmware version, serial number).
-- Implement `sdi12_query_soil_probe(addr, p_reading, timeout_ms)` to orchestrate complete 2-stage measurement cycles (`aM!` -> wait delay -> `aD0!`), mapping raw tokens to `sdi12_soil_reading_t` (VWC, temperature, EC) with agronomic range clamping.
-- Implement `sdi12_query_address(p_found_addr, timeout_ms)` to discover the address of a single connected probe via `?!`.
-- Ensure zero heap allocation (100% static computation) and strict buffer bounds checking.
-- Verify implementation against 10-point test matrix (`TC-SDI2-01` to `TC-SDI2-10`).
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- **Protocol Specification**: SDI-12 Version 1.4 ASCII protocol running at 1200 baud, 7 data bits, Even parity, 1 stop bit (7-E-1).
-- **Physical Layer Integration**: Relies on S4-T5.1 low-level driver functions (`sdi12_wake_and_transmit()`, `sdi12_transmit_command()`, `sdi12_receive_response()`).
-- **Response String Syntax**: Leading sensor address character (`'0'`-`'9'`, `'a'`-`'z'`, `'A'`-`'Z'`), signed tokens starting with `'+'` or `'-'`, optional scientific notation (e.g. `+1.23E-01`), terminated by `\r\n`.
-- **Agronomic Clamping**: Soil Volumetric Water Content (VWC) bounded to $[0.0, 1.0]\text{ m}^3/\text{m}^3$; Bulk Electrical Conductivity (EC) bounded to $\ge 0.0\text{ dS/m}$.
-- **Target Files**:
-  - `firmware/drivers/inc/sdi12_driver.h`
-  - `firmware/drivers/src/sdi12_driver.c`
-- **Downstream Tasks**: S4-T5.3 (SDI-12 Unit Test Suite), S6-T3 (Application State Machine Sensor Sampling).
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -102,3 +88,4 @@ In Progress
 - 2026-09-14: S4-T4.3 - Implemented RS-485 Transceiver Direction Control & Guard Timing (firmware/drivers/inc/modbus_rtu.h, firmware/drivers/src/modbus_rtu.c, tests/unit/test_modbus_rtu.c) covering PA1 (RS485_DIR) transmitter/receiver pin toggling, modbus_rtu_init() default listening state, 25µs pre-transmission and 35µs post-transmission guard timing with hardware Transmission Complete (TC) flag synchronization, master raw query transaction manager (modbus_query_slave_raw), high-level meteorological telemetry poller with 3-attempt retry loop (modbus_query_slave_thp), fail-safe receiver release on error paths, and ThrowTheSwitch Unity unit test suite.
 - 2026-09-14: S4-T4.4 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for RS-485 Modbus RTU Master Protocol Driver (tests/unit/test_modbus_rtu.c) covering 34 unit tests across FC03 request generation, standard polynomial 0xA001 CRC-16 computation (bitwise and Flash LUT equivalence across 64 iterations, incremental updates, and corruption detection), unicast parameter bounds enforcement, response parsing, Modbus 0x83 exception handling, big-endian 16-bit word unpacking, meteorological unit decoding (T, RH, P, Wind speed/direction) with physical saturation clamping, PA1 transceiver direction guard timing, master raw queries, timeout handling (150ms), and automated 3-attempt retry recovery on CRC error. Completed S4-T4 (RS-485 Modbus RTU Master Protocol Driver).
 - 2026-09-14: S4-T5.1 - Implemented SDI-12 Bus Break & Mark Timing Engine (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, firmware/drivers/CMakeLists.txt, tests/unit/test_sdi12.c, tests/CMakeLists.txt) covering STM32WLE5 LPUART1 1200-baud 7E1 physical layer, PC2 half-duplex direction control, 13.0ms break spacing (+5V) and 9.0ms mark sequence (0V) with GPIO dynamic mode switching, command transmission with hardware TC synchronization, \r\n ASCII response acquisition with 1000ms timeout guard, fail-safe RX line release, zero dynamic memory allocation, and ThrowTheSwitch Unity test suite.
+- 2026-09-14: S4-T5.2 - Implemented SDI-12 Command Formatter & Multi-Parameter ASCII Response Parser (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, tests/unit/test_sdi12.c) covering command formatting (?!, a!, aI!, aM!, aC!, aD0!, aAb!) with address validation and ! delimiter enforcement, measurement info parsing (atttn\r\n), deterministic zero-heap floating-point token extraction (including negative and scientific notation), sensor identification decoding (aI!), high-level 2-stage soil probe acquisition orchestrator (sdi12_query_soil_probe) with agronomic clamping, probe address discovery (sdi12_query_address), and ThrowTheSwitch Unity unit test suite.
