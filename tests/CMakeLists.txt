@@ -256,6 +256,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_bme280.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_opt3001.c")
+    add_firmware_test(opt3001
+        SOURCES unit/test_opt3001.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
 
 
 

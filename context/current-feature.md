@@ -1,16 +1,33 @@
-# Current Feature
+# Current Feature: S4-T2.1 - TI OPT3001 Single-Shot Trigger & Raw Register Readout
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Implement `opt3001_dev_t` device structure and `opt3001_raw_data_t` unpacked register representation in `firmware/drivers/inc/opt3001_driver.h`.
+- Implement `opt3001_init()` and `opt3001_read_device_id()` validating Manufacturer ID (`0x5449` / ASCII `'TI'`) and Device ID (`0x3001`) with defensive error returns.
+- Implement `opt3001_trigger_single_shot()` writing `0xCA10` (Auto-range, 100ms, Single-shot, Latch) to Config Register `0x01`.
+- Implement `opt3001_is_conversion_ready()` and `opt3001_wait_for_completion()` with bounded 150ms timeout polling on CRF (bit 7).
+- Implement `opt3001_read_raw_result()` unpacking 4-bit Exponent ($E$) and 12-bit Mantissa ($R$) from Result Register `0x00`.
+- Implement `opt3001_sample_forced_raw()` master acquisition sequence combining trigger, wait, and raw readout.
+- Verify defensive bounds, NULL pointer guards, big-endian register handling, and zero dynamic memory allocation.
 
 ## Notes
 
-<!-- Add notes here -->
+- **Target Files**: `firmware/drivers/inc/opt3001_driver.h`, `firmware/drivers/src/opt3001_driver.c`
+- **Spec Reference**: `context/specs/s4-t2.1-opt3001-single-shot-readout.md`
+- **Sensor**: Texas Instruments OPT3001 Ambient Light Sensor ($550\text{ nm}$ photopic peak, $>99\%$ IR rejection)
+- **I2C Addresses**: `0x44` (Default, ADDR=GND), `0x45` (VDD), `0x46` (SDA), `0x47` (SCL)
+- **Register Map**:
+  - `0x00`: Result Register (16-bit: $E[3:0]$ bits 15:12, $R[11:0]$ bits 11:0)
+  - `0x01`: Configuration Register (16-bit: Auto-range `0b1100`, 100ms `0b0`, Single-shot `0b01`, Latch `0b1` $\to$ `0xCA10`)
+  - `0x7E`: Manufacturer ID (`0x5449` / ASCII `'TI'`)
+  - `0x7F`: Device ID (`0x3001`)
+- **Protocol**: 16-bit Big-Endian I2C transfers (`i2c_bus_read_word_be()`, `i2c_bus_write_word_be()`)
+- **Timing & Timeouts**: 100ms conversion integration time, 150ms maximum watchdog timeout, 50ms I2C transaction timeout.
+- **Power**: Automatic transition to $0.4\,\mu\text{A}$ shutdown mode following single-shot completion.
 
 ## History
 
