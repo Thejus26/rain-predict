@@ -1,32 +1,16 @@
-# Current Feature: S4-T4.1 Modbus RTU Frame Generator (FC03 Read Holding Registers)
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement Modbus RTU CRC-16 computation (`modbus_crc16`) using polynomial `0xA001` with `0xFFFF` seed and bitwise calculation.
-- Implement 8-byte Modbus RTU FC03 Read Holding Registers request frame generator (`modbus_build_read_holding_registers_req`) in `firmware/drivers/inc/modbus_rtu.h` and `firmware/drivers/src/modbus_rtu.c`.
-- Enforce strict parameter validation: slave address unicast range [1, 247] (rejecting broadcast 0x00), register count range [1, 125], and buffer capacity bounds (>= 8 bytes).
-- Implement response frame validation and unpacking engine (`modbus_parse_read_holding_registers_resp`) with CRC-16 verification, slave address matching, byte count validation (2 * reg_count), and big-endian 16-bit register word unpacking.
-- Implement Modbus exception frame detection (`0x83` = `0x03 | 0x80`), exception code extraction (`0x01` to `0x08`), and human-readable diagnostic string conversion (`modbus_exception_to_str`).
-- Implement meteorological engineering unit decoding (`modbus_decode_thp_registers`) converting raw 16-bit registers into calibrated floating-point units for ambient temperature (0.01 °C, signed), relative humidity (0.01 %RH, [0, 100] bounded), barometric pressure (0.1 hPa), and optional wind speed (0.01 m/s) / wind direction (0.1°).
-- Ensure strict C99 MISRA-C compliance, zero dynamic memory allocation (`malloc`/`free` prohibited), and static caller buffer allocation.
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- Target Files: `firmware/drivers/inc/modbus_rtu.h`, `firmware/drivers/src/modbus_rtu.c`
-- Protocol: Modbus RTU Master, Function Code 0x03 (Read Holding Registers)
-- Physical Layer: RS-485 differential bus on STM32WLE5 USART1 (PA2 TX, PA3 RX, PA1 DE/RE)
-- Baud Rate: 9600 bps, 8-N-1
-- Request Frame Size: Exactly 8 bytes (`[Slave][0x03][Start Hi:Lo][Count Hi:Lo][CRC Lo:Hi]`)
-- Minimum Response Frame Size: 5 bytes (Exception frame: `[Slave][0x83][ExCode][CRC Lo:Hi]`)
-- Normal Response Frame Size: `5 + 2 * N` bytes (`[Slave][0x03][ByteCount][Data 2*N bytes][CRC Lo:Hi]`)
-- Max Read Registers: 125 (<= 250 data bytes, within 256-byte Modbus ADU limit)
-- CRC-16: Polynomial `0xA001`, initial value `0xFFFF`, low byte transmitted first
-- Status codes mapped to `firmware/core/inc/status.h` (`STATUS_OK`, `STATUS_ERR_INVALID_PARAM`, `STATUS_ERR_NULL_PTR`, `STATUS_ERR_OVERFLOW`, `STATUS_ERR_CRC_MISMATCH`, `STATUS_ERR_DATA_CORRUPT`)
-
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -99,5 +83,4 @@ In Progress
 - 2026-09-14: S4-T3.2 - Implemented Tipping-Bucket Rainfall Multi-Horizon Accumulators & Telemetry Serialization (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering atomic read-and-clear interval counters (< 6 cycle critical sections), 0.20 mm/tip metric conversion, rolling 1-hour FIFO ring buffer (6 x 10m intervals), 24-hour daily accumulator with midnight reset, monotonic lifetime counter, LoRaWAN Byte 8 encoding (0.2 mm/LSB clamped to 255), and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
 - 2026-09-14: S4-T3.3 - Implemented Tipping-Bucket Rain Rate Intensity Calculation & Meteorological Classification (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering instantaneous inter-tip derivative math (720,000 / delta_t), time-decay aging, 15-minute inactivity zeroing, 300.0 mm/hr physical clamping, windowed interval rates (600s/120s), 7-tier IMD/WMO meteorological classification, 5.0 mm/hr storm tracking acceleration trigger, peak rate tracking registers, and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
 - 2026-09-14: S4-T3.4 - Implemented and verified comprehensive Tipping-Bucket Rain Gauge Driver Unit Test Suite (tests/unit/test_rain_gauge.c) under ThrowTheSwitch Unity covering 29 unit tests across EXTI0 falling-edge interrupt handling, 50ms dual-stage software debounce filter, mechanical chatter rejection (< 50ms), 32-bit unsigned SysTick rollover arithmetic, atomic read-and-clear critical sections, 0.20 mm/tip metric calibration, rolling 1-hour FIFO ring buffer (6 x 10m intervals), 24-hour daily accumulator with midnight reset, LoRaWAN Byte 8 telemetry encoding with 255 clamping, instantaneous inter-tip rain rate derivative math (720,000 / dt), time-decay aging, 15-minute inactivity zeroing, 300.0 mm/hr terrestrial ceiling clamping, windowed interval rates (600s/120s), 7-tier IMD/WMO meteorological classification, 5.0 mm/hr storm tracking acceleration trigger, and peak rate tracking/reset idempotence. Completed S4-T3 (Tipping-Bucket Rain Gauge Pulse Counter Driver).
-
-
+- 2026-09-14: S4-T4.1 - Implemented Modbus RTU Frame Generator and Response Parser for FC03 Read Holding Registers (firmware/drivers/inc/modbus_rtu.h, firmware/drivers/src/modbus_rtu.c, firmware/core/inc/status.h, tests/unit/test_modbus_rtu.c) covering polynomial 0xA001 CRC-16 computation, 8-byte unicast query frame generation (modbus_build_read_holding_registers_req), strict unicast address ([1, 247]) and register count ([1, 125]) boundary validation, response frame parsing (modbus_parse_read_holding_registers_resp) with full CRC-16 verification, slave address matching, byte count checking, big-endian 16-bit word unpacking, Modbus exception frame detection (0x83) and diagnostic string conversion (modbus_exception_to_str), meteorological engineering unit decoding (modbus_decode_thp_registers) with [0, 100]% RH clamping, zero heap allocation, and ThrowTheSwitch Unity test suite.
