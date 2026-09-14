@@ -493,9 +493,240 @@ static void test_modbus_exception_to_str(void) {
     TEST_ASSERT_EQUAL_STRING("Unknown Exception", modbus_exception_to_str((modbus_exception_t)0x99));
 }
 
+/* ========================================================================== */
+/* S4-T4.2: CRC-16 Engine Test Cases (TC-CRC-01 through TC-CRC-10)            */
+/* ========================================================================== */
+
+/**
+ * @brief TC-CRC-01 to TC-CRC-05: Bitwise CRC-16 Calculation on Standard Vectors.
+ */
+static void test_modbus_crc16_bitwise_vectors(void) {
+    /* Defensive NULL and zero-length guards */
+    TEST_ASSERT_EQUAL_HEX16(0x0000U, modbus_crc16_bitwise(NULL, 10U));
+    const uint8_t dummy = 0x01U;
+    TEST_ASSERT_EQUAL_HEX16(0x0000U, modbus_crc16_bitwise(&dummy, 0U));
+
+    /* TC-CRC-01: FC03 Standard Query [0x01, 0x03, 0x00, 0x00, 0x00, 0x03] -> 0xCB05 */
+    const uint8_t v1[] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x03U};
+    uint16_t crc1 = modbus_crc16_bitwise(v1, sizeof(v1));
+    TEST_ASSERT_EQUAL_HEX16(0xCB05U, crc1);
+    TEST_ASSERT_EQUAL_HEX8(0x05U, (uint8_t)(crc1 & 0xFFU));        /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0xCBU, (uint8_t)((crc1 >> 8) & 0xFFU)); /* High byte */
+
+    /* TC-CRC-02: FC03 Single-Register Query [0x01, 0x03, 0x00, 0x00, 0x00, 0x01] -> 0x0A84 */
+    const uint8_t v2[] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x01U};
+    uint16_t crc2 = modbus_crc16_bitwise(v2, sizeof(v2));
+    TEST_ASSERT_EQUAL_HEX16(0x0A84U, crc2);
+    TEST_ASSERT_EQUAL_HEX8(0x84U, (uint8_t)(crc2 & 0xFFU));        /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0x0AU, (uint8_t)((crc2 >> 8) & 0xFFU)); /* High byte */
+
+    /* TC-CRC-03: FC03 Multi-Register Query [0x02, 0x03, 0x00, 0x10, 0x00, 0x0A] -> 0x3BC4 */
+    const uint8_t v3[] = {0x02U, 0x03U, 0x00U, 0x10U, 0x00U, 0x0AU};
+    uint16_t crc3 = modbus_crc16_bitwise(v3, sizeof(v3));
+    TEST_ASSERT_EQUAL_HEX16(0x3BC4U, crc3);
+    TEST_ASSERT_EQUAL_HEX8(0xC4U, (uint8_t)(crc3 & 0xFFU));        /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0x3BU, (uint8_t)((crc3 >> 8) & 0xFFU)); /* High byte */
+
+    /* TC-CRC-04: THP Response Frame Payload [0x01, 0x03, 0x06, 0x09, 0x94, 0x22, 0x92, 0x27, 0x94] -> 0xFBA1 */
+    const uint8_t v4[] = {0x01U, 0x03U, 0x06U, 0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x94U};
+    uint16_t crc4 = modbus_crc16_bitwise(v4, sizeof(v4));
+    TEST_ASSERT_EQUAL_HEX16(0xFBA1U, crc4);
+    TEST_ASSERT_EQUAL_HEX8(0xA1U, (uint8_t)(crc4 & 0xFFU));        /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0xFBU, (uint8_t)((crc4 >> 8) & 0xFFU)); /* High byte */
+
+    /* TC-CRC-05: Exception Frame Payload [0x01, 0x83, 0x02] -> 0xF1C0 */
+    const uint8_t v5[] = {0x01U, 0x83U, 0x02U};
+    uint16_t crc5 = modbus_crc16_bitwise(v5, sizeof(v5));
+    TEST_ASSERT_EQUAL_HEX16(0xF1C0U, crc5);
+    TEST_ASSERT_EQUAL_HEX8(0xC0U, (uint8_t)(crc5 & 0xFFU));        /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0xF1U, (uint8_t)((crc5 >> 8) & 0xFFU)); /* High byte */
+
+    /* FC06 Preset Single Register Query [0x01, 0x06, 0x00, 0x01, 0x00, 0x17] -> 0x0498 */
+    const uint8_t v6[] = {0x01U, 0x06U, 0x00U, 0x01U, 0x00U, 0x17U};
+    uint16_t crc6 = modbus_crc16_bitwise(v6, sizeof(v6));
+    TEST_ASSERT_EQUAL_HEX16(0x0498U, crc6);
+    TEST_ASSERT_EQUAL_HEX8(0x98U, (uint8_t)(crc6 & 0xFFU));        /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0x04U, (uint8_t)((crc6 >> 8) & 0xFFU)); /* High byte */
+}
+
+/**
+ * @brief Flash LUT CRC-16 Calculation on Standard Vectors & Default Wrapper.
+ */
+static void test_modbus_crc16_lut_vectors(void) {
+    /* Defensive NULL and zero-length guards */
+    TEST_ASSERT_EQUAL_HEX16(0x0000U, modbus_crc16_lut(NULL, 10U));
+    const uint8_t dummy = 0x01U;
+    TEST_ASSERT_EQUAL_HEX16(0x0000U, modbus_crc16_lut(&dummy, 0U));
+
+    const uint8_t v1[] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x03U};
+    TEST_ASSERT_EQUAL_HEX16(0xCB05U, modbus_crc16_lut(v1, sizeof(v1)));
+    TEST_ASSERT_EQUAL_HEX16(0xCB05U, modbus_crc16(v1, sizeof(v1)));
+
+    const uint8_t v2[] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x01U};
+    TEST_ASSERT_EQUAL_HEX16(0x0A84U, modbus_crc16_lut(v2, sizeof(v2)));
+    TEST_ASSERT_EQUAL_HEX16(0x0A84U, modbus_crc16(v2, sizeof(v2)));
+
+    const uint8_t v3[] = {0x02U, 0x03U, 0x00U, 0x10U, 0x00U, 0x0AU};
+    TEST_ASSERT_EQUAL_HEX16(0x3BC4U, modbus_crc16_lut(v3, sizeof(v3)));
+    TEST_ASSERT_EQUAL_HEX16(0x3BC4U, modbus_crc16(v3, sizeof(v3)));
+
+    const uint8_t v4[] = {0x01U, 0x03U, 0x06U, 0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x94U};
+    TEST_ASSERT_EQUAL_HEX16(0xFBA1U, modbus_crc16_lut(v4, sizeof(v4)));
+    TEST_ASSERT_EQUAL_HEX16(0xFBA1U, modbus_crc16(v4, sizeof(v4)));
+
+    const uint8_t v5[] = {0x01U, 0x83U, 0x02U};
+    TEST_ASSERT_EQUAL_HEX16(0xF1C0U, modbus_crc16_lut(v5, sizeof(v5)));
+    TEST_ASSERT_EQUAL_HEX16(0xF1C0U, modbus_crc16(v5, sizeof(v5)));
+
+    const uint8_t v6[] = {0x01U, 0x06U, 0x00U, 0x01U, 0x00U, 0x17U};
+    TEST_ASSERT_EQUAL_HEX16(0x0498U, modbus_crc16_lut(v6, sizeof(v6)));
+    TEST_ASSERT_EQUAL_HEX16(0x0498U, modbus_crc16(v6, sizeof(v6)));
+}
+
+/**
+ * @brief TC-CRC-06: Bitwise vs Flash LUT Mathematical Equivalence on Arbitrary Vectors.
+ */
+static void test_modbus_crc16_bitwise_vs_lut_equivalence(void) {
+    uint8_t buffer[128];
+    uint32_t seed = 0x12345678U;
+
+    /* Generate 64 deterministic pseudorandom test buffers of varying lengths */
+    for (uint16_t iteration = 0U; iteration < 64U; iteration++) {
+        uint16_t test_len = (iteration % 120U) + 1U;
+
+        for (uint16_t i = 0U; i < test_len; i++) {
+            seed = (seed * 1103515245U + 12345U) & 0x7FFFFFFFU;
+            buffer[i] = (uint8_t)(seed & 0xFFU);
+        }
+
+        uint16_t crc_bw  = modbus_crc16_bitwise(buffer, test_len);
+        uint16_t crc_lut = modbus_crc16_lut(buffer, test_len);
+        uint16_t crc_def = modbus_crc16(buffer, test_len);
+
+        TEST_ASSERT_EQUAL_HEX16(crc_bw, crc_lut);
+        TEST_ASSERT_EQUAL_HEX16(crc_bw, crc_def);
+    }
+}
+
+/**
+ * @brief TC-CRC-07: Incremental / Streaming CRC-16 Accumulation.
+ */
+static void test_modbus_crc16_streaming_update(void) {
+    /* Defensive NULL / 0 length checks */
+    TEST_ASSERT_EQUAL_HEX16(0x1234U, modbus_crc16_update(0x1234U, NULL, 5U));
+    const uint8_t dummy = 0xAAU;
+    TEST_ASSERT_EQUAL_HEX16(0x5678U, modbus_crc16_update(0x5678U, &dummy, 0U));
+
+    /* Chunked Stream 1: [0x01, 0x03] then [0x00, 0x00, 0x00, 0x03] */
+    const uint8_t chunk1[] = {0x01U, 0x03U};
+    const uint8_t chunk2[] = {0x00U, 0x00U, 0x00U, 0x03U};
+
+    uint16_t running_crc = 0xFFFFU;
+    running_crc = modbus_crc16_update(running_crc, chunk1, sizeof(chunk1));
+    running_crc = modbus_crc16_update(running_crc, chunk2, sizeof(chunk2));
+    TEST_ASSERT_EQUAL_HEX16(0xCB05U, running_crc);
+
+    /* Single-byte streaming over 9-byte response vector */
+    const uint8_t full_vector[] = {0x01U, 0x03U, 0x06U, 0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x94U};
+    uint16_t byte_by_byte_crc = 0xFFFFU;
+    for (size_t i = 0; i < sizeof(full_vector); i++) {
+        byte_by_byte_crc = modbus_crc16_update(byte_by_byte_crc, &full_vector[i], 1U);
+    }
+    TEST_ASSERT_EQUAL_HEX16(0xFBA1U, byte_by_byte_crc);
+    TEST_ASSERT_EQUAL_HEX16(modbus_crc16(full_vector, sizeof(full_vector)), byte_by_byte_crc);
+}
+
+/**
+ * @brief TC-CRC-08, TC-CRC-09: Frame Validation Engine (Pass, Corrupt Payload, Corrupt CRC).
+ */
+static void test_modbus_validate_frame_crc_engine(void) {
+    /* Defensive NULL & runt frame checks */
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(NULL, 10U));
+    const uint8_t runt[2] = {0x01U, 0x03U};
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(runt, 0U));
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(runt, 1U));
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(runt, 2U));
+
+    /* TC-CRC-08: Valid 8-byte frame pass */
+    uint8_t valid_frame_8[8] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x03U, 0x05U, 0xCBU};
+    TEST_ASSERT_TRUE(modbus_validate_frame_crc(valid_frame_8, sizeof(valid_frame_8)));
+
+    /* Valid 11-byte response frame pass */
+    uint8_t valid_frame_11[11] = {0x01U, 0x03U, 0x06U, 0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x94U, 0xA1U, 0xFBU};
+    TEST_ASSERT_TRUE(modbus_validate_frame_crc(valid_frame_11, sizeof(valid_frame_11)));
+
+    /* Valid 5-byte exception frame pass */
+    uint8_t valid_frame_5[5] = {0x01U, 0x83U, 0x02U, 0xC0U, 0xF1U};
+    TEST_ASSERT_TRUE(modbus_validate_frame_crc(valid_frame_5, sizeof(valid_frame_5)));
+
+    /* TC-CRC-09: Single-bit payload corruption rejection */
+    valid_frame_8[2] ^= 0x01U;
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(valid_frame_8, sizeof(valid_frame_8)));
+    valid_frame_8[2] ^= 0x01U; /* Restore */
+
+    /* Single-bit CRC low-byte corruption rejection */
+    valid_frame_8[6] ^= 0x01U;
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(valid_frame_8, sizeof(valid_frame_8)));
+    valid_frame_8[6] ^= 0x01U; /* Restore */
+
+    /* Single-bit CRC high-byte corruption rejection */
+    valid_frame_8[7] ^= 0x80U;
+    TEST_ASSERT_FALSE(modbus_validate_frame_crc(valid_frame_8, sizeof(valid_frame_8)));
+}
+
+/**
+ * @brief TC-CRC-10: Frame CRC Appender (Bounds, Overflows, and Valid Appends).
+ */
+static void test_modbus_append_crc16_engine(void) {
+    uint8_t frame_buf[16];
+    uint16_t total_len = 0U;
+
+    /* Defensive NULL and zero payload length checks */
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER,
+                          modbus_append_crc16(NULL, 6U, sizeof(frame_buf), &total_len));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER,
+                          modbus_append_crc16(frame_buf, 6U, sizeof(frame_buf), NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM,
+                          modbus_append_crc16(frame_buf, 0U, sizeof(frame_buf), &total_len));
+
+    /* TC-CRC-10: Buffer capacity overflow check (max_buf_len < data_len + 2) */
+    const uint8_t req_payload[6] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x03U};
+    memcpy(frame_buf, req_payload, 6U);
+
+    /* Test capacities 0..7 (requires 8) */
+    for (uint16_t cap = 0U; cap < 8U; cap++) {
+        TEST_ASSERT_EQUAL_INT(STATUS_ERROR_BUFFER_OVERFLOW,
+                              modbus_append_crc16(frame_buf, 6U, cap, &total_len));
+    }
+
+    /* Valid exact-fit append (max_buf_len = 8) */
+    memset(frame_buf, 0, sizeof(frame_buf));
+    memcpy(frame_buf, req_payload, 6U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          modbus_append_crc16(frame_buf, 6U, 8U, &total_len));
+    TEST_ASSERT_EQUAL_UINT16(8U, total_len);
+    TEST_ASSERT_EQUAL_HEX8(0x05U, frame_buf[6]); /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0xCBU, frame_buf[7]); /* High byte */
+
+    /* Verify appended frame passes frame validation */
+    TEST_ASSERT_TRUE(modbus_validate_frame_crc(frame_buf, total_len));
+
+    /* Valid generous-fit append (max_buf_len = 16) */
+    const uint8_t ex_payload[3] = {0x01U, 0x83U, 0x02U};
+    memset(frame_buf, 0, sizeof(frame_buf));
+    memcpy(frame_buf, ex_payload, 3U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          modbus_append_crc16(frame_buf, 3U, sizeof(frame_buf), &total_len));
+    TEST_ASSERT_EQUAL_UINT16(5U, total_len);
+    TEST_ASSERT_EQUAL_HEX8(0xC0U, frame_buf[3]); /* Low byte */
+    TEST_ASSERT_EQUAL_HEX8(0xF1U, frame_buf[4]); /* High byte */
+    TEST_ASSERT_TRUE(modbus_validate_frame_crc(frame_buf, total_len));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
+    /* S4-T4.1 Tests */
     RUN_TEST(test_modbus_constants_and_types);
     RUN_TEST(test_modbus_crc16_calculation);
     RUN_TEST(test_modbus_build_req_null_guards);
@@ -513,6 +744,14 @@ int main(void) {
     RUN_TEST(test_modbus_decode_thp_standard_values);
     RUN_TEST(test_modbus_decode_thp_subzero_and_clamping);
     RUN_TEST(test_modbus_exception_to_str);
+
+    /* S4-T4.2 CRC-16 Tests */
+    RUN_TEST(test_modbus_crc16_bitwise_vectors);
+    RUN_TEST(test_modbus_crc16_lut_vectors);
+    RUN_TEST(test_modbus_crc16_bitwise_vs_lut_equivalence);
+    RUN_TEST(test_modbus_crc16_streaming_update);
+    RUN_TEST(test_modbus_validate_frame_crc_engine);
+    RUN_TEST(test_modbus_append_crc16_engine);
 
     return UNITY_END();
 }
