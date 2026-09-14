@@ -1,16 +1,28 @@
-# Current Feature
+# Current Feature: S4-T3.2 - Tipping-Bucket Rainfall Accumulators & Telemetry
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Extend [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h) with `rain_gauge_data_t` structure, `RAIN_GAUGE_HOURLY_FIFO_SIZE` (6), `RAIN_GAUGE_TELEMETRY_MAX_TIPS` (255), and multi-horizon accumulator prototypes.
+- Implement atomic multi-horizon pulse accumulators in [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c) (`s_interval_tips`, `s_daily_tips`, `s_total_lifetime_tips`) updated inside `rain_gauge_exti_isr()`.
+- Implement thread-safe atomic read-and-clear function `rain_gauge_read_and_clear_interval(float *p_interval_mm)` with $< 6$ cycle critical section.
+- Implement rolling 1-hour FIFO ring buffer ($6 \times 10\text{ min} = 60\text{ min}$) via `rain_gauge_update_hourly_history(uint16_t interval_tips)`.
+- Implement LoRaWAN Byte 8 telemetry encoder `rain_gauge_encode_telemetry_byte(uint16_t interval_tips)` with $0.2\text{ mm/LSB}$ scaling and $[0, 255]$ upper-bound saturation clamping ($51.0\text{ mm}$).
+- Implement composite accumulation query `rain_gauge_get_accumulation(rain_gauge_data_t *p_data)` and reset routines (`rain_gauge_reset_daily`, `rain_gauge_reset_all_accumulators`).
+- Implement and verify all 10 verification test cases in [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c).
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- Spec File: [`context/specs/s4-t3.2-rain-gauge-accumulation.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.2-rain-gauge-accumulation.md)
+- Target Files: [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h), [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c), [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c)
+- Calibration Constant: $K_{\text{gauge}} = 0.20\text{ mm/tip}$ (`RAIN_GAUGE_CALIB_MM_PER_TIP`).
+- Time Horizons: Interval (10-min duty cycle), Rolling 1-Hour ($6 \times 10\text{ min}$ FIFO), 24-Hour Daily, Lifetime Monotonic Accumulator.
+- LoRaWAN Telemetry Byte 8: 8-bit unsigned integer ($0.2\text{ mm/LSB}$, clamped at $255 = 51.0\text{ mm}$).
+- Thread Safety: Volatile accumulators with atomic critical sections (`__disable_irq()` / `__enable_irq()`) with $< 6$ CPU cycle latency.
+- Memory & Safety: Zero dynamic allocation, MISRA-C compliant C99.
 
 ## History
 
