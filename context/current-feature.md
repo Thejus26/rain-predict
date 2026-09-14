@@ -1,29 +1,16 @@
-# Current Feature: S4-T3.1 - Tipping-Bucket Rain Gauge EXTI & Debounce Filter
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement tipping-bucket rain gauge driver header ([`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h)) and implementation ([`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c)).
-- Configure STM32WLE5 `PA0` / `EXTI0` in `GPIO_MODE_IT_FALLING` with internal pull-up and NVIC interrupt priority 2.
-- Implement dual-stage chatter filter: hardware RC filtering ($\tau = 1.0\text{ ms}$) and software $50\text{ ms}$ lockout window (`RAIN_GAUGE_DEBOUNCE_MS`).
-- Implement fast, non-blocking ISR handler `rain_gauge_exti_isr(uint32_t current_tick_ms)` executing in $< 20$ CPU cycles.
-- Implement atomic 32-bit tick subtraction `(current_tick_ms - last_pulse_timestamp_ms)` with seamless SysTick rollover handling.
-- Implement diagnostic getters and clear APIs (`rain_gauge_is_rain_active`, `rain_gauge_get_last_pulse_timestamp`, `rain_gauge_get_rejected_bounce_count`, `rain_gauge_reset_diagnostics`).
-- Implement driver initialization (`rain_gauge_init`), de-initialization (`rain_gauge_deinit` tri-stating `PA0` to analog mode), and NVIC masking (`rain_gauge_enable_irq`).
-- Verify 100% test pass rate for all Section 7 test cases in simulation and host unit test harnesses.
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- Spec File: [`context/specs/s4-t3.1-rain-gauge-exti-debounce.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.1-rain-gauge-exti-debounce.md)
-- Target Files: [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h), [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c)
-- Target Hardware: STM32WLE5CCU6 `PA0` (EXTI0, Pin 10), Pull-Up, Falling-Edge Interrupt.
-- Calibration Constant: $0.20\text{ mm}$ equivalent rainfall depth per tip (`RAIN_GAUGE_CALIB_MM_PER_TIP`).
-- Debounce Lockout Window: $50\text{ ms}$ (`RAIN_GAUGE_DEBOUNCE_MS`), Max measurable rain rate: $14.4\text{ mm/min}$ ($864\text{ mm/hr}$).
-- Power Management: `PA0` serves as Stop 2 deep sleep asynchronous wakeup line; de-init transitions pin to `GPIO_MODE_ANALOG` (`GPIO_NOPULL`) for $< 3.0\,\mu\text{A}$ sleep current.
-- Execution Constraints: $< 20$ CPU cycles per ISR execution, zero dynamic allocation, MISRA-C compliant C99.
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -92,5 +79,6 @@ In Progress
 - 2026-09-14: S4-T2.2 - Implemented TI OPT3001 Exponential Lux Calculation (opt3001_raw_to_lux), 32-bit Exact Fixed-Point Integer Math (opt3001_raw_to_centi_lux), Solar Irradiance Estimation (opt3001_lux_to_irradiance), LoRaWAN 16-bit Telemetry Scaling (opt3001_lux_to_telemetry_u16), Master Reading APIs (opt3001_convert_raw, opt3001_read_lux), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 - 2026-09-14: S4-T2.3 - Implemented TI OPT3001 Hysteresis-Gated Day/Night Classification (opt3001_classify_day_state, opt3001_is_daylight), Multi-Tier Convective Storm Cloud Attenuation Scoring (opt3001_evaluate_solar_attenuation), LoRaWAN Byte 10 Bit 7 Solar Drop Alarm Flag, Sunset False-Alarm Interlock, Master Solar Context Evaluator (opt3001_update_solar_context), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 - 2026-09-14: S4-T2.4 - Implemented and verified comprehensive TI OPT3001 Driver ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_opt3001.c) covering 26 unit tests across hardware ID verification, big-endian 16-bit register I/O, single-shot acquisition, 150ms timeout handling, exponential single-precision lux math, centi-lux fixed-point shifts, solar irradiance conversion, LoRaWAN Byte 6-7 telemetry serialization, day/night hysteresis state machine, and multi-tier convective storm cloud attenuation scoring. Completed S4-T2 (TI OPT3001 Ambient Light & Solar Irradiance Driver).
+- 2026-09-14: S4-T3.1 - Implemented Tipping-Bucket Rain Gauge GPIO EXTI0 Falling-Edge Interrupt Driver with Dual-Stage 50ms Debounce Filter (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering STM32WLE5 PA0 hardware configuration, Stop 2 asynchronous wakeup, fast < 20-cycle non-blocking ISR, 32-bit unsigned SysTick rollover delta calculation, mechanical chatter bounce rejection, active rain detection, and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
 
 
