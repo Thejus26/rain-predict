@@ -24,6 +24,7 @@ void tearDown(void) {
  * @brief Helper to set up standard valid OPT3001 mock IDs.
  */
 static void setup_valid_mock_opt3001(uint8_t addr) {
+    mock_i2c_set_auto_crf(true);
     (void)mock_i2c_set_word_register(addr, OPT3001_REG_MANUFACTURER_ID, OPT3001_EXPECTED_MFG_ID);
     (void)mock_i2c_set_word_register(addr, OPT3001_REG_DEVICE_ID, OPT3001_EXPECTED_DEV_ID);
 }
@@ -180,6 +181,7 @@ static void test_opt3001_wait_for_completion_timeout(void) {
     setup_valid_mock_opt3001(TEST_OPT3001_ADDR);
     TEST_ASSERT_EQUAL_INT(STATUS_OK, opt3001_init(&dev, TEST_OPT3001_ADDR));
 
+    mock_i2c_set_auto_crf(false);
     /* CRF continuously 0 */
     (void)mock_i2c_set_word_register(TEST_OPT3001_ADDR, OPT3001_REG_CONFIG, 0xC210U);
 
