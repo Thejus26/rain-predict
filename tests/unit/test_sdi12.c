@@ -36,7 +36,7 @@ void tearDown(void) {
  * Physical Layer & Direction Control Tests (Task S4-T5.1)
  * ============================================================================ */
 
-void test_sdi12_init_defaults(void) {
+static void test_sdi12_init_defaults(void) {
     /* Verify direction pin PC2 is initialized to LOW (RX Mode) */
     TEST_ASSERT_EQUAL_INT(0, gpio_read_pin(GPIO_PORT_C, 2));
     TEST_ASSERT_EQUAL_INT(SDI12_DIR_RX, sdi12_test_get_direction());
@@ -47,7 +47,7 @@ void test_sdi12_init_defaults(void) {
     TEST_ASSERT_EQUAL_UINT8(1U, uart_bus_test_get_stop_bits(UART_PORT_SDI12));
 }
 
-void test_sdi12_direction_control(void) {
+static void test_sdi12_direction_control(void) {
     sdi12_set_direction(SDI12_DIR_TX);
     TEST_ASSERT_EQUAL_INT(1, gpio_read_pin(GPIO_PORT_C, 2));
     TEST_ASSERT_EQUAL_INT(SDI12_DIR_TX, sdi12_test_get_direction());
@@ -57,7 +57,7 @@ void test_sdi12_direction_control(void) {
     TEST_ASSERT_EQUAL_INT(SDI12_DIR_RX, sdi12_test_get_direction());
 }
 
-void test_sdi12_send_break_and_mark_execution(void) {
+static void test_sdi12_send_break_and_mark_execution(void) {
     sdi12_send_break_and_mark();
 
     /* Verify break/mark leaves direction pin in TX mode before command TX */
@@ -72,7 +72,7 @@ void test_sdi12_send_break_and_mark_execution(void) {
     sdi12_set_direction(SDI12_DIR_RX);
 }
 
-void test_sdi12_transmit_command_valid(void) {
+static void test_sdi12_transmit_command_valid(void) {
     status_t status = sdi12_transmit_command("0M!");
     TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
 
@@ -87,14 +87,14 @@ void test_sdi12_transmit_command_valid(void) {
     TEST_ASSERT_EQUAL_INT(SDI12_DIR_RX, sdi12_test_get_direction());
 }
 
-void test_sdi12_transmit_command_missing_exclamation(void) {
+static void test_sdi12_transmit_command_missing_exclamation(void) {
     /* Missing trailing '!' */
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM, sdi12_transmit_command("0M"));
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM, sdi12_transmit_command("0D0"));
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER, sdi12_transmit_command(NULL));
 }
 
-void test_sdi12_transmit_command_empty_and_overflow(void) {
+static void test_sdi12_transmit_command_empty_and_overflow(void) {
     /* Empty command */
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM, sdi12_transmit_command(""));
 
@@ -106,7 +106,7 @@ void test_sdi12_transmit_command_empty_and_overflow(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM, sdi12_transmit_command(long_cmd));
 }
 
-void test_sdi12_wake_and_transmit_valid(void) {
+static void test_sdi12_wake_and_transmit_valid(void) {
     status_t status = sdi12_wake_and_transmit("0D0!");
     TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
 
@@ -125,12 +125,12 @@ void test_sdi12_wake_and_transmit_valid(void) {
     TEST_ASSERT_EQUAL_INT(SDI12_DIR_RX, sdi12_test_get_direction());
 }
 
-void test_sdi12_wake_and_transmit_null_and_invalid(void) {
+static void test_sdi12_wake_and_transmit_null_and_invalid(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER, sdi12_wake_and_transmit(NULL));
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM, sdi12_wake_and_transmit("0D0"));
 }
 
-void test_sdi12_receive_response_valid(void) {
+static void test_sdi12_receive_response_valid(void) {
     const char *mock_resp = "00023\r\n";
     (void)mock_uart_inject_rx(UART_PORT_SDI12, (const uint8_t *)mock_resp, (uint16_t)strlen(mock_resp));
 
@@ -143,7 +143,7 @@ void test_sdi12_receive_response_valid(void) {
     TEST_ASSERT_EQUAL_STRING("00023\r\n", rx_buf);
 }
 
-void test_sdi12_receive_response_missing_crlf(void) {
+static void test_sdi12_receive_response_missing_crlf(void) {
     const char *bad_resp = "00023";
     (void)mock_uart_inject_rx(UART_PORT_SDI12, (const uint8_t *)bad_resp, (uint16_t)strlen(bad_resp));
 
@@ -153,7 +153,7 @@ void test_sdi12_receive_response_missing_crlf(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_FRAME, status);
 }
 
-void test_sdi12_receive_response_timeout(void) {
+static void test_sdi12_receive_response_timeout(void) {
     mock_uart_inject_fault(UART_PORT_SDI12, MOCK_UART_FAULT_TIMEOUT);
 
     char rx_buf[16] = {0};
@@ -162,7 +162,7 @@ void test_sdi12_receive_response_timeout(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_TIMEOUT, status);
 }
 
-void test_sdi12_receive_response_null_and_overflow(void) {
+static void test_sdi12_receive_response_null_and_overflow(void) {
     char rx_buf[16];
     uint16_t rx_len;
 
@@ -174,7 +174,7 @@ void test_sdi12_receive_response_null_and_overflow(void) {
                           sdi12_receive_response(rx_buf, 2U, &rx_len, 1000U));
 }
 
-void test_sdi12_deinit(void) {
+static void test_sdi12_deinit(void) {
     sdi12_set_direction(SDI12_DIR_TX);
     TEST_ASSERT_EQUAL_INT(STATUS_OK, sdi12_deinit());
     TEST_ASSERT_EQUAL_INT(0, gpio_read_pin(GPIO_PORT_C, 2));

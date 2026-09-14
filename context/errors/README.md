@@ -41,6 +41,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-031`** | 2026-09-14 14:08:00 | [`762a63f`](https://github.com/Thejus26/rain-predict/commit/762a63ff4ca56b7e73643ac50a4740a361a3dbcb) | Strict C99 & Embedded Toolchain Diagnostics | **Modbus Driver CI Build Failures**: Unused variable in host unit tests and missing HAL identifiers in embedded build. | [ERR-031 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-031-2026-09-14-unused-variable-and-embedded-hal-compilation-failures.md) |
 | **`ERR-032`** | 2026-09-14 14:18:00 | [`0f75905`](https://github.com/Thejus26/rain-predict/commit/0f75905cb291e67a2afd358fcfc58b3a3664ab1d) | Testing & Driver Simulation (Modbus RTU) | **Modbus Query Slave Host Simulation RX Flush Timeout**: Pre-transmission RX buffer flush purged injected test responses causing timeouts. | [ERR-032 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-032-2026-09-14-modbus-query-host-simulation-rx-flush-timeout.md) |
 | **`ERR-033`** | 2026-09-14 14:34:00 | [`ddd88ac`](https://github.com/Thejus26/rain-predict/commit/ddd88aca134cb4c92a51bbc517228807c0e828ed) | Testing & Driver Communication (Modbus RTU / UART) | **Modbus Query Slave RX Buffer Over-Read in Retry Recovery**: Requesting full buffer capacity drained queued subsequent responses causing retry timeouts. | [ERR-033 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-033-2026-09-14-modbus-query-rx-buffer-over-read-retry-timeout.md) |
+| **`ERR-034`** | 2026-09-14 14:58:02 | [`23e4ee5`](https://github.com/Thejus26/rain-predict/commit/23e4ee5c66e9b672ff216d3d909ef8a3ce7b276c) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_sdi12.c**: Test functions lacked static qualifier triggering -Wmissing-prototypes. | [ERR-034 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-034-2026-09-14-missing-static-prototypes-in-test-sdi12.md) |
 
 ---
 
@@ -49,7 +50,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Testing Macros & Mock Architectural Collisions" : 14
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 10
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 11
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2
