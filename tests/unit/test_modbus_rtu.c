@@ -761,7 +761,6 @@ static void test_modbus_guard_timing_and_constants(void) {
  */
 static void test_modbus_query_null_and_boundary_guards(void) {
     uint16_t reg_data[8];
-    modbus_thp_reading_t reading;
 
     /* NULL pointers */
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER,
