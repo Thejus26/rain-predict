@@ -1,50 +1,16 @@
-# Current Feature: S4-T5.1 - SDI-12 Bus Break & Mark Timing Engine
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement SDI-12 physical layer header definitions and data types in [`firmware/drivers/inc/sdi12_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/sdi12_driver.h).
-- Implement half-duplex line direction control (`sdi12_set_direction`) driving `PC2` (`SDI12_DIR`) between TX mode (HIGH) and RX listening mode (LOW).
-- Implement deterministic physical wakeup break sequence ($13.0\text{ ms} \ge 12.0\text{ ms}$ spacing state, $+5\text{V}$) and mark sequence ($9.0\text{ ms} \ge 8.33\text{ ms}$ marking state, $0\text{V}$) via GPIO re-configuration and alternate function restoration (`sdi12_send_break_and_mark`).
-- Implement driver initialization (`sdi12_init`) configuring `LPUART1` at 1200 baud, 7 data bits, even parity, 1 stop bit (7-E-1) and defaulting `PC2` to RX mode.
-- Implement command transmission engine (`sdi12_transmit_command`) and unified wakeup-transmit helper (`sdi12_wake_and_transmit`) enforcing trailing `'!'` delimiter, hardware Transmission Complete (TC) flag synchronization, and fail-safe line release.
-- Implement response acquisition engine (`sdi12_receive_response`) collecting `\r\n` terminated ASCII response strings with timeout handling ($1000\text{ ms}$) and null-termination.
-- Implement host simulation mocks and ThrowTheSwitch Unity test suite covering the 10-point test matrix (`TC-SDI-01` to `TC-SDI-10`).
-- Ensure zero dynamic memory allocation (100% static computation) and adherence to `context/coding-standards.md`.
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- **Target MCU**: STMicroelectronics STM32WLE5 SoC.
-- **Pin Allocations**:
-  - `PC0`: `LPUART1_TX` (AF8) / GPIO Output Push-Pull during Break/Mark generation.
-  - `PC1`: `LPUART1_RX` (AF8) 1200-baud 7E1 receiver.
-  - `PC2`: `SDI12_DIR` GPIO Output (HIGH = TX mode, LOW = RX listening mode).
-- **Physical Signaling & Inverted NRZ Logic**:
-  - Spacing State ($+5\text{V}$, `PC0` HIGH): Logic '1' / Break / Active.
-  - Marking State ($0\text{V}$, `PC0` LOW): Logic '0' / Idle.
-- **Timing Parameters (SDI-12 v1.4)**:
-  - Baud rate: $1200\text{ bps}$ ($t_{\text{bit}} = 833.33\,\mu\text{s}$).
-  - Character time: $10\text{ bits} = 8.333\text{ ms}$ ($1\text{ Start} + 7\text{ Data} + 1\text{ Even Parity} + 1\text{ Stop}$).
-  - Break duration: $13.0\text{ ms}$ (Standard minimum: $\ge 12.0\text{ ms}$).
-  - Mark duration: $9.0\text{ ms}$ (Standard minimum: $\ge 8.33\text{ ms}$).
-  - Total wakeup sequence: $22.0\text{ ms}$ ($t_{\text{break}} + t_{\text{mark}}$).
-  - Turnaround guard delay: $500\,\mu\text{s}$ to $1.0\text{ ms}$.
-  - Slave response window: $15.0\text{ ms}$ to $1000.0\text{ ms}$.
-- **Break Generation Strategy**:
-  - Step 1: Assert `PC2` HIGH (TX mode).
-  - Step 2: Switch `PC0` mode to `GPIO_MODE_OUTPUT_PP`.
-  - Step 3: Drive `PC0` HIGH ($+5\text{V}$) for $13.0\text{ ms}$.
-  - Step 4: Drive `PC0` LOW ($0\text{V}$) for $9.0\text{ ms}$.
-  - Step 5: Restore `PC0` to Alternate Function `GPIO_AF8_LPUART1`.
-  - Step 6: Transmit command string over `LPUART1`.
-  - Step 7: Wait for hardware TC flag before switching `PC2` to LOW (RX mode).
-- **Safety & Fail-Safe Behavior**:
-  - Fail-safe RX release: Any transmit failure or timeout must immediately de-assert `PC2` to LOW to avoid holding the shared single-wire bus in active high state.
-  - Zero heap allocation: All buffers statically allocated.
-- **Dependencies**: [`S3-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t2.2-uart-bus-driver.md) (UART/LPUART Driver), [`S3-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t1.1-gpio-pin-mappings.md) (Board Pinout).
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -121,3 +87,4 @@ In Progress
 - 2026-09-14: S4-T4.2 - Implemented Modbus RTU Standard CRC-16 Calculation (0xA001 Polynomial), 256-entry Flash lookup table (LUT) acceleration (s_modbus_crc16_lut), streaming CRC accumulator (modbus_crc16_update), frame validation engine (modbus_validate_frame_crc), and Little-Endian CRC appender (modbus_append_crc16) with ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T4.3 - Implemented RS-485 Transceiver Direction Control & Guard Timing (firmware/drivers/inc/modbus_rtu.h, firmware/drivers/src/modbus_rtu.c, tests/unit/test_modbus_rtu.c) covering PA1 (RS485_DIR) transmitter/receiver pin toggling, modbus_rtu_init() default listening state, 25µs pre-transmission and 35µs post-transmission guard timing with hardware Transmission Complete (TC) flag synchronization, master raw query transaction manager (modbus_query_slave_raw), high-level meteorological telemetry poller with 3-attempt retry loop (modbus_query_slave_thp), fail-safe receiver release on error paths, and ThrowTheSwitch Unity unit test suite.
 - 2026-09-14: S4-T4.4 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for RS-485 Modbus RTU Master Protocol Driver (tests/unit/test_modbus_rtu.c) covering 34 unit tests across FC03 request generation, standard polynomial 0xA001 CRC-16 computation (bitwise and Flash LUT equivalence across 64 iterations, incremental updates, and corruption detection), unicast parameter bounds enforcement, response parsing, Modbus 0x83 exception handling, big-endian 16-bit word unpacking, meteorological unit decoding (T, RH, P, Wind speed/direction) with physical saturation clamping, PA1 transceiver direction guard timing, master raw queries, timeout handling (150ms), and automated 3-attempt retry recovery on CRC error. Completed S4-T4 (RS-485 Modbus RTU Master Protocol Driver).
+- 2026-09-14: S4-T5.1 - Implemented SDI-12 Bus Break & Mark Timing Engine (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, firmware/drivers/CMakeLists.txt, tests/unit/test_sdi12.c, tests/CMakeLists.txt) covering STM32WLE5 LPUART1 1200-baud 7E1 physical layer, PC2 half-duplex direction control, 13.0ms break spacing (+5V) and 9.0ms mark sequence (0V) with GPIO dynamic mode switching, command transmission with hardware TC synchronization, \r\n ASCII response acquisition with 1000ms timeout guard, fail-safe RX line release, zero dynamic memory allocation, and ThrowTheSwitch Unity test suite.
