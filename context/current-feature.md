@@ -1,33 +1,16 @@
-# Current Feature: S4-T2.1 - TI OPT3001 Single-Shot Trigger & Raw Register Readout
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement `opt3001_dev_t` device structure and `opt3001_raw_data_t` unpacked register representation in `firmware/drivers/inc/opt3001_driver.h`.
-- Implement `opt3001_init()` and `opt3001_read_device_id()` validating Manufacturer ID (`0x5449` / ASCII `'TI'`) and Device ID (`0x3001`) with defensive error returns.
-- Implement `opt3001_trigger_single_shot()` writing `0xCA10` (Auto-range, 100ms, Single-shot, Latch) to Config Register `0x01`.
-- Implement `opt3001_is_conversion_ready()` and `opt3001_wait_for_completion()` with bounded 150ms timeout polling on CRF (bit 7).
-- Implement `opt3001_read_raw_result()` unpacking 4-bit Exponent ($E$) and 12-bit Mantissa ($R$) from Result Register `0x00`.
-- Implement `opt3001_sample_forced_raw()` master acquisition sequence combining trigger, wait, and raw readout.
-- Verify defensive bounds, NULL pointer guards, big-endian register handling, and zero dynamic memory allocation.
+<!-- Add goals here -->
 
 ## Notes
 
-- **Target Files**: `firmware/drivers/inc/opt3001_driver.h`, `firmware/drivers/src/opt3001_driver.c`
-- **Spec Reference**: `context/specs/s4-t2.1-opt3001-single-shot-readout.md`
-- **Sensor**: Texas Instruments OPT3001 Ambient Light Sensor ($550\text{ nm}$ photopic peak, $>99\%$ IR rejection)
-- **I2C Addresses**: `0x44` (Default, ADDR=GND), `0x45` (VDD), `0x46` (SDA), `0x47` (SCL)
-- **Register Map**:
-  - `0x00`: Result Register (16-bit: $E[3:0]$ bits 15:12, $R[11:0]$ bits 11:0)
-  - `0x01`: Configuration Register (16-bit: Auto-range `0b1100`, 100ms `0b0`, Single-shot `0b01`, Latch `0b1` $\to$ `0xCA10`)
-  - `0x7E`: Manufacturer ID (`0x5449` / ASCII `'TI'`)
-  - `0x7F`: Device ID (`0x3001`)
-- **Protocol**: 16-bit Big-Endian I2C transfers (`i2c_bus_read_word_be()`, `i2c_bus_write_word_be()`)
-- **Timing & Timeouts**: 100ms conversion integration time, 150ms maximum watchdog timeout, 50ms I2C transaction timeout.
-- **Power**: Automatic transition to $0.4\,\mu\text{A}$ shutdown mode following single-shot completion.
+<!-- Add notes here -->
 
 ## History
 
@@ -92,4 +75,6 @@ In Progress
 - 2026-09-14: S4-T1.3 - Implemented Bosch BME280 Single-Precision FPU Compensation Calculations and Master Sampling Workflow (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering 32-bit float (bme280_data_t) and fixed-point (bme280_fixed_data_t) compensation routines, single-precision temperature compensation (t_fine computation), zero-division protected pressure compensation with terrestrial bounding ([300.0, 1100.0] hPa), bounded humidity compensation ([0.0, 100.0] %RH), master raw-to-float and raw-to-fixed compensation (bme280_compensate_raw, bme280_compensate_raw_fixed), end-to-end forced-mode burst sampling workflow (bme280_read_data), and comprehensive ThrowTheSwitch Unity test suite validating Bosch reference vectors, sub-zero temperatures, zero-division guards, clamping boundaries, and integer scaling.
 - 2026-09-14: S4-T1.4 - Implemented Bosch BME280 Humidity Saturation Detection, Condensation Recovery, and Hardware Soft-Reset (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering saturation state machine (bme280_saturation_state_t: NORMAL, HIGH_HUMIDITY_SAT, CONDENSATION_CREEP, SOFT_RECOVERY), diagnostic structure (bme280_saturation_status_t), 0xB6 hardware soft reset via register 0xE0 with 5ms settling delay and NVM calibration reload (bme280_soft_reset), saturation cycle tracking (RH >= 98.0% with 65535 overflow clamp), 1-hour saturation assertion (>= 6 cycles), 3.0% hysteresis de-assertion (RH < 95.0%), daylight condensation creep detection (Lux >= 10k, dT/dt >= +1.5°C/hr), dynamic -1.5% RH de-biasing offset, 24-hour zero-rain automated soft reset recovery (144 cycles), rain gauge reset suppression (rain_tips_24h > 0), and comprehensive ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T1.5 - Implemented and verified Bosch BME280 Driver Unit Test Suite (tests/unit/test_bme280.c) under ThrowTheSwitch Unity covering chip ID validation, 2-phase calibration NVM unpacking, signed bit-split math (dig_H4, dig_H5), all-zero corrupt NVM detection, forced-mode register write sequencing (0xF2 -> 0xF5 -> 0xF4), status polling timeout, atomic 8-byte burst ADC readout, Cortex-M4 single-precision FPU math (Bosch reference vectors, sub-zero temperatures, zero-division guards, physical boundary clamping, centi-unit integer scaling), and humidity saturation tracking (1-hour assertion, 3% hysteresis exit, daylight condensation creep detection with -1.5% offset, 24-hour zero-rain automated soft reset recovery, and active rain suppression). Completed S4-T1 (Bosch BME280 Sensor Driver).
+- 2026-09-14: S4-T2.1 - Implemented TI OPT3001 Ambient Light Sensor Hardware Initialization, 16-bit Big-Endian Register Readout, Device ID Verification (0x5449 / 0x3001), 100ms Auto-Range Single-Shot Trigger (0xCA10), Conversion Ready Flag (CRF) Polling with 150ms Timeout, Raw Exponent/Mantissa Bitfield Separation, and ThrowTheSwitch Unity Unit Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
+
 
