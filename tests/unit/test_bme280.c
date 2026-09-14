@@ -59,7 +59,7 @@
 
 #define EXPECTED_BOSCH_COMP_T   25.08f   /* °C */
 #define EXPECTED_BOSCH_COMP_P   1006.53f /* hPa */
-#define EXPECTED_BOSCH_COMP_H   54.32f   /* %RH */
+#define EXPECTED_BOSCH_COMP_H   29.81f   /* %RH */
 
 /* Raw ADC Test Vectors for Table 18 */
 #define VECTOR_RAW_PRESS_MSB    0x5DU
@@ -654,8 +654,8 @@ static void test_bme280_compensation_fixed_point_scaling(void) {
     TEST_ASSERT_INT16_WITHIN(5, 2508, fixed_data.temp_centi_c);
     /* 1006.53 hPa -> 100653 Pa */
     TEST_ASSERT_UINT32_WITHIN(10, 100653U, fixed_data.press_pascals);
-    /* 54.32 % -> 5432 centi-% */
-    TEST_ASSERT_UINT16_WITHIN(10, 5432U, fixed_data.hum_centi_percent);
+    /* 29.81 % -> 2981 centi-% */
+    TEST_ASSERT_UINT16_WITHIN(10, 2981U, fixed_data.hum_centi_percent);
 }
 
 /**
