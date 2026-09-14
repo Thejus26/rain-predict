@@ -2,14 +2,19 @@
  * @file    rain_gauge_driver.c
  * @brief   Tipping-bucket rain gauge driver implementation for STM32WLE5 SoC.
  * @details Handles EXTI0 GPIO falling-edge interrupts, dual-stage chatter rejection,
- *          and low-power Stop 2 deep sleep wakeup support.
+ *          multi-horizon atomic accumulation registers, and LoRaWAN Byte 8 telemetry.
  */
 
 #include "rain_gauge_driver.h"
 #include "board_config.h"
+#include <string.h>
 
 #if defined(HAVE_STM32WLXX_HAL)
 #include "stm32wlxx_hal.h"
+#else
+static uint32_t s_mock_primask = 0U;
+#define __disable_irq() ((void)(s_mock_primask = 1U))
+#define __enable_irq()  ((void)(s_mock_primask = 0U))
 #endif
 
 /* ========================================================================== */
@@ -22,6 +27,29 @@ static volatile bool     s_rain_active_flag         = false;
 static volatile bool     s_has_first_pulse          = false;
 static bool              s_is_initialized           = false;
 static bool              s_irq_enabled              = false;
+
+/* Multi-Horizon Volatile Accumulators */
+static volatile uint16_t s_interval_tips            = 0U;
+static volatile uint32_t s_daily_tips               = 0U;
+static volatile uint32_t s_total_lifetime_tips      = 0U;
+
+/* Rolling 1-Hour FIFO Ring Buffer (6 x 10m intervals) */
+static uint16_t          s_hourly_fifo[RAIN_GAUGE_HOURLY_FIFO_SIZE] = {0U};
+static uint8_t           s_hourly_fifo_index       = 0U;
+
+/* ========================================================================== */
+/* Private Helper Functions                                                   */
+/* ========================================================================== */
+
+static uint32_t get_rolling_hourly_tips(void) {
+    uint32_t sum = 0U;
+    for (uint8_t i = 0U; i < RAIN_GAUGE_HOURLY_FIFO_SIZE; i++) {
+        sum += s_hourly_fifo[i];
+    }
+    /* Include current pending interval tips */
+    sum += s_interval_tips;
+    return sum;
+}
 
 /* ========================================================================== */
 /* Driver Lifecycle & Configuration                                           */
@@ -53,6 +81,8 @@ status_t rain_gauge_init(void) {
     s_has_first_pulse          = false;
     s_is_initialized           = true;
     s_irq_enabled              = true;
+
+    rain_gauge_reset_all_accumulators();
 
     return STATUS_OK;
 }
@@ -107,6 +137,16 @@ void rain_gauge_exti_isr(uint32_t current_tick_ms) {
         s_last_pulse_timestamp_ms = current_tick_ms;
         s_rain_active_flag         = true;
         s_has_first_pulse          = true;
+
+        if (s_interval_tips < 65535U) {
+            s_interval_tips++;
+        }
+        if (s_daily_tips < 0xFFFFFFFFUL) {
+            s_daily_tips++;
+        }
+        if (s_total_lifetime_tips < 0xFFFFFFFFUL) {
+            s_total_lifetime_tips++;
+        }
         return;
     }
 
@@ -117,10 +157,99 @@ void rain_gauge_exti_isr(uint32_t current_tick_ms) {
         /* Valid physical bucket tip (>= 50ms lockout interval) */
         s_last_pulse_timestamp_ms = current_tick_ms;
         s_rain_active_flag         = true;
+
+        if (s_interval_tips < 65535U) {
+            s_interval_tips++;
+        }
+        if (s_daily_tips < 0xFFFFFFFFUL) {
+            s_daily_tips++;
+        }
+        if (s_total_lifetime_tips < 0xFFFFFFFFUL) {
+            s_total_lifetime_tips++;
+        }
     } else {
         /* Spurious contact bounce / chatter spike (< 50ms) rejected */
         s_rejected_bounce_count++;
     }
+}
+
+/* ========================================================================== */
+/* Accumulation & Telemetry APIs                                              */
+/* ========================================================================== */
+
+uint16_t rain_gauge_read_and_clear_interval(float *p_interval_mm) {
+    uint16_t tips = 0U;
+
+    /* Atomic Read-and-Clear Critical Section (< 6 cycles) */
+    __disable_irq();
+    tips = s_interval_tips;
+    s_interval_tips = 0U;
+    __enable_irq();
+
+    if (p_interval_mm != NULL) {
+        *p_interval_mm = (float)tips * RAIN_GAUGE_CALIB_MM_PER_TIP;
+    }
+
+    return tips;
+}
+
+void rain_gauge_update_hourly_history(uint16_t interval_tips) {
+    s_hourly_fifo[s_hourly_fifo_index] = interval_tips;
+    s_hourly_fifo_index = (uint8_t)((s_hourly_fifo_index + 1U) % RAIN_GAUGE_HOURLY_FIFO_SIZE);
+}
+
+uint8_t rain_gauge_encode_telemetry_byte(uint16_t interval_tips) {
+    if (interval_tips >= RAIN_GAUGE_TELEMETRY_MAX_TIPS) {
+        return (uint8_t)RAIN_GAUGE_TELEMETRY_MAX_TIPS;
+    }
+    return (uint8_t)interval_tips;
+}
+
+status_t rain_gauge_get_accumulation(rain_gauge_data_t *p_data) {
+    if (p_data == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    uint16_t cur_interval = 0U;
+    uint32_t cur_daily    = 0U;
+    uint32_t cur_total    = 0U;
+
+    /* Atomic copy of volatile counters */
+    __disable_irq();
+    cur_interval = s_interval_tips;
+    cur_daily    = s_daily_tips;
+    cur_total    = s_total_lifetime_tips;
+    __enable_irq();
+
+    uint32_t hourly_sum = get_rolling_hourly_tips();
+
+    p_data->interval_tips       = cur_interval;
+    p_data->interval_rain_mm    = (float)cur_interval * RAIN_GAUGE_CALIB_MM_PER_TIP;
+    p_data->hourly_tips         = hourly_sum;
+    p_data->hourly_rain_mm      = (float)hourly_sum * RAIN_GAUGE_CALIB_MM_PER_TIP;
+    p_data->daily_tips          = cur_daily;
+    p_data->daily_rain_mm       = (float)cur_daily * RAIN_GAUGE_CALIB_MM_PER_TIP;
+    p_data->total_lifetime_tips = cur_total;
+    p_data->telemetry_byte8     = rain_gauge_encode_telemetry_byte(cur_interval);
+
+    return STATUS_OK;
+}
+
+void rain_gauge_reset_daily(void) {
+    __disable_irq();
+    s_daily_tips = 0U;
+    __enable_irq();
+}
+
+void rain_gauge_reset_all_accumulators(void) {
+    __disable_irq();
+    s_interval_tips       = 0U;
+    s_daily_tips          = 0U;
+    s_total_lifetime_tips = 0U;
+    __enable_irq();
+
+    (void)memset(s_hourly_fifo, 0, sizeof(s_hourly_fifo));
+    s_hourly_fifo_index = 0U;
 }
 
 /* ========================================================================== */
@@ -141,5 +270,5 @@ uint32_t rain_gauge_get_rejected_bounce_count(void) {
 
 void rain_gauge_reset_diagnostics(void) {
     s_rejected_bounce_count = 0U;
-    s_rain_active_flag         = false;
+    s_rain_active_flag      = false;
 }
