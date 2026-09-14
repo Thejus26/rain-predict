@@ -368,6 +368,185 @@ static void test_opt3001_read_lux_high_level_api(void) {
     TEST_ASSERT_EQUAL_UINT16(26747U, reading.telemetry_raw);
 }
 
+/**
+ * @brief TC-S4-T2.3-01: Day/Night & Cloud Attenuation Threshold Constants.
+ */
+static void test_opt3001_day_night_threshold_constants(void) {
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 10.0f, OPT3001_NIGHT_THRESHOLD_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 15.0f, OPT3001_DAWN_THRESHOLD_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 50.0f, OPT3001_DAYLIGHT_CONFIRM_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 40.0f, OPT3001_DUSK_THRESHOLD_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 5000.0f, OPT3001_ATTENUATION_MIN_HIST_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 3000.0f, OPT3001_ATTENUATION_SEVERE_MAX_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.70f, OPT3001_DROP_RATIO_SEVERE);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.50f, OPT3001_DROP_RATIO_MODERATE);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.30f, OPT3001_DROP_RATIO_MINOR);
+}
+
+/**
+ * @brief TC-S4-T2.3-02 & TC-S4-T2.3-03 & TC-S4-T2.3-04 & TC-S4-T2.3-05:
+ *        Day/Night State Classification with Hysteresis & Daylight Confirmation.
+ */
+static void test_opt3001_classify_day_state_and_hysteresis(void) {
+    /* 1. From DAYLIGHT, drop < 10 Lux (e.g. 8.0 Lux) -> enters NIGHT */
+    opt3001_day_state_t state = opt3001_classify_day_state(8.0f, OPT3001_STATE_DAYLIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_NIGHT, state);
+
+    /* 2. From NIGHT, rise to 12.0 Lux (below 15.0 Lux dawn threshold) -> stays in NIGHT */
+    state = opt3001_classify_day_state(12.0f, OPT3001_STATE_NIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_NIGHT, state);
+
+    /* 3. From NIGHT, rise to 18.0 Lux (>= 15.0 Lux dawn threshold) -> enters TWILIGHT */
+    state = opt3001_classify_day_state(18.0f, OPT3001_STATE_NIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_TWILIGHT, state);
+
+    /* 4. From TWILIGHT, rise to 55.0 Lux (>= 50.0 Lux daylight confirmation) -> enters DAYLIGHT */
+    state = opt3001_classify_day_state(55.0f, OPT3001_STATE_TWILIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_DAYLIGHT, state);
+
+    /* 5. From DAYLIGHT, drop to 45.0 Lux (>= 40.0 Lux dusk threshold) -> stays in DAYLIGHT */
+    state = opt3001_classify_day_state(45.0f, OPT3001_STATE_DAYLIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_DAYLIGHT, state);
+
+    /* 6. From DAYLIGHT, drop to 35.0 Lux (< 40.0 Lux dusk threshold) -> enters TWILIGHT */
+    state = opt3001_classify_day_state(35.0f, OPT3001_STATE_DAYLIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_TWILIGHT, state);
+
+    /* 7. From TWILIGHT, drop to 8.0 Lux (< 10.0 Lux night threshold) -> enters NIGHT */
+    state = opt3001_classify_day_state(8.0f, OPT3001_STATE_TWILIGHT);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_NIGHT, state);
+}
+
+/**
+ * @brief Boolean Daylight Query Function (`opt3001_is_daylight`) with Deadband.
+ */
+static void test_opt3001_is_daylight_query(void) {
+    /* Initially not daylight (night/dawn): needs >= 50 Lux */
+    TEST_ASSERT_FALSE(opt3001_is_daylight(45.0f, false));
+    TEST_ASSERT_TRUE(opt3001_is_daylight(50.0f, false));
+    TEST_ASSERT_TRUE(opt3001_is_daylight(100.0f, false));
+
+    /* Already in daylight: needs < 40 Lux to exit */
+    TEST_ASSERT_TRUE(opt3001_is_daylight(45.0f, true));
+    TEST_ASSERT_TRUE(opt3001_is_daylight(40.0f, true));
+    TEST_ASSERT_FALSE(opt3001_is_daylight(39.9f, true));
+    TEST_ASSERT_FALSE(opt3001_is_daylight(5.0f, true));
+}
+
+/**
+ * @brief TC-S4-T2.3-06: Nighttime / Low Historical Lux Attenuation Suppression.
+ */
+static void test_opt3001_nighttime_attenuation_suppression(void) {
+    float drop_ratio = -1.0f;
+    bool solar_alarm = true;
+
+    /* 1. is_daylight == false: scoring suppressed */
+    uint8_t score = opt3001_evaluate_solar_attenuation(100.0f, 4000.0f, false, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(0U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, drop_ratio);
+    TEST_ASSERT_FALSE(solar_alarm);
+
+    /* 2. is_daylight == true, but history < 5000 Lux: scoring suppressed (early dawn / late dusk) */
+    score = opt3001_evaluate_solar_attenuation(1000.0f, 4500.0f, true, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(0U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, drop_ratio);
+    TEST_ASSERT_FALSE(solar_alarm);
+}
+
+/**
+ * @brief TC-S4-T2.3-07: Severe Storm Attenuation (Score = 100, Alarm = 1).
+ */
+static void test_opt3001_severe_storm_cloud_attenuation(void) {
+    float drop_ratio = 0.0f;
+    bool solar_alarm = false;
+
+    /* History = 30,000 Lux, Current = 2,500 Lux -> Drop = (30000 - 2500)/30000 = 0.9167 (91.7%), Current < 3000 Lux */
+    uint8_t score = opt3001_evaluate_solar_attenuation(2500.0f, 30000.0f, true, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(100U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.9167f, drop_ratio);
+    TEST_ASSERT_TRUE(solar_alarm);
+}
+
+/**
+ * @brief TC-S4-T2.3-08: Moderate Storm Attenuation (Score = 65, Alarm = 1).
+ */
+static void test_opt3001_moderate_storm_cloud_attenuation(void) {
+    float drop_ratio = 0.0f;
+    bool solar_alarm = false;
+
+    /* History = 40,000 Lux, Current = 18,000 Lux -> Drop = (40000 - 18000)/40000 = 0.55 (55%) */
+    uint8_t score = opt3001_evaluate_solar_attenuation(18000.0f, 40000.0f, true, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(65U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.55f, drop_ratio);
+    TEST_ASSERT_TRUE(solar_alarm);
+}
+
+/**
+ * @brief TC-S4-T2.3-09: Minor Storm Attenuation (Score = 30, Alarm = 0).
+ */
+static void test_opt3001_minor_storm_cloud_attenuation(void) {
+    float drop_ratio = 0.0f;
+    bool solar_alarm = true;
+
+    /* History = 30,000 Lux, Current = 19,500 Lux -> Drop = (30000 - 19500)/30000 = 0.35 (35%) */
+    uint8_t score = opt3001_evaluate_solar_attenuation(19500.0f, 30000.0f, true, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(30U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.35f, drop_ratio);
+    TEST_ASSERT_FALSE(solar_alarm);
+}
+
+/**
+ * @brief TC-S4-T2.3-10: Steady / Increasing Sunlight (Score = 0, Alarm = 0).
+ */
+static void test_opt3001_steady_or_increasing_sunlight(void) {
+    float drop_ratio = 1.0f;
+    bool solar_alarm = true;
+
+    /* History = 30,000 Lux, Current = 35,000 Lux -> Increasing sunlight -> Drop = 0.0 */
+    uint8_t score = opt3001_evaluate_solar_attenuation(35000.0f, 30000.0f, true, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(0U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, drop_ratio);
+    TEST_ASSERT_FALSE(solar_alarm);
+
+    /* History = 30,000 Lux, Current = 25,000 Lux -> Drop = 16.7% (< 30%) -> Score = 0 */
+    score = opt3001_evaluate_solar_attenuation(25000.0f, 30000.0f, true, &drop_ratio, &solar_alarm);
+    TEST_ASSERT_EQUAL_UINT8(0U, score);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.1667f, drop_ratio);
+    TEST_ASSERT_FALSE(solar_alarm);
+}
+
+/**
+ * @brief Master Solar Context Evaluator & NULL Pointer Safety (`opt3001_update_solar_context`).
+ */
+static void test_opt3001_update_solar_context(void) {
+    opt3001_solar_context_t ctx = {0};
+
+    /* NULL pointer guard */
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, opt3001_update_solar_context(1000.0f, 5000.0f, NULL));
+
+    /* Initialize in DAYLIGHT */
+    ctx.day_state = OPT3001_STATE_DAYLIGHT;
+
+    /* Simulate severe squall darkening during bright daylight */
+    status_t status = opt3001_update_solar_context(2500.0f, 35000.0f, &ctx);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_DAYLIGHT, ctx.day_state);
+    TEST_ASSERT_TRUE(ctx.is_daylight);
+    TEST_ASSERT_EQUAL_UINT8(100U, ctx.attenuation_score);
+    TEST_ASSERT_EQUAL_INT(OPT3001_ATTENUATION_SEVERE, ctx.attenuation_level);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.9286f, ctx.drop_ratio);
+    TEST_ASSERT_TRUE(ctx.solar_drop_alarm);
+
+    /* Simulate sunset */
+    status = opt3001_update_solar_context(5.0f, 1000.0f, &ctx);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_EQUAL_INT(OPT3001_STATE_NIGHT, ctx.day_state);
+    TEST_ASSERT_FALSE(ctx.is_daylight);
+    TEST_ASSERT_EQUAL_UINT8(0U, ctx.attenuation_score);
+    TEST_ASSERT_EQUAL_INT(OPT3001_ATTENUATION_NONE, ctx.attenuation_level);
+    TEST_ASSERT_FALSE(ctx.solar_drop_alarm);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -391,6 +570,17 @@ int main(void) {
     RUN_TEST(test_opt3001_telemetry_scaling_and_clamping);
     RUN_TEST(test_opt3001_convert_raw);
     RUN_TEST(test_opt3001_read_lux_high_level_api);
+
+    /* S4-T2.3 Tests */
+    RUN_TEST(test_opt3001_day_night_threshold_constants);
+    RUN_TEST(test_opt3001_classify_day_state_and_hysteresis);
+    RUN_TEST(test_opt3001_is_daylight_query);
+    RUN_TEST(test_opt3001_nighttime_attenuation_suppression);
+    RUN_TEST(test_opt3001_severe_storm_cloud_attenuation);
+    RUN_TEST(test_opt3001_moderate_storm_cloud_attenuation);
+    RUN_TEST(test_opt3001_minor_storm_cloud_attenuation);
+    RUN_TEST(test_opt3001_steady_or_increasing_sunlight);
+    RUN_TEST(test_opt3001_update_solar_context);
 
     return UNITY_END();
 }
