@@ -261,6 +261,12 @@ status_t i2c_bus_test_set_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr, uin
  */
 uint16_t i2c_bus_test_get_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr);
 
+/**
+ * @brief Enables or disables simulated auto-assert of CRF flag for OPT3001 single-shot conversion writes.
+ * @param[in] enable true to enable simulated conversion completion.
+ */
+void i2c_bus_test_set_opt3001_auto_crf(bool enable);
+
 #endif /* !HAVE_STM32WLXX_HAL */
 
 #ifdef __cplusplus
