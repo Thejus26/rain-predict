@@ -1,0 +1,157 @@
+/**
+ * @file    opt3001_driver.h
+ * @brief   Texas Instruments OPT3001 Ambient Light Sensor driver header for STM32WLE5.
+ * @details Handles I2C communication, single-shot acquisition, and raw register parsing.
+ *          Adheres to C99 standards, MISRA-C guidelines, and zero-dynamic-memory allocation.
+ */
+
+#ifndef OPT3001_DRIVER_H
+#define OPT3001_DRIVER_H
+
+#include <stdbool.h>
+#include <stdint.h>
+#include "status.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* ========================================================================== */
+/* Hardware & Register Definitions                                            */
+/* ========================================================================== */
+
+#define OPT3001_I2C_ADDR_DEFAULT            0x44U   /**< Default I2C 7-bit address (ADDR=GND) */
+
+#define OPT3001_REG_RESULT                  0x00U   /**< Measurement result register */
+#define OPT3001_REG_CONFIG                  0x01U   /**< Configuration register */
+#define OPT3001_REG_LOW_LIMIT               0x02U   /**< Low limit register */
+#define OPT3001_REG_HIGH_LIMIT              0x03U   /**< High limit register */
+#define OPT3001_REG_MANUFACTURER_ID         0x7EU   /**< Manufacturer ID register */
+#define OPT3001_REG_DEVICE_ID               0x7FU   /**< Device ID register */
+
+#define OPT3001_EXPECTED_MFG_ID             0x5449U /**< ASCII 'TI' */
+#define OPT3001_EXPECTED_DEV_ID             0x3001U /**< TI OPT3001 identifier */
+
+/* Configuration Register Bitmasks */
+#define OPT3001_CONFIG_RN_AUTO              (0x0CU << 12)   /**< Auto-range number (RN = 0b1100) */
+#define OPT3001_CONFIG_CT_100MS             (0x00U << 11)   /**< Conversion time 100 ms */
+#define OPT3001_CONFIG_CT_800MS             (0x01U << 11)   /**< Conversion time 800 ms */
+#define OPT3001_CONFIG_MODE_SHUTDOWN        (0x00U << 9)    /**< Shutdown mode */
+#define OPT3001_CONFIG_MODE_SINGLE_SHOT     (0x01U << 9)    /**< Single-shot conversion trigger */
+#define OPT3001_CONFIG_MODE_CONTINUOUS      (0x02U << 9)    /**< Continuous conversion mode */
+#define OPT3001_CONFIG_OVF_BIT              (1U << 8)       /**< Overflow status bit */
+#define OPT3001_CONFIG_CRF_BIT              (1U << 7)       /**< Conversion Ready Flag bit */
+#define OPT3001_CONFIG_FH_BIT               (1U << 6)       /**< Flag High comparison bit */
+#define OPT3001_CONFIG_FL_BIT               (1U << 5)       /**< Flag Low comparison bit */
+#define OPT3001_CONFIG_LATCH_BIT            (1U << 4)       /**< Latch comparison window bit */
+#define OPT3001_CONFIG_POL_BIT              (1U << 3)       /**< Interrupt Polarity (0=Active Low) */
+#define OPT3001_CONFIG_ME_BIT               (1U << 2)       /**< Mask Exponent bit */
+#define OPT3001_CONFIG_FC_1                 (0x00U << 0)    /**< Fault count 1 */
+
+/** @brief Default single-shot configuration trigger word (Auto-range, 100ms, Single-shot, Latch) */
+#define OPT3001_CONFIG_SINGLE_SHOT_CMD      (OPT3001_CONFIG_RN_AUTO | \
+                                             OPT3001_CONFIG_CT_100MS | \
+                                             OPT3001_CONFIG_MODE_SINGLE_SHOT | \
+                                             OPT3001_CONFIG_LATCH_BIT)
+
+#define OPT3001_CONVERSION_TIMEOUT_MS       150U    /**< Maximum conversion wait timeout */
+#define OPT3001_I2C_TIMEOUT_MS              50U     /**< Maximum I2C bus transaction timeout */
+
+/* ========================================================================== */
+/* Data Types                                                                 */
+/* ========================================================================== */
+
+/**
+ * @brief OPT3001 I2C Slave 7-bit addresses.
+ */
+typedef enum {
+    OPT3001_I2C_ADDR_GND = 0x44U,   /**< ADDR pin connected to GND (Default) */
+    OPT3001_I2C_ADDR_VDD = 0x45U,   /**< ADDR pin connected to VDD */
+    OPT3001_I2C_ADDR_SDA = 0x46U,   /**< ADDR pin connected to SDA */
+    OPT3001_I2C_ADDR_SCL = 0x47U    /**< ADDR pin connected to SCL */
+} opt3001_i2c_addr_t;
+
+/**
+ * @brief OPT3001 raw 16-bit register contents and unpacked fields.
+ */
+typedef struct {
+    uint16_t raw_result;    /**< Full 16-bit register 0x00 contents */
+    uint8_t  exponent;      /**< 4-bit exponent field E[3:0] (0 to 11) */
+    uint16_t mantissa;      /**< 12-bit mantissa field R[11:0] (0 to 4095) */
+} opt3001_raw_data_t;
+
+/**
+ * @brief OPT3001 device state handle.
+ */
+typedef struct {
+    uint8_t             i2c_address;        /**< I2C 7-bit slave address */
+    uint16_t            manufacturer_id;    /**< Detected Manufacturer ID (0x5449) */
+    uint16_t            device_id;          /**< Detected Device ID (0x3001) */
+    bool                is_initialized;     /**< True if initialized and verified */
+} opt3001_dev_t;
+
+/* ========================================================================== */
+/* Function Prototypes                                                        */
+/* ========================================================================== */
+
+/**
+ * @brief  Initializes OPT3001 device handle and validates Manufacturer & Device IDs.
+ * @param  dev Pointer to OPT3001 device structure.
+ * @param  i2c_addr 7-bit I2C slave address (e.g. OPT3001_I2C_ADDR_DEFAULT).
+ * @return STATUS_OK on success, STATUS_ERR_HARDWARE on ID mismatch, or bus error.
+ */
+status_t opt3001_init(opt3001_dev_t *dev, uint8_t i2c_addr);
+
+/**
+ * @brief  Reads 16-bit Manufacturer and Device identification registers.
+ * @param  dev Pointer to OPT3001 device structure.
+ * @param[out] p_mfg_id Pointer to store Manufacturer ID.
+ * @param[out] p_dev_id Pointer to store Device ID.
+ * @return STATUS_OK on success, or bus error status code.
+ */
+status_t opt3001_read_device_id(opt3001_dev_t *dev, uint16_t *p_mfg_id, uint16_t *p_dev_id);
+
+/**
+ * @brief  Arms and triggers a 100ms auto-range single-shot measurement.
+ * @param  dev Pointer to OPT3001 device structure.
+ * @return STATUS_OK on success, or bus error status code.
+ */
+status_t opt3001_trigger_single_shot(opt3001_dev_t *dev);
+
+/**
+ * @brief  Polls the Configuration Register to check if conversion is complete (CRF == 1).
+ * @param  dev Pointer to OPT3001 device structure.
+ * @param[out] p_is_ready Pointer set to true if conversion is ready.
+ * @return STATUS_OK on success, or bus error status code.
+ */
+status_t opt3001_is_conversion_ready(opt3001_dev_t *dev, bool *p_is_ready);
+
+/**
+ * @brief  Blocks with polling until conversion completes or timeout expires.
+ * @param  dev Pointer to OPT3001 device structure.
+ * @param  timeout_ms Maximum timeout in milliseconds (e.g. 150 ms).
+ * @return STATUS_OK if complete, STATUS_ERR_TIMEOUT if elapsed.
+ */
+status_t opt3001_wait_for_completion(opt3001_dev_t *dev, uint32_t timeout_ms);
+
+/**
+ * @brief  Reads the 16-bit Result Register (0x00) and unpacks Exponent and Mantissa.
+ * @param  dev Pointer to OPT3001 device structure.
+ * @param[out] p_raw Pointer to store unpacked raw result.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t opt3001_read_raw_result(opt3001_dev_t *dev, opt3001_raw_data_t *p_raw);
+
+/**
+ * @brief  Master wrapper: triggers single-shot conversion, waits, and reads raw result.
+ * @param  dev Pointer to OPT3001 device structure.
+ * @param[out] p_raw Pointer to store unpacked raw result.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t opt3001_sample_forced_raw(opt3001_dev_t *dev, opt3001_raw_data_t *p_raw);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* OPT3001_DRIVER_H */
