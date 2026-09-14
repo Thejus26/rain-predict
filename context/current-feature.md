@@ -1,16 +1,41 @@
-# Current Feature
+# Current Feature: S4-T2.3 - TI OPT3001 Day/Night Classification & Solar Cloud Attenuation Scoring
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Implement hysteresis-gated ambient day/night state machine (`opt3001_classify_day_state`): `NIGHT` ($< 10\text{ Lux}$), `TWILIGHT` ($10\text{ to }50\text{ Lux}$), `DAYLIGHT` ($\ge 50\text{ Lux}$) with $5.0\text{ Lux}$ deadband ($10\text{ to }15\text{ Lux}$).
+- Implement confirmed daylight status query function (`opt3001_is_daylight`) with rising $\ge 50\text{ Lux}$ and falling $< 40\text{ Lux}$ hysteresis.
+- Implement multi-tier daylight convective storm cloud attenuation scoring (`opt3001_evaluate_solar_attenuation`):
+  - Severe Attenuation (Score = 100): Drop ratio $\ge 70\%$ and $\text{Lux}_{\text{current}} < 3000\text{ Lux}$.
+  - Moderate Attenuation (Score = 65): Drop ratio $\ge 50\%$.
+  - Minor Attenuation (Score = 30): Drop ratio $\ge 30\%$.
+  - No Attenuation (Score = 0): Steady, diffuse, or increasing sunlight.
+- Implement solar cloud drop alarm flag (`solar_drop_alarm = true` when drop ratio $\ge 50\%$) for LoRaWAN Byte 10 Bit 7.
+- Implement daytime interlock and historical $5,000\text{ Lux}$ threshold guard to suppress false alarms at sunset/dusk.
+- Implement master solar context evaluator `opt3001_update_solar_context()` populating `opt3001_solar_context_t`.
+- Update ThrowTheSwitch Unity test suite (`tests/unit/test_opt3001.c`) covering test cases TC-S4-T2.3-01 through TC-S4-T2.3-10.
 
 ## Notes
 
-<!-- Add notes here -->
+- Hardware constraints: STM32WLE5CCU6 (Cortex-M4 @ 48 MHz).
+- Thresholds:
+  - `OPT3001_NIGHT_THRESHOLD_LUX` = $10.0\text{f}$
+  - `OPT3001_DAWN_THRESHOLD_LUX` = $15.0\text{f}$
+  - `OPT3001_DAYLIGHT_CONFIRM_LUX` = $50.0\text{f}$
+  - `OPT3001_DUSK_THRESHOLD_LUX` = $40.0\text{f}$
+  - `OPT3001_ATTENUATION_MIN_HIST_LUX` = $5000.0\text{f}$
+  - `OPT3001_ATTENUATION_SEVERE_MAX_LUX` = $3000.0\text{f}$
+  - `OPT3001_DROP_RATIO_SEVERE` = $0.70\text{f}$
+  - `OPT3001_DROP_RATIO_MODERATE` = $0.50\text{f}$
+  - `OPT3001_DROP_RATIO_MINOR` = $0.30\text{f}$
+- Target Files:
+  - [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h)
+  - [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c)
+  - [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c)
+- Defensive programming: Zero dynamic allocation, zero-division suppression on drop ratio, bounds clamping on drop ratio in $[0.0, 1.0]$, NULL pointer checking.
 
 ## History
 

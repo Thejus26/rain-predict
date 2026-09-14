@@ -274,3 +274,123 @@ status_t opt3001_read_lux(opt3001_dev_t *dev, opt3001_reading_t *p_out) {
 
     return opt3001_convert_raw(&raw, p_out);
 }
+
+opt3001_day_state_t opt3001_classify_day_state(float current_lux, opt3001_day_state_t prev_state) {
+    switch (prev_state) {
+        case OPT3001_STATE_NIGHT:
+            if (current_lux >= OPT3001_DAYLIGHT_CONFIRM_LUX) {
+                return OPT3001_STATE_DAYLIGHT;
+            } else if (current_lux >= OPT3001_DAWN_THRESHOLD_LUX) {
+                return OPT3001_STATE_TWILIGHT;
+            }
+            return OPT3001_STATE_NIGHT;
+
+        case OPT3001_STATE_TWILIGHT:
+            if (current_lux >= OPT3001_DAYLIGHT_CONFIRM_LUX) {
+                return OPT3001_STATE_DAYLIGHT;
+            } else if (current_lux < OPT3001_NIGHT_THRESHOLD_LUX) {
+                return OPT3001_STATE_NIGHT;
+            }
+            return OPT3001_STATE_TWILIGHT;
+
+        case OPT3001_STATE_DAYLIGHT:
+            if (current_lux < OPT3001_NIGHT_THRESHOLD_LUX) {
+                return OPT3001_STATE_NIGHT;
+            } else if (current_lux < OPT3001_DUSK_THRESHOLD_LUX) {
+                return OPT3001_STATE_TWILIGHT;
+            }
+            return OPT3001_STATE_DAYLIGHT;
+
+        default:
+            return (current_lux >= OPT3001_DAYLIGHT_CONFIRM_LUX) ? OPT3001_STATE_DAYLIGHT : OPT3001_STATE_NIGHT;
+    }
+}
+
+bool opt3001_is_daylight(float current_lux, bool prev_is_daylight) {
+    if (prev_is_daylight) {
+        /* Exit daylight only if drops below dusk threshold (40 Lux) */
+        return (current_lux >= OPT3001_DUSK_THRESHOLD_LUX);
+    } else {
+        /* Enter daylight only if exceeds confirmation threshold (50 Lux) */
+        return (current_lux >= OPT3001_DAYLIGHT_CONFIRM_LUX);
+    }
+}
+
+uint8_t opt3001_evaluate_solar_attenuation(float current_lux,
+                                           float history_30m_lux,
+                                           bool is_daylight,
+                                           float *p_drop_ratio,
+                                           bool *p_solar_alarm) {
+    float drop_ratio = 0.0f;
+    bool solar_alarm = false;
+    uint8_t score = 0;
+
+    if (!is_daylight || history_30m_lux < OPT3001_ATTENUATION_MIN_HIST_LUX) {
+        if (p_drop_ratio != NULL) {
+            *p_drop_ratio = 0.0f;
+        }
+        if (p_solar_alarm != NULL) {
+            *p_solar_alarm = false;
+        }
+        return 0; /* Night or dawn/dusk: suppress scoring */
+    }
+
+    /* Calculate fractional drop over past 30 minutes */
+    if (history_30m_lux > current_lux) {
+        drop_ratio = (history_30m_lux - current_lux) / history_30m_lux;
+    } else {
+        drop_ratio = 0.0f; /* Sunlight steady or increasing */
+    }
+
+    if (drop_ratio >= OPT3001_DROP_RATIO_SEVERE && current_lux < OPT3001_ATTENUATION_SEVERE_MAX_LUX) {
+        score = 100; /* Severe darkening (>70% drop to <3000 lux) */
+        solar_alarm = true;
+    } else if (drop_ratio >= OPT3001_DROP_RATIO_MODERATE) {
+        score = 65;  /* Moderate darkening (>= 50% drop) */
+        solar_alarm = true;
+    } else if (drop_ratio >= OPT3001_DROP_RATIO_MINOR) {
+        score = 30;  /* Minor darkening (>= 30% drop) */
+        solar_alarm = false;
+    } else {
+        score = 0;
+        solar_alarm = false;
+    }
+
+    if (p_drop_ratio != NULL) {
+        *p_drop_ratio = drop_ratio;
+    }
+    if (p_solar_alarm != NULL) {
+        *p_solar_alarm = solar_alarm;
+    }
+
+    return score;
+}
+
+status_t opt3001_update_solar_context(float current_lux, float history_30m_lux, opt3001_solar_context_t *p_ctx) {
+    if (p_ctx == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    p_ctx->day_state = opt3001_classify_day_state(current_lux, p_ctx->day_state);
+    p_ctx->is_daylight = (p_ctx->day_state == OPT3001_STATE_DAYLIGHT);
+
+    p_ctx->attenuation_score = opt3001_evaluate_solar_attenuation(
+        current_lux,
+        history_30m_lux,
+        p_ctx->is_daylight,
+        &p_ctx->drop_ratio,
+        &p_ctx->solar_drop_alarm
+    );
+
+    if (p_ctx->attenuation_score >= 100) {
+        p_ctx->attenuation_level = OPT3001_ATTENUATION_SEVERE;
+    } else if (p_ctx->attenuation_score >= 65) {
+        p_ctx->attenuation_level = OPT3001_ATTENUATION_MODERATE;
+    } else if (p_ctx->attenuation_score >= 30) {
+        p_ctx->attenuation_level = OPT3001_ATTENUATION_MINOR;
+    } else {
+        p_ctx->attenuation_level = OPT3001_ATTENUATION_NONE;
+    }
+
+    return STATUS_OK;
+}

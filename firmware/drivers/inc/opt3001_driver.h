@@ -69,6 +69,19 @@ extern "C" {
 #define OPT3001_TELEMETRY_LUX_SCALE         2.0f        /**< LoRaWAN payload scale: 2.0 Lux/LSB */
 #define OPT3001_TELEMETRY_MAX_RAW           41500U      /**< Max value for 83,000 Lux */
 
+/* Day/Night & Cloud Attenuation Thresholds */
+#define OPT3001_NIGHT_THRESHOLD_LUX         10.0f       /**< Lux below which night is asserted */
+#define OPT3001_DAWN_THRESHOLD_LUX          15.0f       /**< Lux required to exit night state */
+#define OPT3001_DAYLIGHT_CONFIRM_LUX        50.0f       /**< Lux required to confirm daylight */
+#define OPT3001_DUSK_THRESHOLD_LUX          40.0f       /**< Lux below which daylight is lost */
+
+#define OPT3001_ATTENUATION_MIN_HIST_LUX    5000.0f     /**< Minimum 30m average lux to score drop */
+#define OPT3001_ATTENUATION_SEVERE_MAX_LUX  3000.0f     /**< Max current lux for severe storm score */
+
+#define OPT3001_DROP_RATIO_SEVERE           0.70f       /**< 70% drop threshold */
+#define OPT3001_DROP_RATIO_MODERATE         0.50f       /**< 50% drop threshold */
+#define OPT3001_DROP_RATIO_MINOR            0.30f       /**< 30% drop threshold */
+
 /* ========================================================================== */
 /* Data Types                                                                 */
 /* ========================================================================== */
@@ -82,6 +95,37 @@ typedef enum {
     OPT3001_I2C_ADDR_SDA = 0x46U,   /**< ADDR pin connected to SDA */
     OPT3001_I2C_ADDR_SCL = 0x47U    /**< ADDR pin connected to SCL */
 } opt3001_i2c_addr_t;
+
+/**
+ * @brief Categorized ambient daylight operational states.
+ */
+typedef enum {
+    OPT3001_STATE_NIGHT     = 0,    /**< Lux < 10.0 Lux: Nocturnal darkness */
+    OPT3001_STATE_TWILIGHT  = 1,    /**< 10.0 <= Lux < 50.0 Lux: Dawn / Dusk */
+    OPT3001_STATE_DAYLIGHT  = 2     /**< Lux >= 50.0 Lux: Active daylight */
+} opt3001_day_state_t;
+
+/**
+ * @brief Categorized daylight storm cloud attenuation levels.
+ */
+typedef enum {
+    OPT3001_ATTENUATION_NONE     = 0,   /**< Score 0: Clear / steady sky */
+    OPT3001_ATTENUATION_MINOR    = 1,   /**< Score 30: 30% - 49% drop */
+    OPT3001_ATTENUATION_MODERATE = 2,   /**< Score 65: 50% - 69% drop (Alarm Flag = 1) */
+    OPT3001_ATTENUATION_SEVERE   = 3    /**< Score 100: >= 70% drop to < 3000 Lux (Alarm Flag = 1) */
+} opt3001_attenuation_level_t;
+
+/**
+ * @brief Consolidated solar environment context structure.
+ */
+typedef struct {
+    opt3001_day_state_t         day_state;          /**< Current day/night classification */
+    bool                        is_daylight;        /**< True if state is OPT3001_STATE_DAYLIGHT */
+    opt3001_attenuation_level_t attenuation_level;  /**< Categorized cloud attenuation severity */
+    uint8_t                     attenuation_score;  /**< Attenuation score (0 to 100) */
+    float                       drop_ratio;         /**< Fractional drop ratio (0.0 to 1.0) */
+    bool                        solar_drop_alarm;   /**< True if drop ratio >= 50% (Byte 10 Bit 7) */
+} opt3001_solar_context_t;
 
 /**
  * @brief OPT3001 raw 16-bit register contents and unpacked fields.
@@ -216,6 +260,46 @@ status_t opt3001_convert_raw(const opt3001_raw_data_t *p_raw, opt3001_reading_t 
  * @return STATUS_OK on success, or error status code.
  */
 status_t opt3001_read_lux(opt3001_dev_t *dev, opt3001_reading_t *p_out);
+
+/**
+ * @brief  Classifies ambient daylight state using hysteresis band.
+ * @param  current_lux Ambient illuminance in Lux.
+ * @param  prev_state Previous state from last sample cycle.
+ * @return OPT3001_STATE_NIGHT, _TWILIGHT, or _DAYLIGHT.
+ */
+opt3001_day_state_t opt3001_classify_day_state(float current_lux, opt3001_day_state_t prev_state);
+
+/**
+ * @brief  Returns true if ambient illuminance represents confirmed daylight.
+ * @param  current_lux Ambient illuminance in Lux.
+ * @param  prev_is_daylight Previous daylight flag.
+ * @return True if in daylight state.
+ */
+bool opt3001_is_daylight(float current_lux, bool prev_is_daylight);
+
+/**
+ * @brief  Evaluates 30-minute cloud drop ratio and returns storm attenuation score.
+ * @param  current_lux Current optical reading in Lux.
+ * @param  history_30m_lux Historical 30-minute moving average in Lux.
+ * @param  is_daylight True if daytime.
+ * @param[out] p_drop_ratio Pointer to store computed fractional drop (0.0 to 1.0).
+ * @param[out] p_solar_alarm Pointer to store solar alarm flag (true if drop >= 50%).
+ * @return Attenuation score (0, 30, 65, or 100).
+ */
+uint8_t opt3001_evaluate_solar_attenuation(float current_lux,
+                                           float history_30m_lux,
+                                           bool is_daylight,
+                                           float *p_drop_ratio,
+                                           bool *p_solar_alarm);
+
+/**
+ * @brief  Updates complete solar context structure for nowcasting engine.
+ * @param  current_lux Current optical reading in Lux.
+ * @param  history_30m_lux Historical 30-minute moving average in Lux.
+ * @param[in,out] p_ctx Pointer to solar context structure to update.
+ * @return STATUS_OK on success, or STATUS_ERR_NULL_PTR.
+ */
+status_t opt3001_update_solar_context(float current_lux, float history_30m_lux, opt3001_solar_context_t *p_ctx);
 
 #ifdef __cplusplus
 }
