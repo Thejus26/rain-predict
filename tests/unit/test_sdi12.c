@@ -127,7 +127,12 @@ static void test_sdi12_wake_and_transmit_valid(void) {
 
 static void test_sdi12_wake_and_transmit_null_and_invalid(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER, sdi12_wake_and_transmit(NULL));
+    TEST_ASSERT_EQUAL_INT(0, gpio_read_pin(GPIO_PORT_C, 2));
+    TEST_ASSERT_EQUAL_INT(SDI12_DIR_RX, sdi12_test_get_direction());
+
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM, sdi12_wake_and_transmit("0D0"));
+    TEST_ASSERT_EQUAL_INT(0, gpio_read_pin(GPIO_PORT_C, 2));
+    TEST_ASSERT_EQUAL_INT(SDI12_DIR_RX, sdi12_test_get_direction());
 }
 
 static void test_sdi12_receive_response_valid(void) {
