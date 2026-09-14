@@ -1,16 +1,30 @@
-# Current Feature
+# Current Feature: S4-T5.2 - SDI-12 Command Formatter & Multi-Parameter ASCII Response Parser
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Implement `sdi12_format_command(addr, cmd_type, p_out_buf, max_len)` to construct standard SDI-12 commands (`?!`, `a!`, `aI!`, `aM!`, `aC!`, `aD0!`, `aAb!`) with alphanumeric/`?` address validation, buffer overflow protection, and trailing `'!'` delimiter enforcement.
+- Implement `sdi12_parse_measurement_info(p_resp, expected_addr, p_wait_sec, p_val_count)` to parse `atttn\r\n` responses from `aM!` / `aC!` commands, extracting preparation duration `ttt` (0-999 s) and value count `n` (1-9).
+- Implement deterministic floating-point token parser `sdi12_parse_data_response(p_resp, expected_addr, p_values_out, max_values, p_actual_count)` extracting variable-length signed floats (including negative and scientific notation `e`/`E`) from `a+values\r\n` without dynamic memory allocation.
+- Implement `sdi12_parse_identification(p_resp, expected_addr, p_info)` to decode probe identification (`aI!`) into structured `sdi12_sensor_info_t` fields (SDI version, vendor ID, model number, firmware version, serial number).
+- Implement `sdi12_query_soil_probe(addr, p_reading, timeout_ms)` to orchestrate complete 2-stage measurement cycles (`aM!` -> wait delay -> `aD0!`), mapping raw tokens to `sdi12_soil_reading_t` (VWC, temperature, EC) with agronomic range clamping.
+- Implement `sdi12_query_address(p_found_addr, timeout_ms)` to discover the address of a single connected probe via `?!`.
+- Ensure zero heap allocation (100% static computation) and strict buffer bounds checking.
+- Verify implementation against 10-point test matrix (`TC-SDI2-01` to `TC-SDI2-10`).
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Protocol Specification**: SDI-12 Version 1.4 ASCII protocol running at 1200 baud, 7 data bits, Even parity, 1 stop bit (7-E-1).
+- **Physical Layer Integration**: Relies on S4-T5.1 low-level driver functions (`sdi12_wake_and_transmit()`, `sdi12_transmit_command()`, `sdi12_receive_response()`).
+- **Response String Syntax**: Leading sensor address character (`'0'`-`'9'`, `'a'`-`'z'`, `'A'`-`'Z'`), signed tokens starting with `'+'` or `'-'`, optional scientific notation (e.g. `+1.23E-01`), terminated by `\r\n`.
+- **Agronomic Clamping**: Soil Volumetric Water Content (VWC) bounded to $[0.0, 1.0]\text{ m}^3/\text{m}^3$; Bulk Electrical Conductivity (EC) bounded to $\ge 0.0\text{ dS/m}$.
+- **Target Files**:
+  - `firmware/drivers/inc/sdi12_driver.h`
+  - `firmware/drivers/src/sdi12_driver.c`
+- **Downstream Tasks**: S4-T5.3 (SDI-12 Unit Test Suite), S6-T3 (Application State Machine Sensor Sampling).
 
 ## History
 
