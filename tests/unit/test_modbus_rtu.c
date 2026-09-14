@@ -297,14 +297,23 @@ static void test_modbus_parse_resp_byte_count_mismatches(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_FRAME,
                           modbus_parse_read_holding_registers_resp(1U, 3U, resp_wrong_bc, sizeof(resp_wrong_bc), reg_data, &ex));
 
-    /* Case B: Byte count is 6, but total buffer length is only 10 (truncated frame) */
-    memcpy(resp, "\x01\x03\x06\x09\x94\x22\x92\x27\x94", 9);
-    crc = modbus_crc16(resp, 9U);
-    resp[9] = (uint8_t)(crc & 0xFFU);
-    resp[10] = (uint8_t)((crc >> 8) & 0xFFU);
+    /* Case B: Byte count is 6 (expects 11 bytes total), but frame is 10 bytes with valid 8-byte CRC */
+    uint8_t resp_short[10] = {0x01U, 0x03U, 0x06U, 0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x00U, 0x00U};
+    crc = modbus_crc16(resp_short, 8U);
+    resp_short[8] = (uint8_t)(crc & 0xFFU);
+    resp_short[9] = (uint8_t)((crc >> 8) & 0xFFU);
 
     TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_FRAME,
-                          modbus_parse_read_holding_registers_resp(1U, 3U, resp, 10U, reg_data, &ex));
+                          modbus_parse_read_holding_registers_resp(1U, 3U, resp_short, sizeof(resp_short), reg_data, &ex));
+
+    /* Case C: Byte count is 6 (expects 11 bytes total), but frame is 12 bytes with valid 10-byte CRC */
+    uint8_t resp_long[12] = {0x01U, 0x03U, 0x06U, 0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x94U, 0xAAU, 0x00U, 0x00U};
+    crc = modbus_crc16(resp_long, 10U);
+    resp_long[10] = (uint8_t)(crc & 0xFFU);
+    resp_long[11] = (uint8_t)((crc >> 8) & 0xFFU);
+
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_FRAME,
+                          modbus_parse_read_holding_registers_resp(1U, 3U, resp_long, sizeof(resp_long), reg_data, &ex));
 }
 
 /**

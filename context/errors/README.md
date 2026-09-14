@@ -36,6 +36,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-026`** | 2026-09-14 10:09:00 | [`82bc551`](https://github.com/Thejus26/rain-predict/commit/82bc55173ec00d8806d6acec27bbaac17b50bbcc) | Testing & Driver Simulation (OPT3001) | **OPT3001 Config Word Discrepancy & Mock CRF Timeout**: Single-shot config test expected 0xCA10 vs 0xC210, and mock write cleared CRF causing timeout. | [ERR-026 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-026-2026-09-14-opt3001-config-word-discrepancy-and-mock-crf-timeout.md) |
 | **`ERR-027`** | 2026-09-14 10:16:00 | [`e92b8d0`](https://github.com/Thejus26/rain-predict/commit/e92b8d0c2d7b126edc107fefb67bea65dd5a6dcc) | Testing & Driver Simulation (I2C Bus) | **Mock I2C Over-Aggressive CRF Bit Mutation in test_i2c_bus**: Bus simulation mutated test word 0x1234 to 0x12B4. | [ERR-027 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-027-2026-09-14-mock-i2c-crf-mutation-in-test-i2c-bus.md) |
 | **`ERR-028`** | 2026-09-14 11:48:21 | [`080e1e0`](https://github.com/Thejus26/rain-predict/commit/080e1e0e4687c3039a2a841c6675df5c2c5ef89a) | Drivers & Metrics (Rain Gauge) | **Rain Gauge Peak Rate State Mutation on Read Queries**: Getters mutated peak rate state upon query, causing peak retention failures after reset. | [ERR-028 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-028-2026-09-14-rain-gauge-peak-rate-mutation-on-read.md) |
+| **`ERR-029`** | 2026-09-14 13:43:00 | [`246541c`](https://github.com/Thejus26/rain-predict/commit/246541c8c8fa73f26da077a5cce6e1073542e563) | Testing & Driver Validation (Modbus RTU) | **Modbus Response Byte Count Test Truncated Buffer CRC Status Discrepancy**: Truncated buffer length failed CRC verification before frame length check. | [ERR-029 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-029-2026-09-14-modbus-response-byte-count-test-crc-mismatch.md) |
 
 ---
 
@@ -43,7 +44,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Testing Macros & Mock Architectural Collisions" : 11
+    "Testing Macros & Mock Architectural Collisions" : 12
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 8
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
