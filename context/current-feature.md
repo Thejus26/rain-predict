@@ -1,35 +1,16 @@
-# Current Feature: S4-T1.1 - Bosch BME280 Factory Trimming Parameter Readout & Calibration Unpacking
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) adhering to C99 standards, Doxygen documentation, and zero dynamic memory allocation.
-- Implement hardware identity verification `bme280_read_chip_id()`: Query register `0xD0`, verify chip ID matches `0x60` (`BME280_CHIP_ID`), rejecting mismatches (e.g., `0x58` for BMP280, `0x00`, `0xFF`) with `STATUS_ERROR_HARDWARE`.
-- Implement two-phase I2C burst acquisition in `bme280_read_calibration()`:
-  - Phase 1: Read 26 bytes from `0x88` to `0xA1` (`dig_T1..T3`, `dig_P1..P9`, `dig_H1`).
-  - Phase 2: Read 7 bytes from `0xE1` to `0xE7` (`dig_H2..H6`).
-- Implement little-endian unpacking for temperature (`dig_T1..T3`) and pressure (`dig_P1..P9`) trimming parameters.
-- Implement complex bit-split unpacking for 12-bit signed humidity trimming parameters `dig_H4` and `dig_H5` with correct signed sign-extension:
-  - $\text{dig\_H4} = (\text{int16\_t})\left( ((\text{int8\_t})\text{block2}[3] \ll 4) \mid (\text{block2}[4] \ \&\ \text{0x0F}) \right)$
-  - $\text{dig\_H5} = (\text{int16\_t})\left( ((\text{int8\_t})\text{block2}[5] \ll 4) \mid ((\text{block2}[4] \gg 4) \ \&\ \text{0x0F}) \right)$
-- Implement defensive validation `bme280_validate_calibration()` detecting uninitialized/corrupt non-volatile memory (all-zero `0x0000` or all-ones `0xFFFF` for `dig_T1`, `dig_P1`, `dig_H1`, `dig_H3`).
-- Implement device initialization `bme280_init()` and accessor `bme280_get_calibration()`.
-- Implement unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering chip ID verification, burst read counts, test vector unpacking accuracy, bit-split signed math, corrupt calibration detection, and I2C timeout handling.
-- Ensure 100% test pass rate under `-Wall -Wextra -Wpedantic -Werror` in CMake/CTest build.
+<!-- Add goals here -->
 
 ## Notes
 
-- **Primary I2C address**: `0x76` (`BME280_I2C_ADDR_PRIMARY`, SDO tied to GND); Secondary: `0x77` (`BME280_I2C_ADDR_SECONDARY`, SDO tied to VDD).
-- **Chip ID**: Register `0xD0`, expected value `0x60`.
-- **I2C Timeout**: `50ms` bounded timeout for all transactions (`BME280_I2C_TIMEOUT_MS`).
-- **NVM Calibration Registers**:
-  - Phase 1 Block: `0x88` to `0xA1` (26 bytes)
-  - Phase 2 Block: `0xE1` to `0xE7` (7 bytes)
-- **Memory constraints**: Zero dynamic memory allocation (`malloc`/`free`), all stack buffers strictly bounded (`block1[26]`, `block2[7]`).
-- **Power constraints**: Switched sensor rail `VSENS_SW` (PA4) powered with $\ge 20\text{ms}$ RC stabilization delay prior to I2C transactions.
+<!-- Add notes here -->
 
 ## History
 
@@ -89,3 +70,5 @@ In Progress
 - 2026-09-13: S3-T4.2 - Implemented Stop 2 low-power deep sleep manager and RTC periodic wakeup timer (firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_power_mgr.c) covering STM32WLE5 Stop 2 mode transition (< 3.0 µA current draw), full SRAM1 and SRAM2 retention, Flash deep power-down (PWR_FLASHPD_STOP), hardware RTC periodic wakeup timer (120s to 3600s dynamic intervals) on EXTI line 19 clocked by LSE 32.768 kHz, multi-source asynchronous wakeup detection (RTC, PA0/EXTI0 rain gauge pulse, PC13 button, unknown), fast sub-5 µs post-wakeup restoration to 48 MHz MSI and 2 Flash wait states, cumulative deep sleep duration metric tracking (power_mgr_get_total_sleep_time_sec), shelf-storage Standby mode (< 0.8 µA), host simulation state machine, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.3 - Implemented Independent Watchdog (IWDG) driver and supervision (firmware/core/inc/watchdog.h, firmware/core/src/watchdog.c, tests/unit/test_watchdog.c) covering STM32WLE5 dedicated 32 kHz LSI clocking, /64 prescaler divider (500 Hz / 2.0 ms tick), 4000 reload count (8.0s deterministic timeout), anti-masking safe refresh logic (IWDG_KR 0xAAAA), boot reset reason diagnostics (RCC_CSR_IWDGRSTF), DBGMCU Stop 2 and Standby sleep counter freeze, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.4 - Implemented Battery ADC Voltage Measurement and Solar Harvesting Telemetry (firmware/drivers/inc/bsp_adc.h, firmware/drivers/src/bsp_adc.c, firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_bsp_adc.c) covering STM32WLE5 ADC1 driver with internal factory VREFINT_CAL (0x1FFF75AA) calibration, PB1 high-side P-MOSFET divider gate control with 2.0ms RC stabilization delay (< 10 nA standby leakage), 8x oversampled averaging, 8-segment non-linear LiFePO4 State of Charge (SoC) interpolation (0-100%), 3-tier battery health categorization (Optimal/Low/Critical), adaptive duty-cycle sleep throttling (>= 15 min for Low, 60 min for Critical), solar harvesting classification (Night/Discharging/Active Harvest/Float Charged), bit-packed LoRaWAN Byte 11 (6-bit Vbat @ 20mV LSB + sensor error and reset flags), and ThrowTheSwitch Unity test suite. Completed Sprint 3 (Core MCU Architecture, BSP & Power Management).
+- 2026-09-14: S4-T1.1 - Implemented Bosch BME280 Factory Trimming Parameter Readout and Calibration Unpacking (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c, firmware/drivers/CMakeLists.txt, tests/CMakeLists.txt) covering Chip ID verification (0xD0 -> 0x60), 2-phase burst NVM readout (26 bytes from 0x88, 7 bytes from 0xE1), little-endian temperature/pressure parameter unpacking, signed 12-bit humidity bit-split unpacking (dig_H4 and dig_H5), defensive sanity validation against corrupt/uninitialized NVM, device lifecycle initialization, and ThrowTheSwitch Unity test suite.
+
