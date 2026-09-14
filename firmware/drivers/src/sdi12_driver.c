@@ -201,13 +201,35 @@ status_t sdi12_receive_response(char *p_out_buf,
     *p_rx_len = 0U;
 
     uint16_t bytes_received = 0U;
-    status_t status = uart_bus_receive(UART_PORT_SDI12,
-                                       (uint8_t *)p_out_buf,
-                                       max_len - 1U,
-                                       &bytes_received,
-                                       timeout_ms);
-    if (status != STATUS_OK) {
-        return status;
+
+    while (bytes_received < max_len - 1U) {
+        uint8_t byte = 0U;
+        uint16_t byte_len = 0U;
+        status_t status = uart_bus_receive(UART_PORT_SDI12,
+                                           &byte,
+                                           1U,
+                                           &byte_len,
+                                           timeout_ms);
+        if (status != STATUS_OK) {
+            if (bytes_received > 0U) {
+                p_out_buf[bytes_received] = '\0';
+                *p_rx_len = bytes_received;
+                return STATUS_ERROR_INVALID_FRAME;
+            }
+            return status;
+        }
+
+        if (byte_len == 0U) {
+            break;
+        }
+
+        p_out_buf[bytes_received++] = (char)byte;
+
+        if (bytes_received >= 2U &&
+            p_out_buf[bytes_received - 2U] == '\r' &&
+            p_out_buf[bytes_received - 1U] == '\n') {
+            break;
+        }
     }
 
     /* Null-terminate response string */
