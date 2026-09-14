@@ -4,6 +4,9 @@
    - Check `$ARGUMENTS` (after "log"):
      - If inline text provided: Extract error title, impacted files, subsystem, severity, and description.
      - If empty: Infer details from the latest build output, compiler diagnostics, test failure logs, or prompt the user for details.
+   - **Blast Radius & Impact Analysis (Local Knowledge Graph)**:
+     - If `graphify-out/graph.json` is available, query failing symbols, functions, or structs (`graphify query "<failing_symbol>"`) to automatically discover all upstream callers and downstream dependencies.
+     - Automatically include all dependent header and source files in the impacted files list.
 
 2. **Determine Next Error ID**:
    - Read `context/errors/README.md` and inspect `context/errors/` directory.

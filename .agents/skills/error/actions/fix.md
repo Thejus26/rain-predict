@@ -14,6 +14,8 @@
      ```
 
 3. **Implement the Fix**:
+   - Inspect upstream and downstream callers:
+     - If local knowledge graph is available, query the callers of the functions/structs being modified (`graphify query "<symbol>"`) to ensure the fix does not break assumptions in calling modules.
    - Apply minimal, targeted corrections to the impacted source, header, build, or test files.
    - Enforce project guidelines from `context/coding-standards.md`:
      - Standard `<stdint.h>` types (`uint8_t`, `int16_t`, `uint32_t`, etc.)
