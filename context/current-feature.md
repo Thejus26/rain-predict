@@ -1,28 +1,16 @@
-# Current Feature: S4-T3.2 - Tipping-Bucket Rainfall Accumulators & Telemetry
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Extend [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h) with `rain_gauge_data_t` structure, `RAIN_GAUGE_HOURLY_FIFO_SIZE` (6), `RAIN_GAUGE_TELEMETRY_MAX_TIPS` (255), and multi-horizon accumulator prototypes.
-- Implement atomic multi-horizon pulse accumulators in [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c) (`s_interval_tips`, `s_daily_tips`, `s_total_lifetime_tips`) updated inside `rain_gauge_exti_isr()`.
-- Implement thread-safe atomic read-and-clear function `rain_gauge_read_and_clear_interval(float *p_interval_mm)` with $< 6$ cycle critical section.
-- Implement rolling 1-hour FIFO ring buffer ($6 \times 10\text{ min} = 60\text{ min}$) via `rain_gauge_update_hourly_history(uint16_t interval_tips)`.
-- Implement LoRaWAN Byte 8 telemetry encoder `rain_gauge_encode_telemetry_byte(uint16_t interval_tips)` with $0.2\text{ mm/LSB}$ scaling and $[0, 255]$ upper-bound saturation clamping ($51.0\text{ mm}$).
-- Implement composite accumulation query `rain_gauge_get_accumulation(rain_gauge_data_t *p_data)` and reset routines (`rain_gauge_reset_daily`, `rain_gauge_reset_all_accumulators`).
-- Implement and verify all 10 verification test cases in [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c).
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- Spec File: [`context/specs/s4-t3.2-rain-gauge-accumulation.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.2-rain-gauge-accumulation.md)
-- Target Files: [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h), [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c), [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c)
-- Calibration Constant: $K_{\text{gauge}} = 0.20\text{ mm/tip}$ (`RAIN_GAUGE_CALIB_MM_PER_TIP`).
-- Time Horizons: Interval (10-min duty cycle), Rolling 1-Hour ($6 \times 10\text{ min}$ FIFO), 24-Hour Daily, Lifetime Monotonic Accumulator.
-- LoRaWAN Telemetry Byte 8: 8-bit unsigned integer ($0.2\text{ mm/LSB}$, clamped at $255 = 51.0\text{ mm}$).
-- Thread Safety: Volatile accumulators with atomic critical sections (`__disable_irq()` / `__enable_irq()`) with $< 6$ CPU cycle latency.
-- Memory & Safety: Zero dynamic allocation, MISRA-C compliant C99.
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -92,5 +80,6 @@ In Progress
 - 2026-09-14: S4-T2.3 - Implemented TI OPT3001 Hysteresis-Gated Day/Night Classification (opt3001_classify_day_state, opt3001_is_daylight), Multi-Tier Convective Storm Cloud Attenuation Scoring (opt3001_evaluate_solar_attenuation), LoRaWAN Byte 10 Bit 7 Solar Drop Alarm Flag, Sunset False-Alarm Interlock, Master Solar Context Evaluator (opt3001_update_solar_context), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 - 2026-09-14: S4-T2.4 - Implemented and verified comprehensive TI OPT3001 Driver ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_opt3001.c) covering 26 unit tests across hardware ID verification, big-endian 16-bit register I/O, single-shot acquisition, 150ms timeout handling, exponential single-precision lux math, centi-lux fixed-point shifts, solar irradiance conversion, LoRaWAN Byte 6-7 telemetry serialization, day/night hysteresis state machine, and multi-tier convective storm cloud attenuation scoring. Completed S4-T2 (TI OPT3001 Ambient Light & Solar Irradiance Driver).
 - 2026-09-14: S4-T3.1 - Implemented Tipping-Bucket Rain Gauge GPIO EXTI0 Falling-Edge Interrupt Driver with Dual-Stage 50ms Debounce Filter (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering STM32WLE5 PA0 hardware configuration, Stop 2 asynchronous wakeup, fast < 20-cycle non-blocking ISR, 32-bit unsigned SysTick rollover delta calculation, mechanical chatter bounce rejection, active rain detection, and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
+- 2026-09-14: S4-T3.2 - Implemented Tipping-Bucket Rainfall Multi-Horizon Accumulators & Telemetry Serialization (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering atomic read-and-clear interval counters (< 6 cycle critical sections), 0.20 mm/tip metric conversion, rolling 1-hour FIFO ring buffer (6 x 10m intervals), 24-hour daily accumulator with midnight reset, monotonic lifetime counter, LoRaWAN Byte 8 encoding (0.2 mm/LSB clamped to 255), and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
 
 
