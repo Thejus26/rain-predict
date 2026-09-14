@@ -58,6 +58,18 @@ extern "C" {
 #define OPT3001_I2C_TIMEOUT_MS              50U     /**< Maximum I2C bus transaction timeout */
 
 /* ========================================================================== */
+/* Mathematical & Telemetry Constants                                        */
+/* ========================================================================== */
+
+#define OPT3001_MAX_EXPONENT                11U         /**< Maximum valid exponent E[3:0] */
+#define OPT3001_MAX_LUX                     83865.60f   /**< Maximum full-scale lux output */
+#define OPT3001_MIN_LUX                     0.0f        /**< Minimum valid lux reading */
+
+#define OPT3001_SOLAR_LUMINOUS_EFFICACY     120.0f      /**< Daylight efficacy in lumens/Watt */
+#define OPT3001_TELEMETRY_LUX_SCALE         2.0f        /**< LoRaWAN payload scale: 2.0 Lux/LSB */
+#define OPT3001_TELEMETRY_MAX_RAW           41500U      /**< Max value for 83,000 Lux */
+
+/* ========================================================================== */
 /* Data Types                                                                 */
 /* ========================================================================== */
 
@@ -79,6 +91,17 @@ typedef struct {
     uint8_t  exponent;      /**< 4-bit exponent field E[3:0] (0 to 11) */
     uint16_t mantissa;      /**< 12-bit mantissa field R[11:0] (0 to 4095) */
 } opt3001_raw_data_t;
+
+/**
+ * @brief Complete physical optical measurement and telemetry structure.
+ */
+typedef struct {
+    float       lux;                /**< Optical illuminance in Lux (0.00 to 83865.60 Lux) */
+    float       irradiance_w_m2;    /**< Solar irradiance in W/m² (0.0 to ~700.0 W/m²) */
+    uint32_t    centi_lux;          /**< Scaled integer illuminance in 0.01 Lux units */
+    uint16_t    telemetry_raw;      /**< 16-bit scaled integer (2.0 Lux/LSB) for LoRaWAN Bytes 6-7 */
+    bool        is_valid;           /**< True if measurement is within valid physical bounds */
+} opt3001_reading_t;
 
 /**
  * @brief OPT3001 device state handle.
@@ -149,6 +172,50 @@ status_t opt3001_read_raw_result(opt3001_dev_t *dev, opt3001_raw_data_t *p_raw);
  * @return STATUS_OK on success, or error status code.
  */
 status_t opt3001_sample_forced_raw(opt3001_dev_t *dev, opt3001_raw_data_t *p_raw);
+
+/**
+ * @brief  Converts a 16-bit raw register word to floating-point Lux value.
+ * @param  raw_result 16-bit contents of register 0x00.
+ * @return Ambient illuminance in Lux.
+ */
+float opt3001_raw_to_lux(uint16_t raw_result);
+
+/**
+ * @brief  Exact 32-bit fixed-point integer conversion (0.01 Lux / count).
+ * @param  raw_result 16-bit contents of register 0x00.
+ * @return Scaled illuminance in centi-lux.
+ */
+uint32_t opt3001_raw_to_centi_lux(uint16_t raw_result);
+
+/**
+ * @brief  Approximates broadband solar irradiance in W/m² from illuminance.
+ * @param  lux Ambient optical illuminance in Lux.
+ * @return Solar irradiance in W/m².
+ */
+float opt3001_lux_to_irradiance(float lux);
+
+/**
+ * @brief  Scales and clamps float Lux into 16-bit integer for LoRaWAN payload.
+ * @param  lux Ambient optical illuminance in Lux.
+ * @return 16-bit unsigned integer formatted for telemetry payload Bytes 6-7.
+ */
+uint16_t opt3001_lux_to_telemetry_u16(float lux);
+
+/**
+ * @brief  Converts unpacked raw ADC data into complete physical reading structure.
+ * @param  p_raw Pointer to unpacked raw structure.
+ * @param[out] p_out Pointer to output reading structure.
+ * @return STATUS_OK on success, or STATUS_ERR_NULL_PTR.
+ */
+status_t opt3001_convert_raw(const opt3001_raw_data_t *p_raw, opt3001_reading_t *p_out);
+
+/**
+ * @brief  High-level API: triggers conversion, waits, reads, and converts into reading structure.
+ * @param  dev Pointer to initialized OPT3001 device context.
+ * @param[out] p_out Pointer to output reading structure.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t opt3001_read_lux(opt3001_dev_t *dev, opt3001_reading_t *p_out);
 
 #ifdef __cplusplus
 }

@@ -219,9 +219,159 @@ static void test_opt3001_read_raw_result_and_sample_forced_raw(void) {
     TEST_ASSERT_EQUAL_HEX16(0x0B12U, sample.mantissa);
 }
 
+/**
+ * @brief TC-S4-T2.2-01: Mathematical Constants & Telemetry Definitions.
+ */
+static void test_opt3001_math_constants(void) {
+    TEST_ASSERT_EQUAL_UINT8(11U, OPT3001_MAX_EXPONENT);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 83865.60f, OPT3001_MAX_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, OPT3001_MIN_LUX);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 120.0f, OPT3001_SOLAR_LUMINOUS_EFFICACY);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 2.0f, OPT3001_TELEMETRY_LUX_SCALE);
+    TEST_ASSERT_EQUAL_UINT16(41500U, OPT3001_TELEMETRY_MAX_RAW);
+}
+
+/**
+ * @brief TC-S4-T2.2-02 & TC-S4-T2.2-03 & TC-S4-T2.2-04 & TC-S4-T2.2-05 & TC-S4-T2.2-06:
+ *        Exponential Lux & Centi-Lux Calculations across Dynamic Operating Span.
+ */
+static void test_opt3001_exponential_lux_and_centi_lux_math(void) {
+    /* 1. Min reading: E=0, R=1 (0x0001) -> 0.01 Lux, 1 centi-lux */
+    float lux = opt3001_raw_to_lux(0x0001U);
+    uint32_t centi = opt3001_raw_to_centi_lux(0x0001U);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.01f, lux);
+    TEST_ASSERT_EQUAL_UINT32(1U, centi);
+
+    /* 2. Low-light / overcast: E=3, R=410 (0x319A) -> 32.80 Lux, 3280 centi-lux */
+    lux = opt3001_raw_to_lux(0x319AU);
+    centi = opt3001_raw_to_centi_lux(0x319AU);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 32.80f, lux);
+    TEST_ASSERT_EQUAL_UINT32(3280U, centi);
+
+    /* 3. Mid-range sun: E=7, R=2000 (0x77D0) -> 2560.00 Lux, 256000 centi-lux */
+    lux = opt3001_raw_to_lux(0x77D0U);
+    centi = opt3001_raw_to_centi_lux(0x77D0U);
+    TEST_ASSERT_FLOAT_WITHIN(0.05f, 2560.00f, lux);
+    TEST_ASSERT_EQUAL_UINT32(256000U, centi);
+
+    /* 4. Direct tropical sun: E=11, R=2612 (0xBA34) -> 53493.76 Lux, 5349376 centi-lux */
+    lux = opt3001_raw_to_lux(0xBA34U);
+    centi = opt3001_raw_to_centi_lux(0xBA34U);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 53493.76f, lux);
+    TEST_ASSERT_EQUAL_UINT32(5349376U, centi);
+
+    /* 5. Max full scale: E=11, R=4095 (0xBFFF) -> 83865.60 Lux, 8386560 centi-lux */
+    lux = opt3001_raw_to_lux(0xBFFFU);
+    centi = opt3001_raw_to_centi_lux(0xBFFFU);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 83865.60f, lux);
+    TEST_ASSERT_EQUAL_UINT32(8386560U, centi);
+}
+
+/**
+ * @brief TC-S4-T2.2-07: Invalid Exponent Clamping (E >= 12 clamped to 11).
+ */
+static void test_opt3001_invalid_exponent_clamping(void) {
+    /* Exponent 14 (0xE), Mantissa 256 (0x100) -> clamped to E=11, R=256 -> 5242.88 Lux */
+    float lux = opt3001_raw_to_lux(0xE100U);
+    uint32_t centi = opt3001_raw_to_centi_lux(0xE100U);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 5242.88f, lux);
+    TEST_ASSERT_EQUAL_UINT32(256U << 11, centi);
+}
+
+/**
+ * @brief TC-S4-T2.2-08: Solar Irradiance Estimation (W/m² @ 120 lm/W).
+ */
+static void test_opt3001_solar_irradiance_conversion(void) {
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, opt3001_lux_to_irradiance(0.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, opt3001_lux_to_irradiance(-10.0f));
+
+    /* 60,000 Lux / 120.0 lm/W = 500.00 W/m² */
+    float irr = opt3001_lux_to_irradiance(60000.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 500.00f, irr);
+
+    /* 32.80 Lux / 120.0 lm/W = 0.2733 W/m² */
+    irr = opt3001_lux_to_irradiance(32.80f);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.2733f, irr);
+}
+
+/**
+ * @brief TC-S4-T2.2-09 & TC-S4-T2.2-10: LoRaWAN Telemetry Byte 6-7 Scaling & Clamping.
+ */
+static void test_opt3001_telemetry_scaling_and_clamping(void) {
+    /* Zero / negative */
+    TEST_ASSERT_EQUAL_UINT16(0U, opt3001_lux_to_telemetry_u16(0.0f));
+    TEST_ASSERT_EQUAL_UINT16(0U, opt3001_lux_to_telemetry_u16(-5.0f));
+
+    /* 32.80 Lux -> (32.80 + 1.0) / 2.0 = 16 */
+    TEST_ASSERT_EQUAL_UINT16(16U, opt3001_lux_to_telemetry_u16(32.80f));
+
+    /* 53493.76 Lux -> (53493.76 + 1.0) / 2.0 = 26747 */
+    TEST_ASSERT_EQUAL_UINT16(26747U, opt3001_lux_to_telemetry_u16(53493.76f));
+
+    /* Max clamping at 41500 (e.g. 90,000.0 Lux) */
+    TEST_ASSERT_EQUAL_UINT16(41500U, opt3001_lux_to_telemetry_u16(90000.0f));
+}
+
+/**
+ * @brief Master Structure Conversion & NULL Pointer Safety (`opt3001_convert_raw`).
+ */
+static void test_opt3001_convert_raw(void) {
+    opt3001_reading_t reading;
+    opt3001_raw_data_t raw;
+
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, opt3001_convert_raw(NULL, &reading));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, opt3001_convert_raw(&raw, NULL));
+
+    /* Valid raw data: 0x319A (E=3, R=410) */
+    raw.raw_result = 0x319AU;
+    raw.exponent = 3U;
+    raw.mantissa = 410U;
+
+    status_t status = opt3001_convert_raw(&raw, &reading);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(reading.is_valid);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 32.80f, reading.lux);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.2733f, reading.irradiance_w_m2);
+    TEST_ASSERT_EQUAL_UINT32(3280U, reading.centi_lux);
+    TEST_ASSERT_EQUAL_UINT16(16U, reading.telemetry_raw);
+
+    /* Invalid exponent in raw: E=13 */
+    raw.raw_result = 0xD19AU;
+    raw.exponent = 13U;
+    status = opt3001_convert_raw(&raw, &reading);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_FALSE(reading.is_valid);
+}
+
+/**
+ * @brief Master High-Level Reading API (`opt3001_read_lux`).
+ */
+static void test_opt3001_read_lux_high_level_api(void) {
+    opt3001_dev_t dev;
+    opt3001_reading_t reading;
+    setup_valid_mock_opt3001(TEST_OPT3001_ADDR);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, opt3001_init(&dev, TEST_OPT3001_ADDR));
+
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, opt3001_read_lux(NULL, &reading));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, opt3001_read_lux(&dev, NULL));
+
+    /* Simulate reading 0xBA34 (53493.76 Lux) */
+    (void)mock_i2c_set_word_register(TEST_OPT3001_ADDR, OPT3001_REG_CONFIG, 0xC280U | OPT3001_CONFIG_CRF_BIT);
+    (void)mock_i2c_set_word_register(TEST_OPT3001_ADDR, OPT3001_REG_RESULT, 0xBA34U);
+
+    status_t status = opt3001_read_lux(&dev, &reading);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(reading.is_valid);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 53493.76f, reading.lux);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 445.78f, reading.irradiance_w_m2);
+    TEST_ASSERT_EQUAL_UINT32(5349376U, reading.centi_lux);
+    TEST_ASSERT_EQUAL_UINT16(26747U, reading.telemetry_raw);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
+    /* S4-T2.1 Tests */
     RUN_TEST(test_opt3001_definitions_and_constants);
     RUN_TEST(test_opt3001_null_pointer_defensive_guards);
     RUN_TEST(test_opt3001_valid_initialization);
@@ -232,6 +382,15 @@ int main(void) {
     RUN_TEST(test_opt3001_is_conversion_ready_complete);
     RUN_TEST(test_opt3001_wait_for_completion_timeout);
     RUN_TEST(test_opt3001_read_raw_result_and_sample_forced_raw);
+
+    /* S4-T2.2 Tests */
+    RUN_TEST(test_opt3001_math_constants);
+    RUN_TEST(test_opt3001_exponential_lux_and_centi_lux_math);
+    RUN_TEST(test_opt3001_invalid_exponent_clamping);
+    RUN_TEST(test_opt3001_solar_irradiance_conversion);
+    RUN_TEST(test_opt3001_telemetry_scaling_and_clamping);
+    RUN_TEST(test_opt3001_convert_raw);
+    RUN_TEST(test_opt3001_read_lux_high_level_api);
 
     return UNITY_END();
 }

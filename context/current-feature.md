@@ -1,16 +1,36 @@
-# Current Feature
+# Current Feature: S4-T2.2 - TI OPT3001 Exponential Lux & Solar Irradiance Math
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Implement single-precision exponential Lux calculation (`opt3001_raw_to_lux`): $\text{Lux} = 0.01\text{f} \cdot (1 \ll E) \cdot (\text{float})R$ without standard library `powf()`.
+- Implement exact 32-bit fixed-point integer conversion (`opt3001_raw_to_centi_lux`): $\text{centi\_lux} = ((uint32\_t)R \ll E)$ in $0.01\text{ Lux/LSB}$ units.
+- Implement broadband solar irradiance approximation (`opt3001_lux_to_irradiance`): $G = \text{lux} / 120.0\text{f}\;(\text{W/m}^2)$ using daylight luminous efficacy.
+- Implement LoRaWAN telemetry integer scaling (`opt3001_lux_to_telemetry_u16`): $2.0\text{ Lux/LSB}$ with half-LSB rounding, clamped to $[0, 41500]$.
+- Implement exponent sanity guard to clamp undefined exponents ($E > 11$) to $11$.
+- Implement master conversion routine `opt3001_convert_raw()` to populate `opt3001_reading_t`.
+- Implement high-level single-shot sampling and conversion API `opt3001_read_lux()`.
+- Expand ThrowTheSwitch Unity unit test suite (`tests/unit/test_opt3001.c`) covering test cases TC-S4-T2.2-01 through TC-S4-T2.2-10.
 
 ## Notes
 
-<!-- Add notes here -->
+- Hardware constraints: STM32WLE5CCU6 (Cortex-M4 single-precision hardware FPU @ 48 MHz).
+- Base unit: $0.01\text{ Lux}$ per count at $E=0$. Dynamic range: $0.01\text{ Lux}$ to $83,865.60\text{ Lux}$.
+- Mathematical Constants:
+  - `OPT3001_MAX_EXPONENT` = $11\text{U}$
+  - `OPT3001_MAX_LUX` = $83865.60\text{f}$
+  - `OPT3001_MIN_LUX` = $0.0\text{f}$
+  - `OPT3001_SOLAR_LUMINOUS_EFFICACY` = $120.0\text{f}\;(\text{lm/W})$
+  - `OPT3001_TELEMETRY_LUX_SCALE` = $2.0\text{f}\;(\text{Lux/LSB})$
+  - `OPT3001_TELEMETRY_MAX_RAW` = $41500\text{U}$
+- Target Files:
+  - [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h)
+  - [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c)
+  - [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c)
+- Defensive programming: NULL pointer validation, shift overflow protection, half-LSB integer rounding, zero dynamic allocation, strict C99 compiler flags.
 
 ## History
 
