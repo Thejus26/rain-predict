@@ -264,6 +264,7 @@ static status_t s_sim_injected_fault = STATUS_OK;
 static uint32_t s_sim_fault_trigger_delay = 0;
 static uint32_t s_sim_transaction_count = 0;
 static uint32_t s_sim_active_fault_type = 0;
+static bool s_sim_opt3001_auto_crf = false;
 
 static sim_i2c_device_t *sim_find_device(uint8_t dev_addr) {
     for (size_t i = 0; i < SIM_I2C_MAX_DEVICES; i++) {
@@ -300,6 +301,7 @@ void i2c_bus_test_reset(void) {
     s_sim_fault_trigger_delay = 0;
     s_sim_transaction_count = 0;
     s_sim_active_fault_type = 0;
+    s_sim_opt3001_auto_crf = false;
 }
 
 void i2c_bus_test_set_sda_stuck(bool stuck_low) {
@@ -407,6 +409,10 @@ uint16_t i2c_bus_test_get_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr) {
         return (uint16_t)(((uint16_t)msb << 8) | (uint16_t)lsb);
     }
     return 0x0000U;
+}
+
+void i2c_bus_test_set_opt3001_auto_crf(bool enable) {
+    s_sim_opt3001_auto_crf = enable;
 }
 
 status_t i2c_bus_init(uint32_t speed_hz) {
@@ -551,8 +557,8 @@ status_t i2c_bus_write(uint8_t dev_addr,
 
     if (length == 2U) {
         uint16_t word_val = (uint16_t)(((uint16_t)p_data[0] << 8) | (uint16_t)p_data[1]);
-        /* For OPT3001 in single-shot mode (M[1:0] = 0b01 at bits 10:9), auto-assert CRF (bit 7) for simulated completion */
-        if (dev_addr >= 0x44U && dev_addr <= 0x47U && reg_addr == 0x01U) {
+        /* For OPT3001 in single-shot mode (M[1:0] = 0b01 at bits 10:9), auto-assert CRF (bit 7) if enabled */
+        if (s_sim_opt3001_auto_crf && dev_addr >= 0x44U && dev_addr <= 0x47U && reg_addr == 0x01U) {
             uint16_t mode = (word_val >> 9) & 0x03U;
             if (mode == 0x01U) {
                 word_val |= (1U << 7); /* Assert CRF bit */
