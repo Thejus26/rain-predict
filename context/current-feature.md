@@ -1,16 +1,37 @@
-# Current Feature
+# Current Feature: S4-T1.5 - Bosch BME280 Driver Unit Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Implement comprehensive host-executable unit test suite in `tests/unit/test_bme280.c` using ThrowTheSwitch Unity framework for Bosch BME280 Environmental Sensor Driver.
+- Verify defensive API parameter validation returning `STATUS_ERROR_NULL_POINTER` and `STATUS_ERROR_INVALID_PARAM` for invalid inputs.
+- Validate hardware chip ID match (`0x60`) and rejection on mismatched IDs such as BMP280 (`0x58` -> `STATUS_ERROR_HARDWARE`).
+- Verify complete 26-parameter calibration NVM unpacking and two's-complement signed bit-split unpacking for 12-bit humidity coefficients (`dig_H4`, `dig_H5`), plus all-zero NVM corruption detection (`STATUS_ERROR_DATA_CORRUPT`).
+- Verify forced-mode register write sequencing (`ctrl_hum` 0xF2 and `config` 0xF5 before `ctrl_meas` 0xF4 with `0x55`), measuring status polling timeout (60ms), and atomic 8-byte burst ADC readout (`adc_P`, `adc_T`, `adc_H`).
+- Verify single-precision floating-point compensation against official Bosch reference test vectors ($T = 25.08^\circ\text{C} \pm 0.02$, $P = 1006.53\text{ hPa} \pm 0.05$, $RH = 54.32\% \pm 0.05$), sub-zero temperature calculations, meteorological physical boundary clamping ($[0.0, 100.0]\%$ RH, $[300.0, 1100.0]\text{ hPa}$), and centi-unit fixed-point scaling.
+- Validate humidity saturation tracking state machine: 1-hour saturation assertion ($\ge 6$ cycles at $\ge 98.0\%$ RH), $3.0\%$ hysteresis exit ($< 95.0\%$), daylight condensation creep detection (Lux $\ge 10\text{k}$, $\Delta T \ge +1.5^\circ\text{C/hr}$) with $-1.5\%$ de-biasing offset, 24-hour zero-rain automated soft reset recovery ($0\text{xE0} \leftarrow 0\text{xB6}$ after 144 cycles), and reset suppression during active rain.
+- Ensure 100% test execution pass rate with `-Wall -Wextra -Wpedantic -Werror` compiler flags and zero dynamic memory allocations.
 
 ## Notes
 
-<!-- Add notes here -->
+- **Target File**: `tests/unit/test_bme280.c`
+- **Framework**: ThrowTheSwitch Unity with `mock_i2c` abstraction layer.
+- **Hardware Register Constraints**:
+  - Chip ID Register: `0xD0` (Expected `0x60`, BMP280 `0x58`)
+  - Reset Register: `0xE0` (Key `0xB6`)
+  - Calibration Registers: `0x88..0xA1` (Block 1, 26 bytes) and `0xE1..0xE7` (Block 2, 7 bytes)
+  - Control Registers: `0xF2` (`ctrl_hum`), `0xF3` (`status`), `0xF4` (`ctrl_meas`), `0xF5` (`config`)
+  - Burst Data Registers: `0xF7..0xFE` (8 bytes: `press_msb/lsb/xlsb`, `temp_msb/lsb/xlsb`, `hum_msb/lsb`)
+- **Synthetic Test Vectors**:
+  - Bosch Reference: $\text{adc\_T}=519888, \text{adc\_P}=415148, \text{adc\_H}=25600 \implies T=25.08^\circ\text{C}, P=1006.53\text{ hPa}, RH=54.32\%$
+  - Bit-Split Signed: `0xE4=0xE1, 0xE5=0x2A, 0xE6=0x05 \implies \text{dig\_H4}=-486, \text{dig\_H5}=82`
+- **Strict Verification Rules**:
+  - Use `TEST_ASSERT_FLOAT_WITHIN()` for all floating-point assertions.
+  - Reset mock state in `setUp()` and `tearDown()` to ensure deterministic test isolation.
+  - Zero dynamic heap allocation (`malloc`/`free`).
 
 ## History
 
