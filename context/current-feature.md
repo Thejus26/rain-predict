@@ -1,16 +1,30 @@
-# Current Feature
+# Current Feature: S4-T5.3 - SDI-12 Driver Unit Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Implement and verify comprehensive ThrowTheSwitch Unity unit test suite in [`tests/unit/test_sdi12.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sdi12.c).
+- Verify physical break ($13.0\text{ ms}$) and mark ($9.0\text{ ms}$) timing sequences, `PC2` direction toggling, and turnaround line release to RX listening mode.
+- Verify SDI-12 command formatting (`?!`, `a!`, `aM!`, `aD0!`, `aI!`), address range validation (`'0'-'9'`, `'a'-'z'`, `'A'-'Z'`, `'?'`), and trailing `'!'` delimiter enforcement.
+- Verify measurement info parsing (`atttn\r\n`), slave address matching, and non-digit error handling.
+- Verify single-line data response parsing with multi-parameter positive, negative, and scientific notation floating-point token extraction.
+- Verify 22-byte fixed-format sensor identification (`aI!`) decoding into vendor, model, firmware, and serial fields.
+- Verify 2-stage soil moisture telemetry acquisition cycles (`sdi12_query_soil_probe`) with agronomic clamping ($[0.0, 1.0]\text{ m}^3/\text{m}^3$ VWC, $\ge 0.0\text{ dS/m}$ EC) and timeout/frame error resilience.
+- Verify single-wire wildcard address discovery (`?!`).
+- Maintain zero dynamic memory allocation and strict C99 compliance (`-Wall -Wextra -Werror`).
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Task Spec**: [`context/specs/s4-t5.3-test-sdi12.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t5.3-test-sdi12.md)
+- **Target Files**:
+  - [`tests/unit/test_sdi12.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sdi12.c)
+  - [`firmware/drivers/inc/sdi12_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/sdi12_driver.h)
+  - [`firmware/drivers/src/sdi12_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/sdi12_driver.c)
+- **Hardware Configuration**: STM32WLE5 LPUART1 on `PC0` (TX) and `PC1` (RX) at 1200 baud, 7-E-1 format; `PC2` (`SDI12_DIR`) half-duplex direction control pin (HIGH = TX mode, LOW = RX listening mode).
+- **Mock Subsystems**: Virtualized via [`tests/mocks/mock_uart_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_uart_bus.h) (`UART_PORT_SDI12`) and [`tests/mocks/mock_gpio.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_gpio.h) (`GPIOC` pin 2 / pin 0).
 
 ## History
 
