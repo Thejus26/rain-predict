@@ -263,6 +263,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_opt3001.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_rain_gauge.c")
+    add_firmware_test(rain_gauge
+        SOURCES unit/test_rain_gauge.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
 
 
 

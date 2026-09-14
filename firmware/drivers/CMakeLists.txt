@@ -11,6 +11,7 @@ add_library(firmware_drivers STATIC
     src/bsp_adc.c
     src/bme280_driver.c
     src/opt3001_driver.c
+    src/rain_gauge_driver.c
 )
 
 target_include_directories(firmware_drivers PUBLIC
