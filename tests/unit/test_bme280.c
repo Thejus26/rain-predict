@@ -1,8 +1,9 @@
 /**
  * @file    test_bme280.c
- * @brief   Unit test suite for Bosch BME280 Factory Trimming Parameter Readout & Calibration Unpacking.
+ * @brief   Unit test suite for Bosch BME280 Driver (Calibration & Forced-Mode Measurement).
  * @details Validates Chip ID verification, 2-phase burst NVM readout, little-endian and bit-split unpacking,
- *          signed sign-extension, corrupt NVM validation, I2C bus error handling, and parameter guards.
+ *          signed sign-extension, corrupt NVM validation, forced-mode triggering, bounded conversion polling,
+ *          atomic 8-byte raw ADC readout, and parameter guards.
  */
 
 #include <stdbool.h>
@@ -36,9 +37,27 @@
 #define VECTOR_DIG_H5       50
 #define VECTOR_DIG_H6       30
 
+/* Raw ADC Test Vectors (BST-BME280-DS002-15 Table 18) */
+#define VECTOR_RAW_PRESS_MSB    0x5DU
+#define VECTOR_RAW_PRESS_LSB    0x8AU
+#define VECTOR_RAW_PRESS_XLSB   0xC0U
+#define EXPECTED_RAW_ADC_P      383148
+
+#define VECTOR_RAW_TEMP_MSB     0x7FU
+#define VECTOR_RAW_TEMP_LSB     0x6EU
+#define VECTOR_RAW_TEMP_XLSB    0x80U
+#define EXPECTED_RAW_ADC_T      521960
+
+#define VECTOR_RAW_HUM_MSB      0x6DU
+#define VECTOR_RAW_HUM_LSB      0x3BU
+#define EXPECTED_RAW_ADC_H      27963
+
 static void setup_mock_bme280_registers(uint8_t addr) {
     /* Set Chip ID register (0xD0) */
     (void)i2c_bus_test_set_slave_reg(addr, BME280_REG_CHIP_ID, BME280_CHIP_ID);
+
+    /* Set Status register (0xF3) default ready (measuring = 0) */
+    (void)i2c_bus_test_set_slave_reg(addr, BME280_REG_STATUS, 0x00U);
 
     /* Block 1 (0x88..0xA1) */
     uint8_t b1[26];
@@ -85,6 +104,14 @@ static void setup_mock_bme280_registers(uint8_t addr) {
     b2[6] = (uint8_t)VECTOR_DIG_H6; /* 0x1E */
 
     (void)i2c_bus_test_set_slave_regs(addr, BME280_REG_CALIB_26_41, b2, sizeof(b2));
+
+    /* Data registers (0xF7..0xFE) */
+    uint8_t raw_data[8] = {
+        VECTOR_RAW_PRESS_MSB,  VECTOR_RAW_PRESS_LSB,  VECTOR_RAW_PRESS_XLSB,
+        VECTOR_RAW_TEMP_MSB,   VECTOR_RAW_TEMP_LSB,   VECTOR_RAW_TEMP_XLSB,
+        VECTOR_RAW_HUM_MSB,    VECTOR_RAW_HUM_LSB
+    };
+    (void)i2c_bus_test_set_slave_regs(addr, BME280_REG_PRESS_MSB, raw_data, sizeof(raw_data));
 }
 
 void setUp(void) {
@@ -319,11 +346,156 @@ static void test_bme280_init_and_getters(void) {
 }
 
 /**
+ * @brief TC-S4-T1.2-02: Configuration Register Sequence (ctrl_hum 0xF2, config 0xF5).
+ */
+static void test_bme280_configure_sequence(void) {
+    bme280_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
+
+    bme280_config_t config = {
+        .osrs_t = BME280_OVERSAMPLING_2X,
+        .osrs_p = BME280_OVERSAMPLING_16X,
+        .osrs_h = BME280_OVERSAMPLING_1X,
+        .filter = BME280_FILTER_COEFF_4
+    };
+
+    status_t status = bme280_configure(&dev, &config);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Check ctrl_hum (0xF2): osrs_h = 1 */
+    uint8_t ctrl_hum = i2c_bus_test_get_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_CTRL_HUM);
+    TEST_ASSERT_EQUAL_UINT8(0x01U, ctrl_hum);
+
+    /* Check config (0xF5): filter = 2 -> (2 << 2) = 0x08 */
+    uint8_t config_reg = i2c_bus_test_get_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_CONFIG);
+    TEST_ASSERT_EQUAL_UINT8(0x08U, config_reg);
+}
+
+/**
+ * @brief TC-S4-T1.2-03: Forced-Mode Trigger Byte (ctrl_meas 0xF4).
+ */
+static void test_bme280_trigger_forced_mode(void) {
+    bme280_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
+
+    dev.config.osrs_t = BME280_OVERSAMPLING_2X;  /* 2 -> (2 << 5) = 0x40 */
+    dev.config.osrs_p = BME280_OVERSAMPLING_16X; /* 5 -> (5 << 2) = 0x14 */
+    dev.config.osrs_h = BME280_OVERSAMPLING_1X;
+    dev.config.filter = BME280_FILTER_COEFF_4;
+
+    status_t status = bme280_trigger_forced_mode(&dev);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* ctrl_meas = 0x40 | 0x14 | 0x01 = 0x55 */
+    uint8_t ctrl_meas = i2c_bus_test_get_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_CTRL_MEAS);
+    TEST_ASSERT_EQUAL_UINT8(0x55U, ctrl_meas);
+}
+
+/**
+ * @brief TC-S4-T1.2-04 & 05: Conversion Status Polling (is_measuring).
+ */
+static void test_bme280_is_measuring(void) {
+    bme280_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
+
+    bool is_measuring = false;
+
+    /* 1. Active conversion (bit 3 = 1) */
+    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_STATUS, BME280_REG_STATUS_MEASURING_BIT);
+    status_t status = bme280_is_measuring(&dev, &is_measuring);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_TRUE(is_measuring);
+
+    /* 2. Completed conversion (bit 3 = 0) */
+    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_STATUS, 0x00U);
+    status = bme280_is_measuring(&dev, &is_measuring);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_FALSE(is_measuring);
+}
+
+/**
+ * @brief TC-S4-T1.2-10: Bounded Status Polling Timeout (wait_for_completion).
+ */
+static void test_bme280_wait_for_completion(void) {
+    bme280_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
+
+    /* 1. Complete immediately */
+    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_STATUS, 0x00U);
+    status_t status = bme280_wait_for_completion(&dev, 60U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* 2. Timeout when measuring bit held active */
+    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_STATUS, BME280_REG_STATUS_MEASURING_BIT);
+    status = bme280_wait_for_completion(&dev, 10U);
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_TIMEOUT, status);
+}
+
+/**
+ * @brief TC-S4-T1.2-06..09: 8-Byte Burst Read & 20-bit/16-bit Raw ADC Unpacking.
+ */
+static void test_bme280_read_raw_data_and_burst(void) {
+    bme280_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
+
+    uint32_t reads_before = i2c_bus_test_get_read_count(BME280_I2C_ADDR_PRIMARY);
+
+    bme280_raw_data_t raw;
+    memset(&raw, 0, sizeof(raw));
+
+    status_t status = bme280_read_raw_data(&dev, &raw);
+    uint32_t reads_after = i2c_bus_test_get_read_count(BME280_I2C_ADDR_PRIMARY);
+
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    /* Exactly 1 burst read transaction for all 8 registers */
+    TEST_ASSERT_EQUAL_UINT32(1U, reads_after - reads_before);
+
+    /* Verify unpacked 20-bit Pressure, 20-bit Temperature, 16-bit Humidity */
+    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_P, raw.adc_P);
+    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_T, raw.adc_T);
+    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_H, raw.adc_H);
+}
+
+/**
+ * @brief TC-S4-T1.2-11: Master Forced-Mode Sampling Coordinator (sample_forced_raw).
+ */
+static void test_bme280_sample_forced_raw(void) {
+    bme280_dev_t dev;
+    memset(&dev, 0, sizeof(dev));
+    dev.i2c_address = BME280_I2C_ADDR_PRIMARY;
+    dev.config.osrs_t = BME280_OVERSAMPLING_2X;
+    dev.config.osrs_p = BME280_OVERSAMPLING_16X;
+    dev.config.osrs_h = BME280_OVERSAMPLING_1X;
+    dev.config.filter = BME280_FILTER_COEFF_4;
+
+    /* Sensor is ready */
+    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_STATUS, 0x00U);
+
+    bme280_raw_data_t raw;
+    memset(&raw, 0, sizeof(raw));
+
+    status_t status = bme280_sample_forced_raw(&dev, &raw);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_P, raw.adc_P);
+    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_T, raw.adc_T);
+    TEST_ASSERT_EQUAL_INT32(EXPECTED_RAW_ADC_H, raw.adc_H);
+}
+
+/**
  * @brief Defensive NULL pointer and invalid parameter checking.
  */
 static void test_bme280_null_and_invalid_params(void) {
     bme280_dev_t dev;
     uint8_t chip_id = 0;
+    bool measuring = false;
+    bme280_raw_data_t raw;
+    bme280_config_t config;
 
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_init(NULL, BME280_I2C_ADDR_PRIMARY));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, bme280_init(&dev, 0x12U));
@@ -331,11 +503,23 @@ static void test_bme280_null_and_invalid_params(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_chip_id(&dev, NULL));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_calibration(NULL));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_validate_calibration(NULL));
+
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_configure(NULL, &config));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_configure(&dev, NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_trigger_forced_mode(NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_is_measuring(NULL, &measuring));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_is_measuring(&dev, NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_wait_for_completion(NULL, 60U));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_raw_data(NULL, &raw));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_raw_data(&dev, NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_sample_forced_raw(NULL, &raw));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_sample_forced_raw(&dev, NULL));
 }
 
 int main(void) {
     UNITY_BEGIN();
 
+    /* Calibration & ID Tests (S4-T1.1) */
     RUN_TEST(test_bme280_read_chip_id_success);
     RUN_TEST(test_bme280_read_chip_id_mismatch);
     RUN_TEST(test_bme280_read_calibration_burst_structure);
@@ -346,6 +530,16 @@ int main(void) {
     RUN_TEST(test_bme280_corrupt_nvm_detection);
     RUN_TEST(test_bme280_i2c_bus_faults);
     RUN_TEST(test_bme280_init_and_getters);
+
+    /* Forced-Mode & Raw Readout Tests (S4-T1.2) */
+    RUN_TEST(test_bme280_configure_sequence);
+    RUN_TEST(test_bme280_trigger_forced_mode);
+    RUN_TEST(test_bme280_is_measuring);
+    RUN_TEST(test_bme280_wait_for_completion);
+    RUN_TEST(test_bme280_read_raw_data_and_burst);
+    RUN_TEST(test_bme280_sample_forced_raw);
+
+    /* Defensive Parameter Guards */
     RUN_TEST(test_bme280_null_and_invalid_params);
 
     return UNITY_END();

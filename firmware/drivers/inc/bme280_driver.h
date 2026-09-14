@@ -42,16 +42,75 @@ extern "C" {
 #define BME280_REG_CONFIG               0xF5U   /**< Standby time, IIR filter, SPI 3-wire */
 #define BME280_REG_PRESS_MSB            0xF7U   /**< Start of burst data readout (0xF7..0xFE) */
 
-/** @brief Buffer lengths for calibration burst transactions */
+/** @brief Status register bitmasks (0xF3) */
+#define BME280_REG_STATUS_MEASURING_BIT (1U << 3)   /**< Bit 3: 1 when conversion is running */
+#define BME280_REG_STATUS_IM_UPDATE_BIT (1U << 0)   /**< Bit 0: 1 when NVM is copying to image */
+
+/** @brief Buffer lengths for burst transactions */
 #define BME280_CALIB_BLOCK1_LEN         26U     /**< 0x88 to 0xA1 inclusive */
 #define BME280_CALIB_BLOCK2_LEN         7U      /**< 0xE1 to 0xE7 inclusive */
+#define BME280_RAW_BURST_DATA_LEN       8U      /**< 0xF7 to 0xFE inclusive (Press, Temp, Hum) */
 
 /** @brief Maximum I2C transaction timeout in milliseconds */
 #define BME280_I2C_TIMEOUT_MS           50U
 
+/** @brief Maximum hardware conversion duration guard in milliseconds */
+#define BME280_MEASUREMENT_TIMEOUT_MS   60U
+
 /* ========================================================================== */
 /* Data Types                                                                 */
 /* ========================================================================== */
+
+/**
+ * @brief BME280 oversampling settings.
+ */
+typedef enum {
+    BME280_OVERSAMPLING_SKIPPED = 0x00U,
+    BME280_OVERSAMPLING_1X      = 0x01U,
+    BME280_OVERSAMPLING_2X      = 0x02U,
+    BME280_OVERSAMPLING_4X      = 0x03U,
+    BME280_OVERSAMPLING_8X      = 0x04U,
+    BME280_OVERSAMPLING_16X     = 0x05U
+} bme280_oversampling_t;
+
+/**
+ * @brief BME280 IIR filter coefficient settings.
+ */
+typedef enum {
+    BME280_FILTER_OFF       = 0x00U,
+    BME280_FILTER_COEFF_2   = 0x01U,
+    BME280_FILTER_COEFF_4   = 0x02U,
+    BME280_FILTER_COEFF_8   = 0x03U,
+    BME280_FILTER_COEFF_16  = 0x04U
+} bme280_filter_t;
+
+/**
+ * @brief BME280 operating mode.
+ */
+typedef enum {
+    BME280_MODE_SLEEP   = 0x00U,
+    BME280_MODE_FORCED  = 0x01U,
+    BME280_MODE_NORMAL  = 0x03U
+} bme280_mode_t;
+
+/**
+ * @brief Consolidated sensor configuration structure.
+ */
+typedef struct {
+    bme280_oversampling_t osrs_t;   /**< Temperature oversampling (Default: 2X) */
+    bme280_oversampling_t osrs_p;   /**< Pressure oversampling (Default: 16X) */
+    bme280_oversampling_t osrs_h;   /**< Humidity oversampling (Default: 1X) */
+    bme280_filter_t       filter;   /**< IIR filter coefficient (Default: COEFF_4) */
+} bme280_config_t;
+
+/**
+ * @brief Raw ADC 20-bit/16-bit uncompensated sensor readout.
+ */
+typedef struct {
+    int32_t adc_T;      /**< 20-bit uncompensated raw temperature */
+    int32_t adc_P;      /**< 20-bit uncompensated raw pressure */
+    int32_t adc_H;      /**< 16-bit uncompensated raw humidity */
+} bme280_raw_data_t;
 
 /**
  * @brief Bosch BME280 factory calibration trimming coefficients structure.
@@ -83,6 +142,7 @@ typedef struct {
 typedef struct {
     uint8_t             i2c_address;        /**< I2C device address (0x76 or 0x77) */
     uint8_t             chip_id;            /**< Detected hardware chip ID */
+    bme280_config_t     config;             /**< Currently applied configuration */
     bme280_calib_data_t calib;              /**< Cached factory calibration data */
     bool                is_initialized;     /**< True if initialized and ready */
 } bme280_dev_t;
@@ -127,6 +187,53 @@ status_t bme280_validate_calibration(const bme280_calib_data_t *calib);
  * @return Const pointer to bme280_calib_data_t, or NULL if dev is invalid or uninitialized.
  */
 const bme280_calib_data_t* bme280_get_calibration(const bme280_dev_t *dev);
+
+/**
+ * @brief  Applies meteorological configuration profile (oversampling and IIR filter) to sensor.
+ * @param[in,out] dev Pointer to BME280 device structure.
+ * @param[in]     config Pointer to configuration settings structure.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_configure(bme280_dev_t *dev, const bme280_config_t *config);
+
+/**
+ * @brief  Arms and triggers a single-shot forced mode measurement.
+ * @param[in] dev Pointer to BME280 device structure.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_trigger_forced_mode(bme280_dev_t *dev);
+
+/**
+ * @brief  Polls status register to check if ADC conversion is running.
+ * @param[in]  dev Pointer to BME280 device structure.
+ * @param[out] p_is_measuring Set to true if measuring bit is 1.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_is_measuring(bme280_dev_t *dev, bool *p_is_measuring);
+
+/**
+ * @brief  Blocks with bounded polling until measurement completes.
+ * @param[in] dev Pointer to BME280 device structure.
+ * @param[in] timeout_ms Maximum timeout in milliseconds (e.g. 60 ms).
+ * @return STATUS_OK if complete, STATUS_ERR_TIMEOUT if elapsed.
+ */
+status_t bme280_wait_for_completion(bme280_dev_t *dev, uint32_t timeout_ms);
+
+/**
+ * @brief  Burst reads 8 registers (0xF7..0xFE) and unpacks 20-bit/16-bit raw ADC words.
+ * @param[in]  dev Pointer to BME280 device structure.
+ * @param[out] p_raw Pointer to raw data structure.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_read_raw_data(bme280_dev_t *dev, bme280_raw_data_t *p_raw);
+
+/**
+ * @brief  High-level convenience routine: triggers forced mode, waits, and reads raw ADC.
+ * @param[in,out] dev Pointer to BME280 device structure.
+ * @param[out]    p_raw Pointer to raw data structure.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_sample_forced_raw(bme280_dev_t *dev, bme280_raw_data_t *p_raw);
 
 #ifdef __cplusplus
 }

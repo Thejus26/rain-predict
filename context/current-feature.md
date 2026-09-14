@@ -1,16 +1,31 @@
-# Current Feature
+# Current Feature: S4-T1.2 - Bosch BME280 Forced-Mode Trigger & Measurement Readout
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Update [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) with forced-mode control and raw ADC burst acquisition routines adhering to C99 standards, Doxygen documentation, and zero dynamic memory allocation.
+- Enforce strict register write ordering: `ctrl_hum` (`0xF2`) $\to$ `config` (`0xF5`) $\to$ `ctrl_meas` (`0xF4`) for single-shot forced mode activation.
+- Implement `bme280_configure()`: Apply meteorological profile (temperature $\times 2$, pressure $\times 16$, humidity $\times 1$, IIR filter coefficient 4).
+- Implement `bme280_trigger_forced_mode()`: Arms single-shot conversion by writing `mode = 0b01` (`FORCED_MODE`, combined byte `0x55`) to `ctrl_meas` (`0xF4`).
+- Implement `bme280_is_measuring()` and `bme280_wait_for_completion()`: Non-blocking bounded polling on register `0xF3` bit 3 (`measuring`) with a $60\text{ms}$ timeout guard (`BME280_MEASUREMENT_TIMEOUT_MS`).
+- Implement `bme280_read_raw_data()`: Atomic 8-byte continuous burst readout from `0xF7` to `0xFE` with 20-bit pressure, 20-bit temperature, and 16-bit humidity unpacking.
+- Implement `bme280_sample_forced_raw()`: Master high-level coordinator function triggering forced mode, polling completion, and reading raw ADC registers.
+- Update unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering configuration sequence, trigger byte composition, status polling, 8-byte burst reads, 20-bit/16-bit ADC unpacking test vectors, $60\text{ms}$ timeout guards, and defensive parameter checks.
 
 ## Notes
 
-<!-- Add notes here -->
+- **Control & Status Registers**:
+  - `0xF2`: `ctrl_hum` (Humidity oversampling `osrs_h[2:0]`)
+  - `0xF3`: `status` (Bit 3 `measuring`, Bit 0 `im_update`)
+  - `0xF4`: `ctrl_meas` (`osrs_t[7:5] \| osrs_p[4:2] \| mode[1:0]`)
+  - `0xF5`: `config` (`t_sb[7:5] \| filter[4:2] \| spi3w_e[0]`)
+  - `0xF7..0xFE`: Data registers (`press_msb..hum_lsb`, 8 bytes continuous)
+- **Meteorological Profile**: $T \times 2$ (`0x02`), $P \times 16$ (`0x05`), $H \times 1$ (`0x01`), IIR Filter 4 (`0x02`). Combined `ctrl_meas` trigger byte: `0x55`.
+- **Timing & Guards**: Max conversion duration guard $60\text{ms}$ (`BME280_MEASUREMENT_TIMEOUT_MS`), burst read length $8\text{ bytes}$ (`BME280_RAW_BURST_DATA_LEN`).
+- **Memory & Concurrency**: Zero dynamic memory allocation, shadow latch protection via single continuous 8-byte burst read.
 
 ## History
 
