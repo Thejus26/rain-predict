@@ -277,6 +277,14 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_modbus_rtu.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_sdi12.c")
+    add_firmware_test(sdi12
+        SOURCES unit/test_sdi12.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
+
 
 
 

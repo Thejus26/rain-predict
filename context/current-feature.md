@@ -1,16 +1,50 @@
-# Current Feature
+# Current Feature: S4-T5.1 - SDI-12 Bus Break & Mark Timing Engine
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Implement SDI-12 physical layer header definitions and data types in [`firmware/drivers/inc/sdi12_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/sdi12_driver.h).
+- Implement half-duplex line direction control (`sdi12_set_direction`) driving `PC2` (`SDI12_DIR`) between TX mode (HIGH) and RX listening mode (LOW).
+- Implement deterministic physical wakeup break sequence ($13.0\text{ ms} \ge 12.0\text{ ms}$ spacing state, $+5\text{V}$) and mark sequence ($9.0\text{ ms} \ge 8.33\text{ ms}$ marking state, $0\text{V}$) via GPIO re-configuration and alternate function restoration (`sdi12_send_break_and_mark`).
+- Implement driver initialization (`sdi12_init`) configuring `LPUART1` at 1200 baud, 7 data bits, even parity, 1 stop bit (7-E-1) and defaulting `PC2` to RX mode.
+- Implement command transmission engine (`sdi12_transmit_command`) and unified wakeup-transmit helper (`sdi12_wake_and_transmit`) enforcing trailing `'!'` delimiter, hardware Transmission Complete (TC) flag synchronization, and fail-safe line release.
+- Implement response acquisition engine (`sdi12_receive_response`) collecting `\r\n` terminated ASCII response strings with timeout handling ($1000\text{ ms}$) and null-termination.
+- Implement host simulation mocks and ThrowTheSwitch Unity test suite covering the 10-point test matrix (`TC-SDI-01` to `TC-SDI-10`).
+- Ensure zero dynamic memory allocation (100% static computation) and adherence to `context/coding-standards.md`.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Target MCU**: STMicroelectronics STM32WLE5 SoC.
+- **Pin Allocations**:
+  - `PC0`: `LPUART1_TX` (AF8) / GPIO Output Push-Pull during Break/Mark generation.
+  - `PC1`: `LPUART1_RX` (AF8) 1200-baud 7E1 receiver.
+  - `PC2`: `SDI12_DIR` GPIO Output (HIGH = TX mode, LOW = RX listening mode).
+- **Physical Signaling & Inverted NRZ Logic**:
+  - Spacing State ($+5\text{V}$, `PC0` HIGH): Logic '1' / Break / Active.
+  - Marking State ($0\text{V}$, `PC0` LOW): Logic '0' / Idle.
+- **Timing Parameters (SDI-12 v1.4)**:
+  - Baud rate: $1200\text{ bps}$ ($t_{\text{bit}} = 833.33\,\mu\text{s}$).
+  - Character time: $10\text{ bits} = 8.333\text{ ms}$ ($1\text{ Start} + 7\text{ Data} + 1\text{ Even Parity} + 1\text{ Stop}$).
+  - Break duration: $13.0\text{ ms}$ (Standard minimum: $\ge 12.0\text{ ms}$).
+  - Mark duration: $9.0\text{ ms}$ (Standard minimum: $\ge 8.33\text{ ms}$).
+  - Total wakeup sequence: $22.0\text{ ms}$ ($t_{\text{break}} + t_{\text{mark}}$).
+  - Turnaround guard delay: $500\,\mu\text{s}$ to $1.0\text{ ms}$.
+  - Slave response window: $15.0\text{ ms}$ to $1000.0\text{ ms}$.
+- **Break Generation Strategy**:
+  - Step 1: Assert `PC2` HIGH (TX mode).
+  - Step 2: Switch `PC0` mode to `GPIO_MODE_OUTPUT_PP`.
+  - Step 3: Drive `PC0` HIGH ($+5\text{V}$) for $13.0\text{ ms}$.
+  - Step 4: Drive `PC0` LOW ($0\text{V}$) for $9.0\text{ ms}$.
+  - Step 5: Restore `PC0` to Alternate Function `GPIO_AF8_LPUART1`.
+  - Step 6: Transmit command string over `LPUART1`.
+  - Step 7: Wait for hardware TC flag before switching `PC2` to LOW (RX mode).
+- **Safety & Fail-Safe Behavior**:
+  - Fail-safe RX release: Any transmit failure or timeout must immediately de-assert `PC2` to LOW to avoid holding the shared single-wire bus in active high state.
+  - Zero heap allocation: All buffers statically allocated.
+- **Dependencies**: [`S3-T2.2`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t2.2-uart-bus-driver.md) (UART/LPUART Driver), [`S3-T1.1`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t1.1-gpio-pin-mappings.md) (Board Pinout).
 
 ## History
 

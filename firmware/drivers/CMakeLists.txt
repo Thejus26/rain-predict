@@ -13,6 +13,7 @@ add_library(firmware_drivers STATIC
     src/opt3001_driver.c
     src/rain_gauge_driver.c
     src/modbus_rtu.c
+    src/sdi12_driver.c
 )
 
 target_include_directories(firmware_drivers PUBLIC
