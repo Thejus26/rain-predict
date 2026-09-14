@@ -1,16 +1,32 @@
-# Current Feature
+# Current Feature: S5-T1.1 - LoRaWAN 12-Byte Periodic Binary Telemetry Packet Serializer
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Define `telemetry_rain_state_t` enum and `telemetry_periodic_data_t` engineering unit structure in `firmware/middleware/inc/telemetry_codec.h`.
+- Implement `telemetry_encode_periodic()` in `firmware/middleware/src/telemetry_codec.c` to pack 8 meteorological variables, nowcast alert state, Zambretti index, CPI%, solar cloud alarm, and battery diagnostics into a fixed 12-byte big-endian payload.
+- Implement `telemetry_decode_periodic()` in `firmware/middleware/src/telemetry_codec.c` to deserialize a 12-byte payload back into floating-point physical units.
+- Enforce big-endian network byte order (MSB-first) on all 16-bit multi-byte integer quantities.
+- Implement signed two's-complement quantization for sub-zero temperatures (-40.00°C to +85.00°C).
+- Implement defensive range clamping against physical sensor boundaries to prevent integer wrap-around.
+- Ensure zero dynamic allocation (malloc/free strictly forbidden) and deterministic stack bounds (< 48 bytes).
+- Update `firmware/middleware/CMakeLists.txt` to include `src/telemetry_codec.c`.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Payload Size**: Exactly 12 bytes (96 bits) on LoRaWAN FPort 1.
+- **Byte 0..1**: Temperature (int16_t BE, 0.01 °C step, range -40.00 .. +85.00 °C, raw -4000 .. +8500).
+- **Byte 2..3**: Humidity (uint16_t BE, 0.01 %RH step, range 0.00 .. 100.00 %RH, raw 0 .. 10000).
+- **Byte 4..5**: Pressure (uint16_t BE, base 300.00 hPa, 0.02 hPa step, range 300.00 .. 1100.00 hPa, raw 0 .. 40000).
+- **Byte 6..7**: Ambient Solar Lux (uint16_t BE, 2.0 Lux step, range 0.0 .. 83,000.0 Lux, raw 0 .. 41500).
+- **Byte 8**: Interval Accumulated Rain (uint8_t, 0.2 mm step, range 0.0 .. 51.0 mm, raw 0 .. 255).
+- **Byte 9**: State [7:6] (0..3) | Zambretti Index [5:0] (1..26).
+- **Byte 10**: Solar Cloud Drop Alarm [7] (0/1) | CPI Probability [6:0] (0..100%).
+- **Byte 11**: Unexpected Reset [7] | Sensor Fault [6] | Battery Vbat [5:0] (base 2.50 V, 20 mV step, raw 0..63 for 2.50 .. 3.76 V).
+- Target files: `firmware/middleware/inc/telemetry_codec.h`, `firmware/middleware/src/telemetry_codec.c`.
 
 ## History
 
