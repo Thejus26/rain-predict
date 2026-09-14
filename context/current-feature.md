@@ -1,16 +1,38 @@
-# Current Feature
+# Current Feature: S4-T1.4 - Bosch BME280 Humidity Saturation Detection & Condensation Recovery
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Update [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) with saturation state machine enum [`bme280_saturation_state_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and diagnostics structure [`bme280_saturation_status_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h).
+- Implement hardware soft-reset routine `bme280_soft_reset()` writing `0xB6` to register `0xE0` (`BME280_REG_RESET`), delaying $5\text{ ms}$ for internal power-on-reset and NVM copy, and reloading trimming calibration parameters.
+- Implement saturation and condensation evaluation routine `bme280_process_saturation()` tracking consecutive high-humidity cycles ($RH \ge 98.0\%$), applying $3.0\%$ hysteresis de-assertion ($RH < 95.0\%$), detecting condensation creep ($\text{Lux} \ge 10\text{k}$, $\frac{dT}{dt} \ge +1.5^\circ\text{C/hr}$), applying $-1.5\%$ mathematical de-biasing offset, and triggering 24-hour zero-rain automated recovery ($144$ cycles with zero rain tips).
+- Implement saturation status accessors and management: `bme280_get_saturation_status()` and `bme280_reset_saturation_tracking()`.
+- Update unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering all 10 verification test cases in TC-S4-T1.4 (soft reset register write, saturation cycle incrementation, 1h saturation assertion, 3% hysteresis clearing, condensation creep detection, de-biasing offset calculation, 24h zero-rain soft reset, rain gauge reset suppression, and state reset API).
 
 ## Notes
 
-<!-- Add notes here -->
+- **Thresholds & Timing Constants**:
+  - `BME280_SATURATION_THRESHOLD_RH`: `98.0f` (%RH)
+  - `BME280_SATURATION_HYSTERESIS_RH`: `95.0f` (%RH)
+  - `BME280_SATURATION_MIN_CYCLES_1H`: `6U` (6 cycles @ 10m = 1 hour)
+  - `BME280_SATURATION_MAX_CYCLES_24H`: `144U` (144 cycles @ 10m = 24 hours)
+  - `BME280_CONDENSATION_MIN_LUX`: `10000U` (lux)
+  - `BME280_CONDENSATION_MIN_TEMP_RISE`: `1.5f` (°C/hour)
+  - `BME280_CONDENSATION_DEBIAS_OFFSET`: `1.5f` (%RH)
+  - `BME280_SOFT_RESET_KEY`: `0xB6U` (Reg `0xE0`)
+  - `BME280_SOFT_RESET_SETTLE_MS`: `5U` (ms)
+- **Operational Saturation States**:
+  - `BME280_STATE_NORMAL` (0): Normal relative humidity (< 98.0% RH)
+  - `BME280_STATE_HIGH_HUMIDITY_SAT` (1): Atmospheric saturation / fog / rain (>= 98.0% RH for >= 1 hour)
+  - `BME280_STATE_CONDENSATION_CREEP` (2): Rapid drying / surface condensation mismatch (>= 98% under bright sun)
+  - `BME280_STATE_SOFT_RECOVERY` (3): Automated NVM reload / soft reset executed
+- **Defensive Safeguards**:
+  - Counter clamped to `65535` to avoid 16-bit rollover during prolonged monsoon immersion.
+  - Soft reset suppressed when `rain_tips_24h > 0` (physical rainfall justifies saturation).
+  - Enforce $5\text{ ms}$ delay before re-reading trimming registers after soft reset.
 
 ## History
 
