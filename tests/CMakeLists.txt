@@ -284,9 +284,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_sdi12.c")
     )
 endif()
 
-
-
-
-
-
-
+# -----------------------------------------------------------------------------
+# 9. Telemetry Protocol, LoRaWAN & Flash Storage Tests
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_telemetry_codec.c")
+    add_firmware_test(telemetry_codec
+        SOURCES unit/test_telemetry_codec.c
+        LIBRARIES firmware_middleware firmware_core
+    )
+endif()
