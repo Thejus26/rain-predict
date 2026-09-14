@@ -1,38 +1,16 @@
-# Current Feature: S4-T1.4 - Bosch BME280 Humidity Saturation Detection & Condensation Recovery
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Update [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) with saturation state machine enum [`bme280_saturation_state_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and diagnostics structure [`bme280_saturation_status_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h).
-- Implement hardware soft-reset routine `bme280_soft_reset()` writing `0xB6` to register `0xE0` (`BME280_REG_RESET`), delaying $5\text{ ms}$ for internal power-on-reset and NVM copy, and reloading trimming calibration parameters.
-- Implement saturation and condensation evaluation routine `bme280_process_saturation()` tracking consecutive high-humidity cycles ($RH \ge 98.0\%$), applying $3.0\%$ hysteresis de-assertion ($RH < 95.0\%$), detecting condensation creep ($\text{Lux} \ge 10\text{k}$, $\frac{dT}{dt} \ge +1.5^\circ\text{C/hr}$), applying $-1.5\%$ mathematical de-biasing offset, and triggering 24-hour zero-rain automated recovery ($144$ cycles with zero rain tips).
-- Implement saturation status accessors and management: `bme280_get_saturation_status()` and `bme280_reset_saturation_tracking()`.
-- Update unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering all 10 verification test cases in TC-S4-T1.4 (soft reset register write, saturation cycle incrementation, 1h saturation assertion, 3% hysteresis clearing, condensation creep detection, de-biasing offset calculation, 24h zero-rain soft reset, rain gauge reset suppression, and state reset API).
+<!-- Add goals here -->
 
 ## Notes
 
-- **Thresholds & Timing Constants**:
-  - `BME280_SATURATION_THRESHOLD_RH`: `98.0f` (%RH)
-  - `BME280_SATURATION_HYSTERESIS_RH`: `95.0f` (%RH)
-  - `BME280_SATURATION_MIN_CYCLES_1H`: `6U` (6 cycles @ 10m = 1 hour)
-  - `BME280_SATURATION_MAX_CYCLES_24H`: `144U` (144 cycles @ 10m = 24 hours)
-  - `BME280_CONDENSATION_MIN_LUX`: `10000U` (lux)
-  - `BME280_CONDENSATION_MIN_TEMP_RISE`: `1.5f` (°C/hour)
-  - `BME280_CONDENSATION_DEBIAS_OFFSET`: `1.5f` (%RH)
-  - `BME280_SOFT_RESET_KEY`: `0xB6U` (Reg `0xE0`)
-  - `BME280_SOFT_RESET_SETTLE_MS`: `5U` (ms)
-- **Operational Saturation States**:
-  - `BME280_STATE_NORMAL` (0): Normal relative humidity (< 98.0% RH)
-  - `BME280_STATE_HIGH_HUMIDITY_SAT` (1): Atmospheric saturation / fog / rain (>= 98.0% RH for >= 1 hour)
-  - `BME280_STATE_CONDENSATION_CREEP` (2): Rapid drying / surface condensation mismatch (>= 98% under bright sun)
-  - `BME280_STATE_SOFT_RECOVERY` (3): Automated NVM reload / soft reset executed
-- **Defensive Safeguards**:
-  - Counter clamped to `65535` to avoid 16-bit rollover during prolonged monsoon immersion.
-  - Soft reset suppressed when `rain_tips_24h > 0` (physical rainfall justifies saturation).
-  - Enforce $5\text{ ms}$ delay before re-reading trimming registers after soft reset.
+<!-- Add notes here -->
 
 ## History
 
@@ -95,3 +73,4 @@ In Progress
 - 2026-09-14: S4-T1.1 - Implemented Bosch BME280 Factory Trimming Parameter Readout and Calibration Unpacking (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c, firmware/drivers/CMakeLists.txt, tests/CMakeLists.txt) covering Chip ID verification (0xD0 -> 0x60), 2-phase burst NVM readout (26 bytes from 0x88, 7 bytes from 0xE1), little-endian temperature/pressure parameter unpacking, signed 12-bit humidity bit-split unpacking (dig_H4 and dig_H5), defensive sanity validation against corrupt/uninitialized NVM, device lifecycle initialization, and ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T1.2 - Implemented Bosch BME280 Forced-Mode Trigger, Bounded Conversion Status Polling, and 8-Byte Continuous Burst Raw ADC Readout (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering strict register write ordering (0xF2 -> 0xF5 -> 0xF4), 0x55 single-shot forced-mode trigger byte composition (T:x2, P:x16, H:x1, IIR filter 4), 60ms watchdog timeout guard, atomic 8-byte continuous burst readout (0xF7..0xFE) with shadow latch locking, 20-bit pressure/temperature and 16-bit humidity ADC word unpacking, and ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T1.3 - Implemented Bosch BME280 Single-Precision FPU Compensation Calculations and Master Sampling Workflow (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering 32-bit float (bme280_data_t) and fixed-point (bme280_fixed_data_t) compensation routines, single-precision temperature compensation (t_fine computation), zero-division protected pressure compensation with terrestrial bounding ([300.0, 1100.0] hPa), bounded humidity compensation ([0.0, 100.0] %RH), master raw-to-float and raw-to-fixed compensation (bme280_compensate_raw, bme280_compensate_raw_fixed), end-to-end forced-mode burst sampling workflow (bme280_read_data), and comprehensive ThrowTheSwitch Unity test suite validating Bosch reference vectors, sub-zero temperatures, zero-division guards, clamping boundaries, and integer scaling.
+- 2026-09-14: S4-T1.4 - Implemented Bosch BME280 Humidity Saturation Detection, Condensation Recovery, and Hardware Soft-Reset (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering saturation state machine (bme280_saturation_state_t: NORMAL, HIGH_HUMIDITY_SAT, CONDENSATION_CREEP, SOFT_RECOVERY), diagnostic structure (bme280_saturation_status_t), 0xB6 hardware soft reset via register 0xE0 with 5ms settling delay and NVM calibration reload (bme280_soft_reset), saturation cycle tracking (RH >= 98.0% with 65535 overflow clamp), 1-hour saturation assertion (>= 6 cycles), 3.0% hysteresis de-assertion (RH < 95.0%), daylight condensation creep detection (Lux >= 10k, dT/dt >= +1.5°C/hr), dynamic -1.5% RH de-biasing offset, 24-hour zero-rain automated soft reset recovery (144 cycles), rain gauge reset suppression (rain_tips_24h > 0), and comprehensive ThrowTheSwitch Unity test suite.
