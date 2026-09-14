@@ -31,6 +31,16 @@ static inline uint32_t clamp_u32(uint32_t val, uint32_t min_val, uint32_t max_va
     return val;
 }
 
+static inline int32_t clamp_i32(int32_t val, int32_t min_val, int32_t max_val) {
+    if (val < min_val) {
+        return min_val;
+    }
+    if (val > max_val) {
+        return max_val;
+    }
+    return val;
+}
+
 /* ========================================================================== */
 /* Public Codec Implementation                                                */
 /* ========================================================================== */
@@ -195,6 +205,102 @@ status_t telemetry_decode_periodic(const uint8_t *buffer,
     data->sensor_fault = ((buffer[11] & 0x40U) != 0U);
     uint8_t raw_vbat = (uint8_t)(buffer[11] & 0x3FU);
     data->battery_voltage_v = TELEMETRY_VBAT_OFFSET_V + ((float)raw_vbat * TELEMETRY_VBAT_STEP_V);
+
+    return STATUS_OK;
+}
+
+/* ========================================================================== */
+/* Urgent Storm Alert Codec (4 Bytes)                                         */
+/* ========================================================================== */
+
+status_t telemetry_encode_alert(const telemetry_alert_data_t *data,
+                               uint8_t *buffer,
+                               size_t buffer_size,
+                               size_t *encoded_len) {
+    if (data == NULL || buffer == NULL || encoded_len == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+
+    if (buffer_size < TELEMETRY_ALERT_PAYLOAD_SIZE) {
+        return STATUS_ERROR_BUFFER_TOO_SMALL;
+    }
+
+    memset(buffer, 0, TELEMETRY_ALERT_PAYLOAD_SIZE);
+
+    /* ---------------------------------------------------------------------- */
+    /* Byte 0: State [7:6] | Trigger Cause [5:3] | Sequence ID [2:0]          */
+    /* ---------------------------------------------------------------------- */
+    uint8_t state_bits = (uint8_t)(((uint8_t)data->alert_state & 0x03U) << 6);
+    uint8_t trigger_bits = (uint8_t)(((uint8_t)data->trigger_cause & 0x07U) << 3);
+    uint8_t seq_bits = (uint8_t)(data->alert_sequence_id & 0x07U);
+    buffer[0] = (uint8_t)(state_bits | trigger_bits | seq_bits);
+
+    /* ---------------------------------------------------------------------- */
+    /* Byte 1: Solar Drop Flag [7] | CPI Probability [6:0]                    */
+    /* ---------------------------------------------------------------------- */
+    uint8_t solar_flag = data->solar_cloud_drop_alarm ? 0x80U : 0x00U;
+    uint8_t cpi_clamped = (uint8_t)clamp_u32((uint32_t)data->cpi_prob_pct, 0U, (uint32_t)TELEMETRY_CPI_MAX_PCT);
+    buffer[1] = (uint8_t)(solar_flag | (cpi_clamped & 0x7FU));
+
+    /* ---------------------------------------------------------------------- */
+    /* Byte 2: Barometric Pressure Rate dP/dt (Signed int8_t, 0.05 hPa/hr)    */
+    /* ---------------------------------------------------------------------- */
+    float rate_clamped = clamp_float(data->pressure_rate_hpa_per_h,
+                                     TELEMETRY_PRESS_RATE_MIN_HPA_H,
+                                     TELEMETRY_PRESS_RATE_MAX_HPA_H);
+    int32_t raw_rate_32 = (int32_t)lroundf(rate_clamped / TELEMETRY_PRESS_RATE_STEP_HPA_H);
+    int8_t raw_rate = (int8_t)clamp_i32(raw_rate_32, -128, 127);
+    buffer[2] = (uint8_t)raw_rate;
+
+    /* ---------------------------------------------------------------------- */
+    /* Byte 3: Rain Intensity [7:6] | Sensor Fault [5] | Battery Vbat [4:0]   */
+    /* ---------------------------------------------------------------------- */
+    uint8_t rain_bits = (uint8_t)(((uint8_t)data->rain_intensity & 0x03U) << 6);
+    uint8_t fault_bit = data->sensor_fault ? 0x20U : 0x00U;
+
+    float vbat_clamped = clamp_float(data->battery_voltage_v,
+                                     TELEMETRY_ALERT_VBAT_MIN_V,
+                                     TELEMETRY_ALERT_VBAT_MAX_V);
+    uint32_t raw_vbat_32 = (uint32_t)lroundf((vbat_clamped - TELEMETRY_ALERT_VBAT_OFFSET_V) / TELEMETRY_ALERT_VBAT_STEP_V);
+    uint8_t raw_vbat = (uint8_t)clamp_u32(raw_vbat_32, 0U, 31U);
+
+    buffer[3] = (uint8_t)(rain_bits | fault_bit | (raw_vbat & 0x1FU));
+
+    *encoded_len = TELEMETRY_ALERT_PAYLOAD_SIZE;
+    return STATUS_OK;
+}
+
+status_t telemetry_decode_alert(const uint8_t *buffer,
+                               size_t buffer_size,
+                               telemetry_alert_data_t *data) {
+    if (buffer == NULL || data == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+
+    if (buffer_size < TELEMETRY_ALERT_PAYLOAD_SIZE) {
+        return STATUS_ERROR_INVALID_PARAM;
+    }
+
+    memset(data, 0, sizeof(telemetry_alert_data_t));
+
+    /* Byte 0: State [7:6], Trigger [5:3], Seq ID [2:0] */
+    data->alert_state = (telemetry_rain_state_t)((buffer[0] >> 6) & 0x03U);
+    data->trigger_cause = (telemetry_alert_trigger_t)((buffer[0] >> 3) & 0x07U);
+    data->alert_sequence_id = (uint8_t)(buffer[0] & 0x07U);
+
+    /* Byte 1: Solar Drop Flag [7], CPI Probability [6:0] */
+    data->solar_cloud_drop_alarm = ((buffer[1] & 0x80U) != 0U);
+    data->cpi_prob_pct = (uint8_t)(buffer[1] & 0x7FU);
+
+    /* Byte 2: Barometric Pressure Rate dP/dt */
+    int8_t raw_rate = (int8_t)buffer[2];
+    data->pressure_rate_hpa_per_h = (float)raw_rate * TELEMETRY_PRESS_RATE_STEP_HPA_H;
+
+    /* Byte 3: Rain Intensity [7:6], Sensor Fault [5], Battery Vbat [4:0] */
+    data->rain_intensity = (telemetry_rain_intensity_t)((buffer[3] >> 6) & 0x03U);
+    data->sensor_fault = ((buffer[3] & 0x20U) != 0U);
+    uint8_t raw_vbat = (uint8_t)(buffer[3] & 0x1FU);
+    data->battery_voltage_v = TELEMETRY_ALERT_VBAT_OFFSET_V + ((float)raw_vbat * TELEMETRY_ALERT_VBAT_STEP_V);
 
     return STATUS_OK;
 }

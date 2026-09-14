@@ -23,6 +23,8 @@ extern "C" {
 /** @brief Fixed length of periodic telemetry payload in bytes */
 #define TELEMETRY_PERIODIC_PAYLOAD_SIZE     12U
 
+#define TELEMETRY_ALERT_PAYLOAD_SIZE        4U
+
 /** @brief LoRaWAN Application Port for scheduled periodic telemetry */
 #define TELEMETRY_FPORT_PERIODIC            1U
 
@@ -33,7 +35,7 @@ extern "C" {
 #define TELEMETRY_FPORT_CONFIG              10U
 
 /* ========================================================================== */
-/* Physical Scaling, Resolution & Offset Constants                            */
+/* Physical Scaling, Resolution & Offset Constants (Periodic Telemetry)       */
 /* ========================================================================== */
 
 #define TELEMETRY_TEMP_SCALE                100.0f      /**< 0.01 °C per LSB */
@@ -68,6 +70,21 @@ extern "C" {
 #define TELEMETRY_CPI_MAX_PCT               100U        /**< 100% Probability */
 
 /* ========================================================================== */
+/* Urgent Alert Payload Scaling & Offset Constants                            */
+/* ========================================================================== */
+
+#define TELEMETRY_PRESS_RATE_STEP_HPA_H     0.05f       /**< 0.05 hPa/hr per LSB */
+#define TELEMETRY_PRESS_RATE_MIN_HPA_H      (-6.40f)    /**< -6.40 hPa/hr */
+#define TELEMETRY_PRESS_RATE_MAX_HPA_H      6.35f       /**< +6.35 hPa/hr */
+
+#define TELEMETRY_ALERT_VBAT_OFFSET_V       2.50f       /**< 2.500 V base */
+#define TELEMETRY_ALERT_VBAT_STEP_V         0.040f      /**< 0.040 V (40 mV) per LSB */
+#define TELEMETRY_ALERT_VBAT_MIN_V          2.50f       /**< 2.500 V */
+#define TELEMETRY_ALERT_VBAT_MAX_V          3.74f       /**< 3.740 V (2.50 + 31 * 0.04) */
+
+#define TELEMETRY_ALERT_SEQ_MAX             7U          /**< 3-bit rolling sequence [0..7] */
+
+/* ========================================================================== */
 /* Data Structures & Typedefs                                                 */
 /* ========================================================================== */
 
@@ -80,6 +97,30 @@ typedef enum {
     RAIN_ALERT_IMMINENT    = 2U,    /**< 10: Rain imminent (CPI >= 60%) */
     RAIN_ALERT_ACTIVE_RAIN = 3U     /**< 11: Physical rainfall in progress */
 } telemetry_rain_state_t;
+
+/**
+ * @brief Primary trigger cause for urgent storm alert uplink.
+ */
+typedef enum {
+    ALERT_TRIGGER_MANUAL            = 0U,   /**< 000: Manual diagnostic / test trigger */
+    ALERT_TRIGGER_CPI_THRESHOLD     = 1U,   /**< 001: CPI score threshold exceeded (CPI >= 70%) */
+    ALERT_TRIGGER_PRESSURE_PLUNGE   = 2U,   /**< 010: Rapid barometric drop (> 2.0 hPa / 3h) */
+    ALERT_TRIGGER_SOLAR_COLLAPSE    = 3U,   /**< 011: Sudden solar attenuation (> 50% drop in 30min) */
+    ALERT_TRIGGER_FIRST_RAIN_TIP    = 4U,   /**< 100: Physical rain gauge bucket tip detected */
+    ALERT_TRIGGER_COMBINED_GRADIENT = 5U,   /**< 101: Multi-variable simultaneous surge */
+    ALERT_TRIGGER_DEW_CONVERGENCE   = 6U,   /**< 110: Dew point depression convergence (DPD < 0.5 °C) */
+    ALERT_TRIGGER_LOW_BATTERY       = 7U    /**< 111: Critical battery depletion warning (Vbat < 2.80 V) */
+} telemetry_alert_trigger_t;
+
+/**
+ * @brief Rainfall rate intensity classification tier.
+ */
+typedef enum {
+    RAIN_INTENSITY_NONE     = 0U,   /**< 00: No rain (0.0 mm/hr) */
+    RAIN_INTENSITY_LIGHT    = 1U,   /**< 01: Light rain (0.1 .. 2.5 mm/hr) */
+    RAIN_INTENSITY_MODERATE = 2U,   /**< 10: Moderate rain (2.5 .. 10.0 mm/hr) */
+    RAIN_INTENSITY_HEAVY    = 3U    /**< 11: Heavy / torrential rain (> 10.0 mm/hr) */
+} telemetry_rain_intensity_t;
 
 /**
  * @brief Unpacked periodic telemetry structure representing physical engineering units.
@@ -98,6 +139,21 @@ typedef struct {
     bool                   sensor_fault;           /**< True if sensor bus communication error detected */
     bool                   unexpected_reset;       /**< True if MCU underwent watchdog/brownout/hardware reset */
 } telemetry_periodic_data_t;
+
+/**
+ * @brief Unpacked urgent storm alert structure representing engineering units.
+ */
+typedef struct {
+    telemetry_rain_state_t      alert_state;            /**< Alert operational state */
+    telemetry_alert_trigger_t   trigger_cause;          /**< Primary trigger cause code */
+    uint8_t                     alert_sequence_id;      /**< Rolling sequence token [0 .. 7] */
+    uint8_t                     cpi_prob_pct;           /**< Composite Precipitation Index [0 .. 100%] */
+    bool                        solar_cloud_drop_alarm; /**< Convective cloud attenuation trigger */
+    float                       pressure_rate_hpa_per_h;/**< 1-hour barometric rate in hPa/hr [-6.40 .. +6.35] */
+    telemetry_rain_intensity_t  rain_intensity;         /**< Current rain intensity tier */
+    bool                        sensor_fault;           /**< True if sensor bus error detected */
+    float                       battery_voltage_v;      /**< Battery voltage in Volts [2.50 .. 3.74] */
+} telemetry_alert_data_t;
 
 /* ========================================================================== */
 /* Function Prototypes                                                        */
@@ -128,6 +184,32 @@ status_t telemetry_encode_periodic(const telemetry_periodic_data_t *data,
 status_t telemetry_decode_periodic(const uint8_t *buffer,
                                   size_t buffer_size,
                                   telemetry_periodic_data_t *data);
+
+/**
+ * @brief  Serializes urgent storm alert and event data into a compact 4-byte LoRaWAN binary payload.
+ * @param[in]  data        Pointer to source alert data structure with engineering units.
+ * @param[out] buffer      Pointer to destination byte array to store serialized payload.
+ * @param[in]  buffer_size Size of destination buffer in bytes (must be >= 4).
+ * @param[out] encoded_len Pointer to store exact number of bytes written (will be 4).
+ * @return STATUS_OK on success, STATUS_ERROR_NULL_POINTER if any pointer is NULL,
+ *         or STATUS_ERROR_BUFFER_TOO_SMALL if buffer_size < 4.
+ */
+status_t telemetry_encode_alert(const telemetry_alert_data_t *data,
+                               uint8_t *buffer,
+                               size_t buffer_size,
+                               size_t *encoded_len);
+
+/**
+ * @brief  Deserializes a 4-byte LoRaWAN urgent alert binary payload into engineering units.
+ * @param[in]  buffer      Pointer to raw 4-byte binary payload buffer.
+ * @param[in]  buffer_size Size of raw payload buffer in bytes (must be >= 4).
+ * @param[out] data        Pointer to destination alert data structure to populate.
+ * @return STATUS_OK on success, STATUS_ERROR_NULL_POINTER if any pointer is NULL,
+ *         or STATUS_ERROR_INVALID_PARAM if buffer_size < 4.
+ */
+status_t telemetry_decode_alert(const uint8_t *buffer,
+                               size_t buffer_size,
+                               telemetry_alert_data_t *data);
 
 #ifdef __cplusplus
 }
