@@ -284,7 +284,6 @@ static void test_modbus_parse_resp_address_and_fc_mismatch(void) {
  * @brief TC-S4-T4.1-11: Response Parser Byte Count & Frame Length Mismatches.
  */
 static void test_modbus_parse_resp_byte_count_mismatches(void) {
-    uint8_t resp[11];
     uint16_t reg_data[8];
     modbus_exception_t ex = MODBUS_EX_NONE;
 
