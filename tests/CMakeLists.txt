@@ -270,6 +270,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_rain_gauge.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_modbus_rtu.c")
+    add_firmware_test(modbus_rtu
+        SOURCES unit/test_modbus_rtu.c
+        LIBRARIES firmware_drivers firmware_core
+    )
+endif()
+
 
 
 
