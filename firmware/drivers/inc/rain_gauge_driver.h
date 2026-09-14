@@ -39,6 +39,9 @@ extern "C" {
 /** @brief Number of 10-minute intervals in a rolling 1-hour FIFO (6 * 10 min = 60 min) */
 #define RAIN_GAUGE_HOURLY_FIFO_SIZE         6U
 
+/** @brief Default sample interval duration in seconds (10 minutes) */
+#define RAIN_GAUGE_INTERVAL_DURATION_SEC    600U
+
 /** @brief Maximum tip count representable in 8-bit unsigned LoRaWAN Byte 8 (51.0 mm) */
 #define RAIN_GAUGE_TELEMETRY_MAX_TIPS       255U
 
