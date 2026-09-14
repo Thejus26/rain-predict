@@ -1,31 +1,16 @@
-# Current Feature: S4-T2.4 - TI OPT3001 Driver Unit Test Suite
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement comprehensive ThrowTheSwitch Unity test suite in `tests/unit/test_opt3001.c` covering all OPT3001 driver functionality (S4-T2.1 through S4-T2.3).
-- Test NULL parameter defensive guards across all driver APIs.
-- Test I2C address range validation (0x44 to 0x47) and hardware identity validation (0x5449 / 0x3001).
-- Test single-shot configuration trigger register write (0xCA10) and big-endian 16-bit word serialization.
-- Test conversion ready polling (CRF active vs ready) and 150ms timeout handling.
-- Test raw register exponent and mantissa bitfield unpacking.
-- Test exponential floating-point Lux conversion across 12 exponent ranges (0.01 Lux to 83,865.60 Lux) and invalid exponent clamping (E >= 12).
-- Test exact 32-bit fixed-point centi-lux integer calculations (R << E).
-- Test solar irradiance conversion (120 lm/W) and LoRaWAN Byte 6-7 telemetry integer scaling (2.0 Lux/LSB).
-- Test hysteresis-gated day/night state machine (Night, Twilight, Daylight) and boolean daylight query.
-- Test multi-tier convective storm cloud attenuation scoring (Severe 100, Moderate 65, Minor 30, Clear/Night 0) and LoRaWAN Byte 10 Bit 7 solar alarm flag.
-- Test master context update and high-level sampling workflows (`opt3001_convert_raw`, `opt3001_read_lux`, `opt3001_update_solar_context`).
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- Target Test File: [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c)
-- Mock Framework: ThrowTheSwitch Unity and Mock I2C (`tests/mocks/mock_i2c_bus.h`)
-- Hardware ID: Manufacturer 0x5449 ('TI'), Device 0x3001
-- Target Source: [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h), [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c)
-- Zero dynamic allocation, strict C99 compiler flags.
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -93,5 +78,6 @@ In Progress
 - 2026-09-14: S4-T2.1 - Implemented TI OPT3001 Ambient Light Sensor Hardware Initialization, 16-bit Big-Endian Register Readout, Device ID Verification (0x5449 / 0x3001), 100ms Auto-Range Single-Shot Trigger (0xCA10), Conversion Ready Flag (CRF) Polling with 150ms Timeout, Raw Exponent/Mantissa Bitfield Separation, and ThrowTheSwitch Unity Unit Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 - 2026-09-14: S4-T2.2 - Implemented TI OPT3001 Exponential Lux Calculation (opt3001_raw_to_lux), 32-bit Exact Fixed-Point Integer Math (opt3001_raw_to_centi_lux), Solar Irradiance Estimation (opt3001_lux_to_irradiance), LoRaWAN 16-bit Telemetry Scaling (opt3001_lux_to_telemetry_u16), Master Reading APIs (opt3001_convert_raw, opt3001_read_lux), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 - 2026-09-14: S4-T2.3 - Implemented TI OPT3001 Hysteresis-Gated Day/Night Classification (opt3001_classify_day_state, opt3001_is_daylight), Multi-Tier Convective Storm Cloud Attenuation Scoring (opt3001_evaluate_solar_attenuation), LoRaWAN Byte 10 Bit 7 Solar Drop Alarm Flag, Sunset False-Alarm Interlock, Master Solar Context Evaluator (opt3001_update_solar_context), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
+- 2026-09-14: S4-T2.4 - Implemented and verified comprehensive TI OPT3001 Driver ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_opt3001.c) covering 26 unit tests across hardware ID verification, big-endian 16-bit register I/O, single-shot acquisition, 150ms timeout handling, exponential single-precision lux math, centi-lux fixed-point shifts, solar irradiance conversion, LoRaWAN Byte 6-7 telemetry serialization, day/night hysteresis state machine, and multi-tier convective storm cloud attenuation scoring. Completed S4-T2 (TI OPT3001 Ambient Light & Solar Irradiance Driver).
 
 
