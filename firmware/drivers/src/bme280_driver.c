@@ -2,7 +2,8 @@
  * @file    bme280_driver.c
  * @brief   Bosch BME280 sensor driver implementation for STM32WLE5 SoC.
  * @details Implements 2-phase burst NVM calibration readout, hardware ID verification,
- *          little-endian and bit-split unpacking, and coefficient sanity validation.
+ *          forced-mode single-shot trigger, bounded conversion completion polling,
+ *          atomic 8-byte raw ADC readout, and coefficient sanity validation.
  *          Adheres to C99 standards, MISRA-C guidelines, and zero-dynamic-memory allocation.
  */
 
@@ -10,6 +11,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
+#if defined(HAVE_STM32WLXX_HAL)
+#include "stm32wlxx_hal.h"
+#endif
 
 #include "i2c_bus.h"
 #include "bme280_driver.h"
@@ -138,6 +143,12 @@ status_t bme280_init(bme280_dev_t *dev, uint8_t i2c_addr) {
     memset(dev, 0, sizeof(bme280_dev_t));
     dev->i2c_address = i2c_addr;
 
+    /* Set default meteorological sampling configuration */
+    dev->config.osrs_t = BME280_OVERSAMPLING_2X;
+    dev->config.osrs_p = BME280_OVERSAMPLING_16X;
+    dev->config.osrs_h = BME280_OVERSAMPLING_1X;
+    dev->config.filter = BME280_FILTER_COEFF_4;
+
     /* 1. Verify Chip ID */
     uint8_t chip_id = 0;
     status_t status = bme280_read_chip_id(dev, &chip_id);
@@ -160,4 +171,168 @@ const bme280_calib_data_t* bme280_get_calibration(const bme280_dev_t *dev) {
         return NULL;
     }
     return &dev->calib;
+}
+
+status_t bme280_configure(bme280_dev_t *dev, const bme280_config_t *config) {
+    if (dev == NULL || config == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    dev->config = *config;
+
+    /* 1. Write ctrl_hum (0xF2) -> osrs_h */
+    uint8_t ctrl_hum = (uint8_t)(config->osrs_h & 0x07U);
+    status_t status = i2c_bus_write(dev->i2c_address,
+                                    BME280_REG_CTRL_HUM,
+                                    &ctrl_hum,
+                                    1U,
+                                    BME280_I2C_TIMEOUT_MS);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 2. Write config (0xF5) -> IIR Filter */
+    uint8_t config_reg = (uint8_t)((config->filter & 0x07U) << 2);
+    status = i2c_bus_write(dev->i2c_address,
+                           BME280_REG_CONFIG,
+                           &config_reg,
+                           1U,
+                           BME280_I2C_TIMEOUT_MS);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    return STATUS_OK;
+}
+
+status_t bme280_trigger_forced_mode(bme280_dev_t *dev) {
+    if (dev == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    /* ctrl_meas: osrs_t[7:5] | osrs_p[4:2] | mode[1:0] */
+    uint8_t ctrl_meas = (uint8_t)(((dev->config.osrs_t & 0x07U) << 5) |
+                                  ((dev->config.osrs_p & 0x07U) << 2) |
+                                  (BME280_MODE_FORCED & 0x03U));
+
+    return i2c_bus_write(dev->i2c_address,
+                         BME280_REG_CTRL_MEAS,
+                         &ctrl_meas,
+                         1U,
+                         BME280_I2C_TIMEOUT_MS);
+}
+
+status_t bme280_is_measuring(bme280_dev_t *dev, bool *p_is_measuring) {
+    if (dev == NULL || p_is_measuring == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    uint8_t status_reg = 0;
+    status_t status = i2c_bus_read(dev->i2c_address,
+                                   BME280_REG_STATUS,
+                                   &status_reg,
+                                   1U,
+                                   BME280_I2C_TIMEOUT_MS);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    *p_is_measuring = ((status_reg & BME280_REG_STATUS_MEASURING_BIT) != 0U);
+    return STATUS_OK;
+}
+
+status_t bme280_wait_for_completion(bme280_dev_t *dev, uint32_t timeout_ms) {
+    if (dev == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    uint32_t elapsed_ms = 0;
+    const uint32_t poll_interval_ms = 5U;
+
+#if defined(HAVE_STM32WLXX_HAL)
+    /* Initial nominal sleep delay (20 ms) before polling */
+    HAL_Delay(20);
+    elapsed_ms += 20U;
+#endif
+
+    while (elapsed_ms <= timeout_ms) {
+        bool measuring = true;
+        status_t status = bme280_is_measuring(dev, &measuring);
+        if (status != STATUS_OK) {
+            return status;
+        }
+
+        if (!measuring) {
+            return STATUS_OK; /* Measurement completed */
+        }
+
+#if defined(HAVE_STM32WLXX_HAL)
+        HAL_Delay(poll_interval_ms);
+#endif
+        elapsed_ms += poll_interval_ms;
+    }
+
+    return STATUS_ERR_TIMEOUT;
+}
+
+status_t bme280_read_raw_data(bme280_dev_t *dev, bme280_raw_data_t *p_raw) {
+    if (dev == NULL || p_raw == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    uint8_t raw_buf[BME280_RAW_BURST_DATA_LEN];
+    memset(raw_buf, 0, sizeof(raw_buf));
+
+    /* Burst read 8 registers starting at 0xF7 (press_msb) */
+    status_t status = i2c_bus_read(dev->i2c_address,
+                                   BME280_REG_PRESS_MSB,
+                                   raw_buf,
+                                   BME280_RAW_BURST_DATA_LEN,
+                                   BME280_I2C_TIMEOUT_MS);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* Unpack 20-bit Pressure: raw_buf[0..2] */
+    p_raw->adc_P = (int32_t)((((uint32_t)raw_buf[0]) << 12) |
+                             (((uint32_t)raw_buf[1]) << 4)  |
+                             (((uint32_t)raw_buf[2]) >> 4));
+
+    /* Unpack 20-bit Temperature: raw_buf[3..5] */
+    p_raw->adc_T = (int32_t)((((uint32_t)raw_buf[3]) << 12) |
+                             (((uint32_t)raw_buf[4]) << 4)  |
+                             (((uint32_t)raw_buf[5]) >> 4));
+
+    /* Unpack 16-bit Humidity: raw_buf[6..7] */
+    p_raw->adc_H = (int32_t)((((uint32_t)raw_buf[6]) << 8) |
+                             ((uint32_t)raw_buf[7]));
+
+    return STATUS_OK;
+}
+
+status_t bme280_sample_forced_raw(bme280_dev_t *dev, bme280_raw_data_t *p_raw) {
+    if (dev == NULL || p_raw == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    /* 1. Apply oversampling and filter configuration */
+    status_t status = bme280_configure(dev, &dev->config);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 2. Trigger forced-mode single-shot measurement */
+    status = bme280_trigger_forced_mode(dev);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 3. Wait for conversion to complete */
+    status = bme280_wait_for_completion(dev, BME280_MEASUREMENT_TIMEOUT_MS);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* 4. Burst-read raw ADC registers */
+    return bme280_read_raw_data(dev, p_raw);
 }
