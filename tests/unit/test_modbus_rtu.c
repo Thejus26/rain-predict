@@ -8,14 +8,15 @@
 
 #include "unity.h"
 #include "modbus_rtu.h"
+#include "uart_bus.h"
 #include <string.h>
 
 void setUp(void) {
-    /* No hardware state to reset for pure protocol tests */
+    uart_bus_test_reset();
 }
 
 void tearDown(void) {
-    /* Cleanup */
+    uart_bus_test_reset();
 }
 
 /**
@@ -723,6 +724,240 @@ static void test_modbus_append_crc16_engine(void) {
     TEST_ASSERT_TRUE(modbus_validate_frame_crc(frame_buf, total_len));
 }
 
+/* ========================================================================== */
+/* S4-T4.3: Direction Control & Guard Timing Test Cases (TC-DIR-01 to 10)     */
+/* ========================================================================== */
+
+/**
+ * @brief TC-DIR-01, TC-DIR-02: Direction Control Initialization and Toggling.
+ */
+static void test_modbus_dir_init_and_toggling(void) {
+    /* Initialize subsystem */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, modbus_rtu_init());
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+
+    /* Drive transmitter HIGH */
+    modbus_set_direction_tx();
+    TEST_ASSERT_EQUAL_INT(UART_DIR_TX, uart_bus_test_get_direction(UART_PORT_RS485));
+
+    /* Drive receiver LOW */
+    modbus_set_direction_rx();
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
+ * @brief TC-DIR-03, TC-DIR-04: Timing and Retry Constants Verification.
+ */
+static void test_modbus_guard_timing_and_constants(void) {
+    TEST_ASSERT_EQUAL_UINT32(25U, MODBUS_GUARD_TIME_PRE_US);
+    TEST_ASSERT_EQUAL_UINT32(35U, MODBUS_GUARD_TIME_POST_US);
+    TEST_ASSERT_EQUAL_UINT32(150U, MODBUS_DEFAULT_TIMEOUT_MS);
+    TEST_ASSERT_EQUAL_UINT8(3U, MODBUS_MAX_RETRIES);
+    TEST_ASSERT_EQUAL_UINT32(4000U, MODBUS_RETRY_DELAY_US);
+}
+
+/**
+ * @brief Master Query Parameter & NULL Pointer Guards.
+ */
+static void test_modbus_query_null_and_boundary_guards(void) {
+    uint16_t reg_data[8];
+    modbus_thp_reading_t reading;
+
+    /* NULL pointers */
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER,
+                          modbus_query_slave_raw(1U, 0U, 3U, NULL, 150U));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_NULL_POINTER,
+                          modbus_query_slave_thp(1U, NULL, 150U));
+
+    /* Invalid slave addresses */
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM,
+                          modbus_query_slave_raw(0U, 0U, 3U, reg_data, 150U));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM,
+                          modbus_query_slave_raw(248U, 0U, 3U, reg_data, 150U));
+
+    /* Invalid register counts */
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM,
+                          modbus_query_slave_raw(1U, 0U, 0U, reg_data, 150U));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_INVALID_PARAM,
+                          modbus_query_slave_raw(1U, 0U, 126U, reg_data, 150U));
+}
+
+/**
+ * @brief TC-DIR-05: Successful Master Raw Query Transaction.
+ */
+static void test_modbus_query_slave_raw_success(void) {
+    uint16_t reg_data[8] = {0};
+
+    /* Initialize UART port */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Ingest 11-byte 3-register response into simulated RX FIFO */
+    const uint8_t resp[11] = {
+        0x01U, 0x03U, 0x06U,
+        0x09U, 0x94U, /* 2452 (24.52 C) */
+        0x22U, 0x92U, /* 8850 (88.50 % RH) */
+        0x27U, 0x94U, /* 10132 (1013.2 hPa) */
+        0xA1U, 0xFBU  /* CRC-16 */
+    };
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_test_inject_rx(UART_PORT_RS485, resp, sizeof(resp)));
+
+    /* Execute query */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          modbus_query_slave_raw(0x01U, 0x0000U, 3U, reg_data, 150U));
+
+    /* Verify unpacked registers */
+    TEST_ASSERT_EQUAL_HEX16(0x0994U, reg_data[0]);
+    TEST_ASSERT_EQUAL_HEX16(0x2292U, reg_data[1]);
+    TEST_ASSERT_EQUAL_HEX16(0x2794U, reg_data[2]);
+
+    /* Verify transceiver direction restored to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+
+    /* Verify transmitted 8-byte request frame */
+    uint8_t tx_captured[16] = {0};
+    uint16_t tx_len = uart_bus_test_get_tx_bytes(UART_PORT_RS485, tx_captured, sizeof(tx_captured));
+    TEST_ASSERT_EQUAL_UINT16(8U, tx_len);
+    const uint8_t expected_tx[8] = {0x01U, 0x03U, 0x00U, 0x00U, 0x00U, 0x03U, 0x05U, 0xCBU};
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected_tx, tx_captured, 8U);
+}
+
+/**
+ * @brief Successful Master Meteorological THP Query & Unit Conversion.
+ */
+static void test_modbus_query_slave_thp_success(void) {
+    modbus_thp_reading_t reading;
+    memset(&reading, 0, sizeof(reading));
+
+    /* Initialize UART */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Ingest 15-byte 5-register response (THP + Wind) */
+    const uint8_t resp5[15] = {
+        0x01U, 0x03U, 0x0AU,
+        0x09U, 0x94U, /* 24.52 C */
+        0x22U, 0x92U, /* 88.50 % */
+        0x27U, 0x94U, /* 1013.2 hPa */
+        0x01U, 0xC2U, /* 4.50 m/s */
+        0x07U, 0x08U, /* 180.0 deg */
+        0xCEU, 0xABU  /* CRC */
+    };
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_test_inject_rx(UART_PORT_RS485, resp5, sizeof(resp5)));
+
+    /* Execute high-level THP query */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          modbus_query_slave_thp(0x01U, &reading, 150U));
+
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 24.52f, reading.temperature_c);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 88.50f, reading.humidity_pct);
+    TEST_ASSERT_FLOAT_WITHIN(0.10f, 1013.2f, reading.pressure_hpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.50f, reading.wind_speed_mps);
+    TEST_ASSERT_FLOAT_WITHIN(0.10f, 180.0f, reading.wind_direction_deg);
+    TEST_ASSERT_TRUE(reading.has_wind_data);
+
+    /* Verify transceiver direction restored to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
+ * @brief TC-DIR-06: Slave Response Timeout Handling.
+ */
+static void test_modbus_query_slave_raw_timeout(void) {
+    uint16_t reg_data[8];
+
+    /* Initialize UART with empty RX buffer */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Query with zero incoming response -> timeout */
+    status_t status = modbus_query_slave_raw(0x01U, 0x0000U, 3U, reg_data, 50U);
+    TEST_ASSERT_TRUE(status == STATUS_ERR_TIMEOUT || status == STATUS_ERROR_TIMEOUT);
+
+    /* Ensure direction restored to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
+ * @brief TC-DIR-08: Exhausted Retries on THP Query Timeout.
+ */
+static void test_modbus_query_slave_thp_timeout_retries(void) {
+    modbus_thp_reading_t reading;
+
+    /* Initialize UART with empty RX buffer */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Query with no response across all retries */
+    status_t status = modbus_query_slave_thp(0x01U, &reading, 10U);
+    TEST_ASSERT_TRUE(status == STATUS_ERR_TIMEOUT || status == STATUS_ERROR_TIMEOUT);
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
+ * @brief TC-DIR-09: Modbus Exception Handling.
+ */
+static void test_modbus_query_slave_raw_exception(void) {
+    uint16_t reg_data[8];
+
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Ingest Exception 0x02 Frame [0x01, 0x83, 0x02, 0xC0, 0xF1] */
+    const uint8_t ex_frame[5] = {0x01U, 0x83U, 0x02U, 0xC0U, 0xF1U};
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_test_inject_rx(UART_PORT_RS485, ex_frame, sizeof(ex_frame)));
+
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_MODBUS_EXCEPTION,
+                          modbus_query_slave_raw(0x01U, 0x0000U, 3U, reg_data, 150U));
+
+    /* Direction safely restored to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
+ * @brief Modbus CRC Mismatch on Response.
+ */
+static void test_modbus_query_slave_raw_crc_mismatch(void) {
+    uint16_t reg_data[8];
+
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Corrupted CRC */
+    const uint8_t corrupt_resp[11] = {
+        0x01U, 0x03U, 0x06U,
+        0x09U, 0x94U, 0x22U, 0x92U, 0x27U, 0x94U,
+        0x00U, 0x00U /* Wrong CRC */
+    };
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_test_inject_rx(UART_PORT_RS485, corrupt_resp, sizeof(corrupt_resp)));
+
+    TEST_ASSERT_EQUAL_INT(STATUS_ERROR_CRC,
+                          modbus_query_slave_raw(0x01U, 0x0000U, 3U, reg_data, 150U));
+
+    /* Direction safely restored to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
+ * @brief TC-DIR-10: Transmit Failure Recovery (Uninitialized UART / Error Recovery).
+ */
+static void test_modbus_query_slave_raw_uninit_recovery(void) {
+    uint16_t reg_data[8];
+
+    /* Do not initialize UART (port is uninitialized) */
+    uart_bus_test_reset();
+
+    status_t status = modbus_query_slave_raw(0x01U, 0x0000U, 3U, reg_data, 150U);
+    TEST_ASSERT_TRUE(status != STATUS_OK);
+
+    /* Fail-safe: direction must be returned to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -752,6 +987,18 @@ int main(void) {
     RUN_TEST(test_modbus_crc16_streaming_update);
     RUN_TEST(test_modbus_validate_frame_crc_engine);
     RUN_TEST(test_modbus_append_crc16_engine);
+
+    /* S4-T4.3 Direction Control & Master Polling Tests */
+    RUN_TEST(test_modbus_dir_init_and_toggling);
+    RUN_TEST(test_modbus_guard_timing_and_constants);
+    RUN_TEST(test_modbus_query_null_and_boundary_guards);
+    RUN_TEST(test_modbus_query_slave_raw_success);
+    RUN_TEST(test_modbus_query_slave_thp_success);
+    RUN_TEST(test_modbus_query_slave_raw_timeout);
+    RUN_TEST(test_modbus_query_slave_thp_timeout_retries);
+    RUN_TEST(test_modbus_query_slave_raw_exception);
+    RUN_TEST(test_modbus_query_slave_raw_crc_mismatch);
+    RUN_TEST(test_modbus_query_slave_raw_uninit_recovery);
 
     return UNITY_END();
 }

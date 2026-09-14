@@ -4,10 +4,38 @@
  */
 
 #include "modbus_rtu.h"
+#include "uart_bus.h"
 #include <string.h>
+
+#ifdef STM32WLE5xx
+#include "stm32wlxx_hal.h"
+extern UART_HandleTypeDef huart1;
+#define RS485_UART_HANDLE (&huart1)
+#else
+/* Host unit test simulation state */
+static uint8_t s_mock_pa1_state = 0U;
+#define RS485_UART_HANDLE NULL
+#endif
 
 #define MODBUS_CRC16_INIT_VAL   0xFFFFU
 #define MODBUS_CRC16_POLYNOMIAL 0xA001U
+
+/* ========================================================================== */
+/* Precise Microsecond Delay Utility (@ 48 MHz)                               */
+/* ========================================================================== */
+
+static void delay_us(uint32_t us)
+{
+#ifdef STM32WLE5xx
+    /* 48 cycles per microsecond at 48 MHz MSI clock */
+    uint32_t count = us * 12U; /* ~4 CPU cycles per loop iteration */
+    while (count-- > 0U) {
+        __NOP();
+    }
+#else
+    (void)us;
+#endif
+}
 
 /* ========================================================================== */
 /* Flash Lookup Table (512 Bytes in .rodata Flash)                            */
@@ -368,4 +396,161 @@ const char *modbus_exception_to_str(modbus_exception_t exception_code)
         case MODBUS_EX_MEMORY_PARITY_ERROR:  return "Memory Parity Error (0x08)";
         default:                             return "Unknown Exception";
     }
+}
+
+/* ========================================================================== */
+/* Direction Pin Control (PA1)                                                */
+/* ========================================================================== */
+
+void modbus_set_direction_tx(void)
+{
+#ifdef STM32WLE5xx
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+#else
+    s_mock_pa1_state = 1U;
+    uart_bus_test_set_direction(UART_PORT_RS485, UART_DIR_TX);
+#endif
+}
+
+void modbus_set_direction_rx(void)
+{
+#ifdef STM32WLE5xx
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
+#else
+    s_mock_pa1_state = 0U;
+    uart_bus_test_set_direction(UART_PORT_RS485, UART_DIR_RX);
+#endif
+}
+
+/* ========================================================================== */
+/* Initialization                                                             */
+/* ========================================================================== */
+
+status_t modbus_rtu_init(void)
+{
+    /* Configure PA1 / default to RX listening mode */
+    modbus_set_direction_rx();
+    return STATUS_OK;
+}
+
+/* ========================================================================== */
+/* Master Query Transaction Execution                                         */
+/* ========================================================================== */
+
+status_t modbus_query_slave_raw(uint8_t slave_addr,
+                                uint16_t start_reg,
+                                uint16_t reg_count,
+                                uint16_t *p_reg_data_out,
+                                uint32_t timeout_ms)
+{
+    if (p_reg_data_out == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+
+    uint8_t  tx_frame[MODBUS_FC03_REQ_FRAME_SIZE];
+    uint16_t tx_len = 0U;
+
+    /* Step 1: Construct 8-byte FC03 Query Frame with CRC-16 */
+    status_t status = modbus_build_read_holding_registers_req(slave_addr,
+                                                              start_reg,
+                                                              reg_count,
+                                                              tx_frame,
+                                                              sizeof(tx_frame),
+                                                              &tx_len);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    uint8_t  rx_buf[MODBUS_MAX_FRAME_SIZE];
+    uint16_t rx_len = 0U;
+
+    /* Step 2: Flush UART RX Ring Buffer to discard stale noise */
+    (void)uart_bus_flush(UART_PORT_RS485);
+
+    /* Step 3: Assert DE=HIGH (Transmitter Mode) */
+    modbus_set_direction_tx();
+
+    /* Step 4: Pre-Transmission Guard Delay (25 µs) */
+    delay_us(MODBUS_GUARD_TIME_PRE_US);
+
+    /* Step 5: Transmit Request Frame */
+    status = uart_bus_transmit(UART_PORT_RS485, tx_frame, tx_len, 50U);
+    if (status != STATUS_OK) {
+        modbus_set_direction_rx();
+        return status;
+    }
+
+#ifdef STM32WLE5xx
+    /* Step 6: Wait for Hardware Transmission Complete (TC) Flag */
+    uint32_t tc_timeout = 10000U;
+    while (!__HAL_UART_GET_FLAG(RS485_UART_HANDLE, UART_FLAG_TC) && (tc_timeout-- > 0U)) {
+        __NOP();
+    }
+#endif
+
+    /* Step 7: Post-Transmission Guard Delay (35 µs) */
+    delay_us(MODBUS_GUARD_TIME_POST_US);
+
+    /* Step 8: De-assert DE=LOW (Receiver Mode Active) */
+    modbus_set_direction_rx();
+
+    /* Step 9: Await Slave Response with Bounded Software Timeout */
+    status = uart_bus_receive(UART_PORT_RS485,
+                              rx_buf,
+                              sizeof(rx_buf),
+                              &rx_len,
+                              timeout_ms);
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* Step 10: Parse Response Frame, Verify CRC, and Unpack 16-Bit Words */
+    modbus_exception_t exception = MODBUS_EX_NONE;
+    status = modbus_parse_read_holding_registers_resp(slave_addr,
+                                                      reg_count,
+                                                      rx_buf,
+                                                      rx_len,
+                                                      p_reg_data_out,
+                                                      &exception);
+
+    return status;
+}
+
+/* ========================================================================== */
+/* High-Level Meteorological Telemetry Query                                  */
+/* ========================================================================== */
+
+status_t modbus_query_slave_thp(uint8_t slave_addr,
+                                modbus_thp_reading_t *p_reading,
+                                uint32_t timeout_ms)
+{
+    if (p_reading == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+
+    uint16_t raw_regs[5] = {0};
+    status_t status = STATUS_ERROR_TIMEOUT;
+
+    /* Execute query with retry loop (up to 3 attempts) */
+    for (uint8_t attempt = 0; attempt < MODBUS_MAX_RETRIES; attempt++) {
+        /* Query 5 registers: Temp, Humidity, Pressure, Wind Speed, Wind Dir */
+        status = modbus_query_slave_raw(slave_addr,
+                                        MODBUS_REG_TEMPERATURE,
+                                        5U,
+                                        raw_regs,
+                                        timeout_ms);
+        if (status == STATUS_OK) {
+            break;
+        }
+
+        /* Inter-frame delay before retry */
+        delay_us(MODBUS_RETRY_DELAY_US);
+    }
+
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    /* Decode raw 16-bit words into floating-point physical units */
+    return modbus_decode_thp_registers(raw_regs, 5U, p_reading);
 }
