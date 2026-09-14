@@ -464,9 +464,14 @@ status_t modbus_query_slave_raw(uint8_t slave_addr,
     modbus_set_direction_rx();
 
     /* Step 8: Await Slave Response with Bounded Software Timeout */
+    /* Normal FC03 response: Slave(1) + FC(1) + ByteCount(1) + 2*N data + CRC(2) */
+    uint16_t expected_rx_len = 3U + (reg_count * 2U) + 2U;
+    if (expected_rx_len > (uint16_t)sizeof(rx_buf)) {
+        expected_rx_len = (uint16_t)sizeof(rx_buf);
+    }
     status = uart_bus_receive(UART_PORT_RS485,
                               rx_buf,
-                              sizeof(rx_buf),
+                              expected_rx_len,
                               &rx_len,
                               timeout_ms);
     if (status != STATUS_OK) {
