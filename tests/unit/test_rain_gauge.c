@@ -1,9 +1,11 @@
 /**
  * @file    test_rain_gauge.c
- * @brief   ThrowTheSwitch Unity unit test suite for Tipping-Bucket Rain Gauge Driver (S4-T3.1 - S4-T3.2).
+ * @brief   ThrowTheSwitch Unity unit test suite for Tipping-Bucket Rain Gauge Driver (S4-T3.1 - S4-T3.3).
  * @details Validates GPIO EXTI0 interrupt configuration, 50ms dual-stage debounce filter,
  *          atomic read-and-clear critical sections, rolling 1-hour FIFO accumulation,
- *          daily midnight reset, and LoRaWAN Byte 8 telemetry serialization.
+ *          daily midnight reset, LoRaWAN Byte 8 telemetry serialization,
+ *          instantaneous rate derivative math, time-decay aging, peak tracking,
+ *          and 7-tier IMD/WMO meteorological classification.
  */
 
 #include "unity.h"
@@ -18,6 +20,10 @@ void tearDown(void) {
     (void)rain_gauge_deinit();
 }
 
+/* ========================================================================== */
+/* S4-T3.1 Tests: EXTI & Debounce Filter                                      */
+/* ========================================================================== */
+
 /**
  * @brief TC-S4-T3.1-01 & TC-S4-T3.2-01: Header Definitions & Macro Constants.
  */
@@ -28,6 +34,12 @@ static void test_rain_gauge_macro_definitions(void) {
     TEST_ASSERT_EQUAL_UINT32(0U, RAIN_GAUGE_NVIC_SUB_PRIO);
     TEST_ASSERT_EQUAL_UINT32(6U, RAIN_GAUGE_HOURLY_FIFO_SIZE);
     TEST_ASSERT_EQUAL_UINT32(255U, RAIN_GAUGE_TELEMETRY_MAX_TIPS);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 720000.0f, RAIN_RATE_NUMERATOR_MS);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 720.0f, RAIN_RATE_NUMERATOR_SEC);
+    TEST_ASSERT_FLOAT_WITHIN(0.1f, 300.0f, RAIN_RATE_MAX_MM_HR);
+    TEST_ASSERT_EQUAL_UINT32(900000U, RAIN_RATE_INACTIVITY_TIMEOUT_MS);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 5.0f, RAIN_RATE_ACCELERATION_THRESH_MM_HR);
 }
 
 /**
@@ -89,7 +101,6 @@ static void test_rain_gauge_bounce_rejection_10ms(void) {
 
     rain_gauge_data_t data;
     (void)rain_gauge_get_accumulation(&data);
-    /* Tip count must not increase on chatter */
     TEST_ASSERT_EQUAL_UINT16(1U, data.interval_tips);
 }
 
@@ -162,7 +173,7 @@ static void test_rain_gauge_exact_49ms_boundary(void) {
  * @brief TC-S4-T3.1-07: Systick Rollover Handling Across 32-Bit Max Boundary.
  */
 static void test_rain_gauge_systick_rollover(void) {
-    /* Pulse close to 32-bit integer overflow (0xFFFFFFF0 = 4,294,967,280) */
+    /* Pulse close to 32-bit integer overflow (0xFFFFFFF0) */
     rain_gauge_exti_isr(0xFFFFFFF0U);
     TEST_ASSERT_EQUAL_UINT32(0xFFFFFFF0U, rain_gauge_get_last_pulse_timestamp());
     TEST_ASSERT_EQUAL_UINT32(0U, rain_gauge_get_rejected_bounce_count());
@@ -227,11 +238,14 @@ static void test_rain_gauge_deinit_and_irq_control(void) {
     TEST_ASSERT_FALSE(rain_gauge_is_rain_active());
 }
 
+/* ========================================================================== */
+/* S4-T3.2 Tests: Multi-Horizon Accumulators & Telemetry Byte 8               */
+/* ========================================================================== */
+
 /**
  * @brief TC-S4-T3.2-02: Atomic Read and Clear Interval Pulse Counter.
  */
 static void test_rain_gauge_atomic_read_and_clear_interval(void) {
-    /* Simulate 5 bucket tips at 60ms intervals */
     for (uint32_t i = 0; i < 5; ++i) {
         rain_gauge_exti_isr(1000U + (i * 60U));
     }
@@ -259,7 +273,6 @@ static void test_rain_gauge_atomic_read_and_clear_interval(void) {
  * @brief TC-S4-T3.2-03: Metric Calibration Factor (0.20 mm per tip).
  */
 static void test_rain_gauge_calibration_math(void) {
-    /* Simulate 25 tips (5.00 mm) */
     for (uint32_t i = 0; i < 25; ++i) {
         rain_gauge_exti_isr(10000U + (i * 60U));
     }
@@ -335,7 +348,6 @@ static void test_rain_gauge_daily_persistence_and_reset(void) {
 
     rain_gauge_data_t data;
     (void)rain_gauge_get_accumulation(&data);
-    /* Daily total: 10 + 20 + 15 = 45 tips (9.00 mm) */
     TEST_ASSERT_EQUAL_UINT32(45U, data.daily_tips);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 9.00f, data.daily_rain_mm);
     TEST_ASSERT_EQUAL_UINT32(45U, data.total_lifetime_tips);
@@ -346,7 +358,6 @@ static void test_rain_gauge_daily_persistence_and_reset(void) {
     (void)rain_gauge_get_accumulation(&data);
     TEST_ASSERT_EQUAL_UINT32(0U, data.daily_tips);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.00f, data.daily_rain_mm);
-    /* Total lifetime count must NOT be cleared on daily reset */
     TEST_ASSERT_EQUAL_UINT32(45U, data.total_lifetime_tips);
 }
 
@@ -354,25 +365,13 @@ static void test_rain_gauge_daily_persistence_and_reset(void) {
  * @brief TC-S4-T3.2-08 & TC-S4-T3.2-09: LoRaWAN Telemetry Byte 8 Encoding & Clamping.
  */
 static void test_rain_gauge_telemetry_byte8_encoding(void) {
-    /* 0 tips = 0 */
     TEST_ASSERT_EQUAL_UINT8(0x00U, rain_gauge_encode_telemetry_byte(0U));
-
-    /* 1 tip = 1 (0.2 mm) */
     TEST_ASSERT_EQUAL_UINT8(0x01U, rain_gauge_encode_telemetry_byte(1U));
-
-    /* 25 tips = 25 (5.0 mm) */
     TEST_ASSERT_EQUAL_UINT8(0x19U, rain_gauge_encode_telemetry_byte(25U));
-
-    /* 50 tips = 50 (10.0 mm) */
     TEST_ASSERT_EQUAL_UINT8(0x32U, rain_gauge_encode_telemetry_byte(50U));
-
-    /* 125 tips = 125 (25.0 mm) */
     TEST_ASSERT_EQUAL_UINT8(0x7DU, rain_gauge_encode_telemetry_byte(125U));
-
-    /* 255 tips = 255 (51.0 mm) */
     TEST_ASSERT_EQUAL_UINT8(0xFFU, rain_gauge_encode_telemetry_byte(255U));
-
-    /* 300 tips (cloudburst overflow) clamped at 255 (0xFF) */
+    /* 300 tips clamped to 255 */
     TEST_ASSERT_EQUAL_UINT8(0xFFU, rain_gauge_encode_telemetry_byte(300U));
 }
 
@@ -407,6 +406,197 @@ static void test_rain_gauge_reset_all_accumulators(void) {
     TEST_ASSERT_EQUAL_UINT32(0U, data.total_lifetime_tips);
 }
 
+/* ========================================================================== */
+/* S4-T3.3 Tests: Rain Rate Derivative, Peak Tracking & Intensity Classifier  */
+/* ========================================================================== */
+
+/**
+ * @brief TC-RATE-01: First Tip Initialization State.
+ */
+static void test_rain_rate_first_tip_initialization(void) {
+    /* Single bucket tip at t = 10,000ms */
+    rain_gauge_exti_isr(10000U);
+
+    /* Instantaneous rate must be 0.0 mm/hr until 2nd tip establishes delta */
+    float inst_rate = rain_gauge_get_instantaneous_rate(10000U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.0f, inst_rate);
+}
+
+/**
+ * @brief TC-RATE-02: Moderate Rain Inter-Tip Derivative Math (20.0 mm/hr).
+ */
+static void test_rain_rate_moderate_rain_inter_tip(void) {
+    /* Tip 1 at 10,000ms, Tip 2 at 46,000ms (delta = 36,000ms) */
+    rain_gauge_exti_isr(10000U);
+    rain_gauge_exti_isr(46000U);
+
+    /* Rate: 720,000 / 36,000 = 20.00 mm/hr */
+    float inst_rate = rain_gauge_get_instantaneous_rate(46000U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 20.00f, inst_rate);
+
+    rain_intensity_t intensity = rain_gauge_classify_intensity(inst_rate);
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_HEAVY, intensity);
+}
+
+/**
+ * @brief TC-RATE-03: Extreme Cloudburst Math (100.0 mm/hr).
+ */
+static void test_rain_rate_cloudburst_extreme(void) {
+    /* Tip 1 at 50,000ms, Tip 2 at 57,200ms (delta = 7,200ms) */
+    rain_gauge_exti_isr(50000U);
+    rain_gauge_exti_isr(57200U);
+
+    /* Rate: 720,000 / 7,200 = 100.00 mm/hr */
+    float inst_rate = rain_gauge_get_instantaneous_rate(57200U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 100.00f, inst_rate);
+
+    rain_intensity_t intensity = rain_gauge_classify_intensity(inst_rate);
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_CLOUDBURST, intensity);
+}
+
+/**
+ * @brief TC-RATE-04: Debounce Limit Clamping (14,400 -> 300 mm/hr).
+ */
+static void test_rain_rate_debounce_limit_clamping(void) {
+    /* Two tips at 50ms interval (minimum valid debounce window) */
+    rain_gauge_exti_isr(1000U);
+    rain_gauge_exti_isr(1050U);
+
+    /* Theoretical 720,000 / 50 = 14,400 mm/hr -> Clamped to 300.00 mm/hr */
+    float inst_rate = rain_gauge_get_instantaneous_rate(1050U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 300.00f, inst_rate);
+}
+
+/**
+ * @brief TC-RATE-05: Time-Decayed Aging Math.
+ */
+static void test_rain_rate_time_decay_aging(void) {
+    /* Tip 1 at 10,000ms, Tip 2 at 17,200ms (delta = 7,200ms -> 100.0 mm/hr) */
+    rain_gauge_exti_isr(10000U);
+    rain_gauge_exti_isr(17200U);
+
+    /* Rate immediately at tip is 100 mm/hr */
+    float inst_rate = rain_gauge_get_instantaneous_rate(17200U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 100.00f, inst_rate);
+
+    /* Query 36,000ms after 2nd tip (t = 53,200ms): elapsed = 36,000ms */
+    /* Decayed rate: 720,000 / 36,000 = 20.00 mm/hr */
+    inst_rate = rain_gauge_get_instantaneous_rate(53200U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 20.00f, inst_rate);
+}
+
+/**
+ * @brief TC-RATE-06: Inactivity Timeout Zeroing (15 minutes).
+ */
+static void test_rain_rate_inactivity_timeout(void) {
+    rain_gauge_exti_isr(10000U);
+    rain_gauge_exti_isr(17200U); /* 100 mm/hr */
+
+    /* Query at t = 17,200 + 900,000ms = 917,200ms (15 minutes elapsed) */
+    float inst_rate = rain_gauge_get_instantaneous_rate(917200U);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.00f, inst_rate);
+
+    rain_intensity_t intensity = rain_gauge_classify_intensity(inst_rate);
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_NONE, intensity);
+}
+
+/**
+ * @brief TC-RATE-07: 10-Minute & 2-Minute Windowed Interval Rates.
+ */
+static void test_rain_rate_windowed_interval_rates(void) {
+    /* 10-minute window (600s): 25 tips -> 25 * 0.20 * 3600 / 600 = 30.00 mm/hr */
+    float rate_10m = rain_gauge_compute_interval_rate(25U, 600U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 30.00f, rate_10m);
+
+    /* 2-minute accelerated window (120s): 5 tips -> 5 * 0.20 * 3600 / 120 = 30.00 mm/hr */
+    float rate_2m = rain_gauge_compute_interval_rate(5U, 120U);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 30.00f, rate_2m);
+
+    /* Zero duration defensive safety guard */
+    float zero_rate = rain_gauge_compute_interval_rate(10U, 0U);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.00f, zero_rate);
+}
+
+/**
+ * @brief TC-RATE-08: 7-Tier Meteorological Classification & String Conversion.
+ */
+static void test_rain_rate_intensity_classification_and_strings(void) {
+    /* 0.0 mm/hr -> None */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_NONE, rain_gauge_classify_intensity(0.0f));
+    TEST_ASSERT_EQUAL_STRING("None", rain_gauge_intensity_to_str(RAIN_INTENSITY_NONE));
+
+    /* 1.2 mm/hr -> Drizzle */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_DRIZZLE, rain_gauge_classify_intensity(1.2f));
+    TEST_ASSERT_EQUAL_STRING("Drizzle", rain_gauge_intensity_to_str(RAIN_INTENSITY_DRIZZLE));
+
+    /* 5.0 mm/hr -> Light */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_LIGHT, rain_gauge_classify_intensity(5.0f));
+    TEST_ASSERT_EQUAL_STRING("Light", rain_gauge_intensity_to_str(RAIN_INTENSITY_LIGHT));
+
+    /* 12.0 mm/hr -> Moderate */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_MODERATE, rain_gauge_classify_intensity(12.0f));
+    TEST_ASSERT_EQUAL_STRING("Moderate", rain_gauge_intensity_to_str(RAIN_INTENSITY_MODERATE));
+
+    /* 25.0 mm/hr -> Heavy */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_HEAVY, rain_gauge_classify_intensity(25.0f));
+    TEST_ASSERT_EQUAL_STRING("Heavy", rain_gauge_intensity_to_str(RAIN_INTENSITY_HEAVY));
+
+    /* 60.0 mm/hr -> Torrential */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_TORRENTIAL, rain_gauge_classify_intensity(60.0f));
+    TEST_ASSERT_EQUAL_STRING("Torrential", rain_gauge_intensity_to_str(RAIN_INTENSITY_TORRENTIAL));
+
+    /* 150.0 mm/hr -> Cloudburst */
+    TEST_ASSERT_EQUAL_INT(RAIN_INTENSITY_CLOUDBURST, rain_gauge_classify_intensity(150.0f));
+    TEST_ASSERT_EQUAL_STRING("Cloudburst", rain_gauge_intensity_to_str(RAIN_INTENSITY_CLOUDBURST));
+}
+
+/**
+ * @brief TC-RATE-09: Storm Tracking Acceleration Threshold (5.0 mm/hr).
+ */
+static void test_rain_rate_sampling_acceleration_trigger(void) {
+    TEST_ASSERT_FALSE(rain_gauge_should_accelerate_sampling(0.0f));
+    TEST_ASSERT_FALSE(rain_gauge_should_accelerate_sampling(4.9f));
+    TEST_ASSERT_TRUE(rain_gauge_should_accelerate_sampling(5.0f));
+    TEST_ASSERT_TRUE(rain_gauge_should_accelerate_sampling(5.1f));
+    TEST_ASSERT_TRUE(rain_gauge_should_accelerate_sampling(50.0f));
+}
+
+/**
+ * @brief TC-RATE-10: Peak Rate Tracking & Reset.
+ */
+static void test_rain_rate_peak_tracking_and_reset(void) {
+    /* Step 1: 10 mm/hr -> delta = 72,000ms */
+    rain_gauge_exti_isr(10000U);
+    rain_gauge_exti_isr(82000U);
+    (void)rain_gauge_get_instantaneous_rate(82000U);
+
+    /* Step 2: 45 mm/hr -> delta = 16,000ms */
+    rain_gauge_exti_isr(98000U);
+    (void)rain_gauge_get_instantaneous_rate(98000U);
+
+    /* Step 3: 20 mm/hr -> delta = 36,000ms */
+    rain_gauge_exti_isr(134000U);
+    (void)rain_gauge_get_instantaneous_rate(134000U);
+
+    rain_rate_metrics_t metrics;
+    status_t status = rain_gauge_get_rate_metrics(134000U, 600U, &metrics);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 20.00f, metrics.instantaneous_rate_mm_hr);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 45.00f, metrics.peak_instantaneous_mm_hr);
+
+    /* Reset peaks */
+    rain_gauge_reset_peak_rates();
+
+    status = rain_gauge_get_rate_metrics(134000U, 600U, &metrics);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.00f, metrics.peak_instantaneous_mm_hr);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 0.00f, metrics.peak_interval_mm_hr);
+
+    /* Test NULL pointer guard */
+    status = rain_gauge_get_rate_metrics(134000U, 600U, NULL);
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, status);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -432,6 +622,18 @@ int main(void) {
     RUN_TEST(test_rain_gauge_telemetry_byte8_encoding);
     RUN_TEST(test_rain_gauge_get_accumulation_null_guard);
     RUN_TEST(test_rain_gauge_reset_all_accumulators);
+
+    /* S4-T3.3 Tests */
+    RUN_TEST(test_rain_rate_first_tip_initialization);
+    RUN_TEST(test_rain_rate_moderate_rain_inter_tip);
+    RUN_TEST(test_rain_rate_cloudburst_extreme);
+    RUN_TEST(test_rain_rate_debounce_limit_clamping);
+    RUN_TEST(test_rain_rate_time_decay_aging);
+    RUN_TEST(test_rain_rate_inactivity_timeout);
+    RUN_TEST(test_rain_rate_windowed_interval_rates);
+    RUN_TEST(test_rain_rate_intensity_classification_and_strings);
+    RUN_TEST(test_rain_rate_sampling_acceleration_trigger);
+    RUN_TEST(test_rain_rate_peak_tracking_and_reset);
 
     return UNITY_END();
 }
