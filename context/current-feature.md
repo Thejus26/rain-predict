@@ -1,16 +1,31 @@
-# Current Feature
+# Current Feature: S4-T2.4 - TI OPT3001 Driver Unit Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add goals here -->
+- Implement comprehensive ThrowTheSwitch Unity test suite in `tests/unit/test_opt3001.c` covering all OPT3001 driver functionality (S4-T2.1 through S4-T2.3).
+- Test NULL parameter defensive guards across all driver APIs.
+- Test I2C address range validation (0x44 to 0x47) and hardware identity validation (0x5449 / 0x3001).
+- Test single-shot configuration trigger register write (0xCA10) and big-endian 16-bit word serialization.
+- Test conversion ready polling (CRF active vs ready) and 150ms timeout handling.
+- Test raw register exponent and mantissa bitfield unpacking.
+- Test exponential floating-point Lux conversion across 12 exponent ranges (0.01 Lux to 83,865.60 Lux) and invalid exponent clamping (E >= 12).
+- Test exact 32-bit fixed-point centi-lux integer calculations (R << E).
+- Test solar irradiance conversion (120 lm/W) and LoRaWAN Byte 6-7 telemetry integer scaling (2.0 Lux/LSB).
+- Test hysteresis-gated day/night state machine (Night, Twilight, Daylight) and boolean daylight query.
+- Test multi-tier convective storm cloud attenuation scoring (Severe 100, Moderate 65, Minor 30, Clear/Night 0) and LoRaWAN Byte 10 Bit 7 solar alarm flag.
+- Test master context update and high-level sampling workflows (`opt3001_convert_raw`, `opt3001_read_lux`, `opt3001_update_solar_context`).
 
 ## Notes
 
-<!-- Add notes here -->
+- Target Test File: [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c)
+- Mock Framework: ThrowTheSwitch Unity and Mock I2C (`tests/mocks/mock_i2c_bus.h`)
+- Hardware ID: Manufacturer 0x5449 ('TI'), Device 0x3001
+- Target Source: [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h), [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c)
+- Zero dynamic allocation, strict C99 compiler flags.
 
 ## History
 
