@@ -1,28 +1,16 @@
-# Current Feature: S4-T1.3 - Bosch BME280 Single-Precision FPU Compensation Calculations
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Update [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) with 32-bit single-precision float ([`bme280_data_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h)) and fixed-point ([`bme280_fixed_data_t`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h)) compensation routines adhering to C99 standards, Doxygen documentation, and zero dynamic memory allocation.
-- Implement single-precision temperature compensation `bme280_compensate_temperature()` computing ambient temperature in $^\circ\text{C}$ and intermediate fine resolution variable $t_{\text{fine}}$.
-- Implement single-precision pressure compensation `bme280_compensate_pressure()` computing barometric pressure in $\text{hPa}$ with zero-division protection on $var_1 \le 0.0\text{f}$ and terrestrial bounds clamping $[300.0, 1100.0]\text{ hPa}$.
-- Implement single-precision humidity compensation `bme280_compensate_humidity()` computing relative humidity in $\%\text{RH}$ with strict $[0.0, 100.0]\%\text{RH}$ clamping.
-- Implement master float conversion routine `bme280_compensate_raw()` and fixed-point scaled conversion `bme280_compensate_raw_fixed()`.
-- Implement master sampling convenience routine `bme280_read_data()` (trigger forced mode, wait, burst read raw ADC, and execute float compensation).
-- Update unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering official Bosch reference test vectors ($T = 25.08^\circ\text{C}$, $P = 1006.53\text{ hPa}$, $RH = 54.32\%$), sub-zero temperature calculations, zero-division pressure guards, upper/lower humidity clamping, fixed-point integer scaling, and parameter guards.
+<!-- Add goals here -->
 
 ## Notes
 
-- **FPU Optimization**: Native single-precision IEEE 754 `float` with `f` literal suffixes (`16384.0f`, `5120.0f`) preventing soft-float `double` emulation overhead.
-- **Physical Boundary Constants**:
-  - Pressure: `[300.0f, 1100.0f]` hPa (`BME280_PRESS_MIN_HPA`, `BME280_PRESS_MAX_HPA`)
-  - Temperature: `[-40.0f, 85.0f]` °C (`BME280_TEMP_MIN_C`, `BME280_TEMP_MAX_C`)
-  - Humidity: `[0.0f, 100.0f]` %RH (`BME280_HUM_MIN_PERCENT`, `BME280_HUM_MAX_PERCENT`)
-- **Intermediate Variable**: `t_fine` is computed during temperature compensation and passed into pressure/humidity algorithms.
-- **Fixed-Point Scaling**: Centi-degrees Celsius (`temp_centi_c = T * 100`), Pascals (`press_pascals = P * 100`), Centi-%RH (`hum_centi_percent = RH * 100`).
+<!-- Add notes here -->
 
 ## History
 
@@ -84,5 +72,4 @@ In Progress
 - 2026-09-13: S3-T4.4 - Implemented Battery ADC Voltage Measurement and Solar Harvesting Telemetry (firmware/drivers/inc/bsp_adc.h, firmware/drivers/src/bsp_adc.c, firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_bsp_adc.c) covering STM32WLE5 ADC1 driver with internal factory VREFINT_CAL (0x1FFF75AA) calibration, PB1 high-side P-MOSFET divider gate control with 2.0ms RC stabilization delay (< 10 nA standby leakage), 8x oversampled averaging, 8-segment non-linear LiFePO4 State of Charge (SoC) interpolation (0-100%), 3-tier battery health categorization (Optimal/Low/Critical), adaptive duty-cycle sleep throttling (>= 15 min for Low, 60 min for Critical), solar harvesting classification (Night/Discharging/Active Harvest/Float Charged), bit-packed LoRaWAN Byte 11 (6-bit Vbat @ 20mV LSB + sensor error and reset flags), and ThrowTheSwitch Unity test suite. Completed Sprint 3 (Core MCU Architecture, BSP & Power Management).
 - 2026-09-14: S4-T1.1 - Implemented Bosch BME280 Factory Trimming Parameter Readout and Calibration Unpacking (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c, firmware/drivers/CMakeLists.txt, tests/CMakeLists.txt) covering Chip ID verification (0xD0 -> 0x60), 2-phase burst NVM readout (26 bytes from 0x88, 7 bytes from 0xE1), little-endian temperature/pressure parameter unpacking, signed 12-bit humidity bit-split unpacking (dig_H4 and dig_H5), defensive sanity validation against corrupt/uninitialized NVM, device lifecycle initialization, and ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T1.2 - Implemented Bosch BME280 Forced-Mode Trigger, Bounded Conversion Status Polling, and 8-Byte Continuous Burst Raw ADC Readout (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering strict register write ordering (0xF2 -> 0xF5 -> 0xF4), 0x55 single-shot forced-mode trigger byte composition (T:x2, P:x16, H:x1, IIR filter 4), 60ms watchdog timeout guard, atomic 8-byte continuous burst readout (0xF7..0xFE) with shadow latch locking, 20-bit pressure/temperature and 16-bit humidity ADC word unpacking, and ThrowTheSwitch Unity test suite.
-
-
+- 2026-09-14: S4-T1.3 - Implemented Bosch BME280 Single-Precision FPU Compensation Calculations and Master Sampling Workflow (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering 32-bit float (bme280_data_t) and fixed-point (bme280_fixed_data_t) compensation routines, single-precision temperature compensation (t_fine computation), zero-division protected pressure compensation with terrestrial bounding ([300.0, 1100.0] hPa), bounded humidity compensation ([0.0, 100.0] %RH), master raw-to-float and raw-to-fixed compensation (bme280_compensate_raw, bme280_compensate_raw_fixed), end-to-end forced-mode burst sampling workflow (bme280_read_data), and comprehensive ThrowTheSwitch Unity test suite validating Bosch reference vectors, sub-zero temperatures, zero-division guards, clamping boundaries, and integer scaling.
