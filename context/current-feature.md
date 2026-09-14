@@ -1,29 +1,16 @@
-# Current Feature: S4-T3.3 - Rain Rate Intensity Calculation & Classification
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Extend [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h) with `rain_intensity_t` enum (7 IMD/WMO tiers), `rain_rate_metrics_t` structure, rate calculation constants (`RAIN_RATE_NUMERATOR_MS`, `RAIN_RATE_MAX_MM_HR`, `RAIN_RATE_INACTIVITY_TIMEOUT_MS`, `RAIN_RATE_ACCELERATION_THRESH_MM_HR`), and rate API prototypes.
-- Implement instantaneous rain rate calculation `rain_gauge_get_instantaneous_rate(uint32_t current_tick_ms)` with inter-tip delta math ($720,000 / \Delta t_{\text{ms}}$), time-decay aging, 15-minute inactivity zeroing, and terrestrial $300.0\text{ mm/hr}$ upper limit clamping.
-- Implement windowed sample interval rain rate math `rain_gauge_compute_interval_rate(uint16_t interval_tips, uint32_t interval_duration_sec)` supporting flexible interval durations (e.g. 10-min $600\text{s}$ and 2-min $120\text{s}$) with zero-division safety.
-- Implement meteorological intensity classifier `rain_gauge_classify_intensity(float rain_rate_mm_hr)` and string table `rain_gauge_intensity_to_str(rain_intensity_t intensity)`.
-- Implement adaptive duty-cycle storm acceleration evaluator `rain_gauge_should_accelerate_sampling(float rain_rate_mm_hr)` with $5.0\text{ mm/hr}$ threshold.
-- Implement composite metrics snapshot `rain_gauge_get_rate_metrics()` and peak rate tracking with `rain_gauge_reset_peak_rates()`.
-- Expand and verify all 10 verification test cases in [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c).
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- Spec File: [`context/specs/s4-t3.3-rain-rate-intensity.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t3.3-rain-rate-intensity.md)
-- Target Files: [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h), [`firmware/drivers/src/rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c), [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c)
-- Instantaneous Rate Formula: $I_{\text{inst}} = \frac{720,000}{\Delta t_{\text{ms}}}\text{ mm/hr}$ ($0.20\text{ mm} \times 3,600,000\text{ ms/hr}$).
-- Terrestrial Upper Clamp: $300.0\text{ mm/hr}$ (`RAIN_RATE_MAX_MM_HR`).
-- Inactivity Timeout: $15\text{ min}$ ($900,000\text{ ms}$) decays instantaneous rate to $0.0\text{ mm/hr}$.
-- Storm Acceleration Threshold: $5.0\text{ mm/hr}$ accelerates duty cycle from $10\text{ min} \to 2\text{ min}$.
-- 7 IMD/WMO Intensity Tiers: `NONE` ($0.0$), `DRIZZLE` ($<2.5$), `LIGHT` ($2.5-7.5$), `MODERATE` ($7.5-15.0$), `HEAVY` ($15.0-30.0$), `TORRENTIAL` ($30.0-100.0$), `CLOUDBURST` ($\ge 100.0\text{ mm/hr}$).
-- Thread Safety: Critical section timing snapshots (`__disable_irq()` / `__enable_irq()`). Zero dynamic allocation.
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -94,5 +81,6 @@ In Progress
 - 2026-09-14: S4-T2.4 - Implemented and verified comprehensive TI OPT3001 Driver ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_opt3001.c) covering 26 unit tests across hardware ID verification, big-endian 16-bit register I/O, single-shot acquisition, 150ms timeout handling, exponential single-precision lux math, centi-lux fixed-point shifts, solar irradiance conversion, LoRaWAN Byte 6-7 telemetry serialization, day/night hysteresis state machine, and multi-tier convective storm cloud attenuation scoring. Completed S4-T2 (TI OPT3001 Ambient Light & Solar Irradiance Driver).
 - 2026-09-14: S4-T3.1 - Implemented Tipping-Bucket Rain Gauge GPIO EXTI0 Falling-Edge Interrupt Driver with Dual-Stage 50ms Debounce Filter (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering STM32WLE5 PA0 hardware configuration, Stop 2 asynchronous wakeup, fast < 20-cycle non-blocking ISR, 32-bit unsigned SysTick rollover delta calculation, mechanical chatter bounce rejection, active rain detection, and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
 - 2026-09-14: S4-T3.2 - Implemented Tipping-Bucket Rainfall Multi-Horizon Accumulators & Telemetry Serialization (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering atomic read-and-clear interval counters (< 6 cycle critical sections), 0.20 mm/tip metric conversion, rolling 1-hour FIFO ring buffer (6 x 10m intervals), 24-hour daily accumulator with midnight reset, monotonic lifetime counter, LoRaWAN Byte 8 encoding (0.2 mm/LSB clamped to 255), and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
+- 2026-09-14: S4-T3.3 - Implemented Tipping-Bucket Rain Rate Intensity Calculation & Meteorological Classification (firmware/drivers/inc/rain_gauge_driver.h, firmware/drivers/src/rain_gauge_driver.c) covering instantaneous inter-tip derivative math (720,000 / delta_t), time-decay aging, 15-minute inactivity zeroing, 300.0 mm/hr physical clamping, windowed interval rates (600s/120s), 7-tier IMD/WMO meteorological classification, 5.0 mm/hr storm tracking acceleration trigger, peak rate tracking registers, and ThrowTheSwitch Unity Unit Test Suite (tests/unit/test_rain_gauge.c).
 
 
