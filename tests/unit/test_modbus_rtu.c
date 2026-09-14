@@ -942,6 +942,54 @@ static void test_modbus_query_slave_raw_crc_mismatch(void) {
 }
 
 /**
+ * @brief TC-DIR-07: Automatic Retry Recovery on CRC Error.
+ */
+static void test_modbus_query_slave_thp_retry_recovery(void) {
+    modbus_thp_reading_t reading;
+    memset(&reading, 0, sizeof(reading));
+
+    /* Initialize UART */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_init(UART_PORT_RS485, 9600U, 8U, UART_PARITY_NONE, 1U));
+
+    /* Attempt 1: Corrupted CRC response (15 bytes) */
+    const uint8_t bad_resp[15] = {
+        0x01U, 0x03U, 0x0AU,
+        0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+        0xFFU, 0xFFU
+    };
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_test_inject_rx(UART_PORT_RS485, bad_resp, sizeof(bad_resp)));
+
+    /* Attempt 2: Valid 5-register response (15 bytes) */
+    const uint8_t good_resp[15] = {
+        0x01U, 0x03U, 0x0AU,
+        0x09U, 0x94U, /* 24.52 C */
+        0x22U, 0x92U, /* 88.50 % */
+        0x27U, 0x94U, /* 1013.2 hPa */
+        0x01U, 0xC2U, /* 4.50 m/s */
+        0x07U, 0x08U, /* 180.0 deg */
+        0xCEU, 0xABU  /* CRC */
+    };
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          uart_bus_test_inject_rx(UART_PORT_RS485, good_resp, sizeof(good_resp)));
+
+    /* Execute high-level THP query with automatic retry */
+    TEST_ASSERT_EQUAL_INT(STATUS_OK,
+                          modbus_query_slave_thp(0x01U, &reading, 150U));
+
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 24.52f, reading.temperature_c);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 88.50f, reading.humidity_pct);
+    TEST_ASSERT_FLOAT_WITHIN(0.10f, 1013.2f, reading.pressure_hpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 4.50f, reading.wind_speed_mps);
+    TEST_ASSERT_FLOAT_WITHIN(0.10f, 180.0f, reading.wind_direction_deg);
+    TEST_ASSERT_TRUE(reading.has_wind_data);
+
+    /* Verify transceiver direction restored to RX */
+    TEST_ASSERT_EQUAL_INT(UART_DIR_RX, uart_bus_test_get_direction(UART_PORT_RS485));
+}
+
+/**
  * @brief TC-DIR-10: Transmit Failure Recovery (Uninitialized UART / Error Recovery).
  */
 static void test_modbus_query_slave_raw_uninit_recovery(void) {
@@ -993,6 +1041,7 @@ int main(void) {
     RUN_TEST(test_modbus_query_null_and_boundary_guards);
     RUN_TEST(test_modbus_query_slave_raw_success);
     RUN_TEST(test_modbus_query_slave_thp_success);
+    RUN_TEST(test_modbus_query_slave_thp_retry_recovery);
     RUN_TEST(test_modbus_query_slave_raw_timeout);
     RUN_TEST(test_modbus_query_slave_thp_timeout_retries);
     RUN_TEST(test_modbus_query_slave_raw_exception);

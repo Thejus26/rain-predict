@@ -1,16 +1,28 @@
-# Current Feature
+# Current Feature: S4-T4.4 - Modbus RTU Protocol Driver Unit Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Create and maintain the comprehensive ThrowTheSwitch Unity unit test suite in `tests/unit/test_modbus_rtu.c` covering all 23 distinct test cases specified in S4-T4.4.
+- Verify standard Modbus CRC-16 calculation (0xA001 polynomial) on official test vectors (FC03 query `0xCB05`, response `0xFBA1`/`0xC841`, exception `0xF1C0`), bitwise vs Flash LUT equivalence across 64 pseudo-random iterations, incremental streaming updates (`modbus_crc16_update`), and single-bit corruption rejection.
+- Verify Function Code 0x03 read holding registers request frame generation (`modbus_build_read_holding_registers_req`), strict unicast slave address bounding (`1` to `247`), register count bounding (`1` to `125`), and buffer capacity overflow defense.
+- Verify response frame parsing (`modbus_parse_read_holding_registers_resp`), byte count validation, slave address matching, big-endian 16-bit word unpacking, and Modbus exception frame extraction (`0x83`).
+- Verify meteorological unit conversion (`modbus_decode_thp_registers`) for temperature, relative humidity (clamped to `[0.0, 100.0]%`), pressure, wind speed, and wind direction.
+- Verify half-duplex RS-485 transceiver direction control on PA1 (`RS485_DIR`), master query raw transactions (`modbus_query_slave_raw`), master THP query with automatic 3-attempt retry recovery (`modbus_query_slave_thp`), and slave response timeout handling (150 ms).
+- Verify zero heap dynamic memory allocations throughout all Modbus RTU driver functions.
+- Configure CMake build integration for `test_modbus_rtu` and ensure 100% test pass rate with strict C99 compliance.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- Target Hardware Bus: STM32WLE5CCU6 USART1 (PA2 TX, PA3 RX, PA1 RS485_DIR)
+- Transceiver Direction Pin: PA1 (HIGH = TX, LOW = RX / Listening)
+- Pre-transmission guard delay: >= 25 µs; Post-transmission guard delay: >= 35 µs
+- Modbus RTU Master Transaction Timeout: 150 ms default
+- Retry Strategy: Up to 3 attempts with 4.0 ms (>= 3.5 character times @ 9600 baud) inter-frame delay
+- Memory Model: 100% static memory allocation (no `malloc`/`free`)
 
 ## History
 
