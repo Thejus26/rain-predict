@@ -70,6 +70,22 @@ extern "C" {
 #define BME280_HUM_MAX_PERCENT          100.0f      /**< Maximum relative humidity (%RH) */
 
 /* ========================================================================== */
+/* Saturation & Condensation Recovery Constants                               */
+/* ========================================================================== */
+
+#define BME280_SATURATION_THRESHOLD_RH      98.0f   /**< High humidity saturation entry threshold (%RH) */
+#define BME280_SATURATION_HYSTERESIS_RH     95.0f   /**< High humidity saturation exit hysteresis threshold (%RH) */
+#define BME280_SATURATION_MIN_CYCLES_1H     6U      /**< Minimum consecutive cycles for 1h assertion (6 @ 10m) */
+#define BME280_SATURATION_MAX_CYCLES_24H    144U    /**< Maximum consecutive cycles before 24h reset (144 @ 10m) */
+
+#define BME280_CONDENSATION_MIN_LUX         10000U  /**< Sunlight irradiance threshold for condensation creep (lux) */
+#define BME280_CONDENSATION_MIN_TEMP_RISE   1.5f    /**< Rapid warming rate threshold for creep (°C/hour) */
+#define BME280_CONDENSATION_DEBIAS_OFFSET   1.5f    /**< De-biasing correction offset applied during creep (%RH) */
+
+#define BME280_SOFT_RESET_KEY               0xB6U   /**< Soft reset command key written to register 0xE0 */
+#define BME280_SOFT_RESET_SETTLE_MS         5U      /**< Settling delay in milliseconds after soft reset */
+
+/* ========================================================================== */
 /* Data Types                                                                 */
 /* ========================================================================== */
 
@@ -143,6 +159,28 @@ typedef struct {
     uint16_t    hum_centi_percent;  /**< Scaled humidity: 0.01 %RH (e.g. 8540 = 85.40%) */
     bool        is_valid;           /**< True if valid */
 } bme280_fixed_data_t;
+
+/**
+ * @brief BME280 operational humidity saturation and condensation state.
+ */
+typedef enum {
+    BME280_STATE_NORMAL             = 0,    /**< Normal humidity (< 98.0% RH) */
+    BME280_STATE_HIGH_HUMIDITY_SAT  = 1,    /**< Atmospheric saturation / fog / rain (>= 98.0% RH) */
+    BME280_STATE_CONDENSATION_CREEP = 2,    /**< Surface condensation mismatch (>= 98% under bright sun) */
+    BME280_STATE_SOFT_RECOVERY      = 3     /**< Automated NVM reload / soft reset executed */
+} bme280_saturation_state_t;
+
+/**
+ * @brief Diagnostic status flags for BME280 environmental integrity and recovery.
+ */
+typedef struct {
+    bool                        is_saturated;           /**< True if RH >= 98.0% for >= 1 hour */
+    bool                        condensation_detected;  /**< True if drying condensation creep detected */
+    bool                        recovery_triggered;     /**< True if soft reset was performed this cycle */
+    uint16_t                    saturation_cycles;      /**< Consecutive cycles with RH >= 98.0% */
+    bme280_saturation_state_t   state;                  /**< Current operational saturation state */
+    float                       debiased_humidity_pct;  /**< Corrected humidity (%RH) after de-biasing */
+} bme280_saturation_status_t;
 
 /**
  * @brief Bosch BME280 factory calibration trimming coefficients structure.
@@ -323,6 +361,41 @@ status_t bme280_compensate_raw_fixed(const bme280_raw_data_t *raw,
  * @return STATUS_OK on success, or error status code.
  */
 status_t bme280_read_data(bme280_dev_t *dev, bme280_data_t *out_data);
+
+/**
+ * @brief  Executes a hardware soft-reset via register 0xE0, delays 5ms, and reloads calibration NVM.
+ * @param[in,out] dev Pointer to BME280 device context.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_soft_reset(bme280_dev_t *dev);
+
+/**
+ * @brief  Evaluates saturation tracking, condensation creep, and automated recovery.
+ * @param[in,out] dev Pointer to BME280 device context.
+ * @param[in]     current_rh Compensated relative humidity from bme280_compensate_humidity().
+ * @param[in]     temp_delta_1h 1-hour temperature trend in °C/hr (from ring buffer / trend detector).
+ * @param[in]     ambient_lux Ambient optical illuminance from OPT3001 sensor (lux).
+ * @param[in]     rain_tips_24h Total rain gauge tips logged over past 24 hours.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t bme280_process_saturation(bme280_dev_t *dev,
+                                   float current_rh,
+                                   float temp_delta_1h,
+                                   uint16_t ambient_lux,
+                                   uint32_t rain_tips_24h);
+
+/**
+ * @brief  Returns a const pointer to the device's cached saturation diagnostic status structure.
+ * @param[in] dev Pointer to BME280 device context.
+ * @return Const pointer to bme280_saturation_status_t, or NULL if dev is NULL.
+ */
+const bme280_saturation_status_t* bme280_get_saturation_status(const bme280_dev_t *dev);
+
+/**
+ * @brief  Clears the saturation tracking counters and resets state to BME280_STATE_NORMAL.
+ * @param[in,out] dev Pointer to BME280 device context.
+ */
+void bme280_reset_saturation_tracking(bme280_dev_t *dev);
 
 #ifdef __cplusplus
 }

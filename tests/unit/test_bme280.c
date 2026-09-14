@@ -146,6 +146,7 @@ void setUp(void) {
     (void)i2c_bus_init(I2C_BUS_SPEED_FAST_HZ);
     setup_mock_bme280_registers(BME280_I2C_ADDR_PRIMARY);
     setup_mock_bme280_registers(BME280_I2C_ADDR_SECONDARY);
+    bme280_reset_saturation_tracking(NULL);
 }
 
 void tearDown(void) {
@@ -679,6 +680,255 @@ static void test_bme280_read_data_end_to_end(void) {
 }
 
 /**
+ * @brief TC-S4-T1.4-02: Soft Reset Register Write & Calibration Reload.
+ */
+static void test_bme280_soft_reset_register_write(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Corrupt one calib field in handle to verify reload */
+    dev.calib.dig_T1 = 0U;
+
+    status = bme280_soft_reset(&dev);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Verify 0xB6 was written to 0xE0 */
+    uint8_t reset_val = i2c_bus_test_get_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_RESET);
+    TEST_ASSERT_EQUAL_UINT8(BME280_SOFT_RESET_KEY, reset_val);
+
+    /* Verify calibration was reloaded */
+    TEST_ASSERT_EQUAL_UINT16(VECTOR_DIG_T1, dev.calib.dig_T1);
+
+    /* Check status flags */
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_TRUE(sat->recovery_triggered);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_SOFT_RECOVERY, sat->state);
+}
+
+/**
+ * @brief TC-S4-T1.4-03: Saturation Counter Incrementation.
+ */
+static void test_bme280_saturation_counter_incrementation(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Feed 5 consecutive high humidity cycles (RH = 99.0%) */
+    for (uint32_t i = 1; i <= 5; i++) {
+        status = bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 0U);
+        TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+        const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+        TEST_ASSERT_NOT_NULL(sat);
+        TEST_ASSERT_EQUAL_UINT16((uint16_t)i, sat->saturation_cycles);
+        TEST_ASSERT_FALSE(sat->is_saturated);
+        TEST_ASSERT_EQUAL_INT(BME280_STATE_NORMAL, sat->state);
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, 99.0f, sat->debiased_humidity_pct);
+    }
+}
+
+/**
+ * @brief TC-S4-T1.4-04: Saturation Flag Assertion on 6th Cycle (1 Hour).
+ */
+static void test_bme280_saturation_flag_assertion(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    for (uint32_t i = 0; i < 6; i++) {
+        status = bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 0U);
+        TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    }
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_EQUAL_UINT16(6U, sat->saturation_cycles);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_HIGH_HUMIDITY_SAT, sat->state);
+    TEST_ASSERT_FALSE(sat->condensation_detected);
+}
+
+/**
+ * @brief TC-S4-T1.4-05: Saturation Hysteresis Clearing (< 95.0%).
+ */
+static void test_bme280_saturation_hysteresis_clearing(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Assert saturation first (6 cycles @ 99.0%) */
+    for (uint32_t i = 0; i < 6; i++) {
+        (void)bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 0U);
+    }
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+
+    /* Test hysteresis band: 96.0% (between 95% and 98%) -> should remain saturated */
+    status = bme280_process_saturation(&dev, 96.0f, 0.0f, 500U, 0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_HIGH_HUMIDITY_SAT, sat->state);
+
+    /* Test hysteresis exit: 94.0% (< 95.0%) -> should clear saturation and reset cycles */
+    status = bme280_process_saturation(&dev, 94.0f, 0.0f, 500U, 0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_FALSE(sat->is_saturated);
+    TEST_ASSERT_EQUAL_UINT16(0U, sat->saturation_cycles);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_NORMAL, sat->state);
+}
+
+/**
+ * @brief TC-S4-T1.4-06: Condensation Creep Detection.
+ */
+static void test_bme280_condensation_creep_detection(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* 1. Establish saturated state */
+    for (uint32_t i = 0; i < 6; i++) {
+        (void)bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 0U);
+    }
+
+    /* 2. Feed bright sunlight (25,000 lux >= 10,000) and rapid warming (+2.2 °C/hr >= +1.5) */
+    status = bme280_process_saturation(&dev, 99.0f, 2.2f, 25000U, 0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+    TEST_ASSERT_TRUE(sat->condensation_detected);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_CONDENSATION_CREEP, sat->state);
+
+    /* 3. Drop lux below threshold (< 10000) -> condensation creep ends, reverts to HIGH_HUMIDITY_SAT */
+    status = bme280_process_saturation(&dev, 99.0f, 2.2f, 5000U, 0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+    TEST_ASSERT_FALSE(sat->condensation_detected);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_HIGH_HUMIDITY_SAT, sat->state);
+}
+
+/**
+ * @brief TC-S4-T1.4-07: De-Biasing Offset Application (-1.5% during creep).
+ */
+static void test_bme280_condensation_debias_offset(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* 1. Saturated state */
+    for (uint32_t i = 0; i < 6; i++) {
+        (void)bme280_process_saturation(&dev, 99.5f, 0.0f, 500U, 0U);
+    }
+
+    /* 2. Creep conditions: RH = 99.5%, dT/dt = 2.0 °C/hr, Lux = 15000 */
+    status = bme280_process_saturation(&dev, 99.5f, 2.0f, 15000U, 0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_TRUE(sat->condensation_detected);
+    /* 99.5 - 1.5 = 98.0 %RH */
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 98.0f, sat->debiased_humidity_pct);
+}
+
+/**
+ * @brief TC-S4-T1.4-08: Automated 24h Soft Reset Trigger (144 cycles, zero rain).
+ */
+static void test_bme280_automated_24h_soft_reset_trigger(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Feed 143 cycles */
+    for (uint32_t i = 1; i <= 143; i++) {
+        status = bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 0U);
+        TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+        const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+        TEST_ASSERT_FALSE(sat->recovery_triggered);
+    }
+
+    /* Feed 144th cycle -> triggers soft reset */
+    status = bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 0U);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_TRUE(sat->recovery_triggered);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_SOFT_RECOVERY, sat->state);
+    TEST_ASSERT_EQUAL_UINT16(BME280_SATURATION_MIN_CYCLES_1H, sat->saturation_cycles);
+
+    /* Verify reset register written */
+    uint8_t reset_val = i2c_bus_test_get_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_RESET);
+    TEST_ASSERT_EQUAL_UINT8(BME280_SOFT_RESET_KEY, reset_val);
+}
+
+/**
+ * @brief TC-S4-T1.4-09: Rain Gauge Reset Suppression (144 cycles with active rain).
+ */
+static void test_bme280_rain_gauge_reset_suppression(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Reset register cleared */
+    (void)i2c_bus_test_set_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_RESET, 0x00U);
+
+    /* Feed 144 cycles with rain_tips_24h = 12 */
+    for (uint32_t i = 1; i <= 144; i++) {
+        status = bme280_process_saturation(&dev, 99.0f, 0.0f, 500U, 12U);
+        TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+    }
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_FALSE(sat->recovery_triggered);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+    TEST_ASSERT_EQUAL_UINT16(144U, sat->saturation_cycles);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_HIGH_HUMIDITY_SAT, sat->state);
+
+    /* Register should not have been written with 0xB6 */
+    uint8_t reset_val = i2c_bus_test_get_slave_reg(BME280_I2C_ADDR_PRIMARY, BME280_REG_RESET);
+    TEST_ASSERT_EQUAL_UINT8(0x00U, reset_val);
+}
+
+/**
+ * @brief TC-S4-T1.4-10: Saturation State Reset API.
+ */
+static void test_bme280_reset_saturation_tracking_api(void) {
+    bme280_dev_t dev;
+    status_t status = bme280_init(&dev, BME280_I2C_ADDR_PRIMARY);
+    TEST_ASSERT_EQUAL_INT(STATUS_OK, status);
+
+    /* Put into condensation creep */
+    for (uint32_t i = 0; i < 6; i++) {
+        (void)bme280_process_saturation(&dev, 99.0f, 2.0f, 20000U, 0U);
+    }
+
+    const bme280_saturation_status_t *sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_TRUE(sat->is_saturated);
+    TEST_ASSERT_TRUE(sat->condensation_detected);
+
+    /* Call reset API */
+    bme280_reset_saturation_tracking(&dev);
+
+    sat = bme280_get_saturation_status(&dev);
+    TEST_ASSERT_NOT_NULL(sat);
+    TEST_ASSERT_FALSE(sat->is_saturated);
+    TEST_ASSERT_FALSE(sat->condensation_detected);
+    TEST_ASSERT_FALSE(sat->recovery_triggered);
+    TEST_ASSERT_EQUAL_UINT16(0U, sat->saturation_cycles);
+    TEST_ASSERT_EQUAL_INT(BME280_STATE_NORMAL, sat->state);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, sat->debiased_humidity_pct);
+}
+
+/**
  * @brief Defensive NULL pointer and invalid parameter checking.
  */
 static void test_bme280_null_and_invalid_params(void) {
@@ -720,6 +970,12 @@ static void test_bme280_null_and_invalid_params(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_compensate_raw_fixed(NULL, &dev.calib, &fixed_data));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_data(NULL, &data));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_read_data(&dev, NULL));
+
+    /* Saturation & Recovery NULL guards */
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_soft_reset(NULL));
+    TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, bme280_process_saturation(NULL, 98.0f, 0.0f, 0U, 0U));
+    TEST_ASSERT_NULL(bme280_get_saturation_status(NULL));
+    bme280_reset_saturation_tracking(NULL);
 }
 
 int main(void) {
@@ -753,6 +1009,17 @@ int main(void) {
     RUN_TEST(test_bme280_compensation_humidity_clamping);
     RUN_TEST(test_bme280_compensation_fixed_point_scaling);
     RUN_TEST(test_bme280_read_data_end_to_end);
+
+    /* Saturation Detection & Condensation Recovery Tests (S4-T1.4) */
+    RUN_TEST(test_bme280_soft_reset_register_write);
+    RUN_TEST(test_bme280_saturation_counter_incrementation);
+    RUN_TEST(test_bme280_saturation_flag_assertion);
+    RUN_TEST(test_bme280_saturation_hysteresis_clearing);
+    RUN_TEST(test_bme280_condensation_creep_detection);
+    RUN_TEST(test_bme280_condensation_debias_offset);
+    RUN_TEST(test_bme280_automated_24h_soft_reset_trigger);
+    RUN_TEST(test_bme280_rain_gauge_reset_suppression);
+    RUN_TEST(test_bme280_reset_saturation_tracking_api);
 
     /* Defensive Parameter Guards */
     RUN_TEST(test_bme280_null_and_invalid_params);
