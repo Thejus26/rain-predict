@@ -44,6 +44,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-034`** | 2026-09-14 14:58:02 | [`23e4ee5`](https://github.com/Thejus26/rain-predict/commit/23e4ee5c66e9b672ff216d3d909ef8a3ce7b276c) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_sdi12.c**: Test functions lacked static qualifier triggering -Wmissing-prototypes. | [ERR-034 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-034-2026-09-14-missing-static-prototypes-in-test-sdi12.md) |
 | **`ERR-035`** | 2026-09-14 15:04:55 | [`2a66eb9`](https://github.com/Thejus26/rain-predict/commit/2a66eb9ffab908c8e844467fb9790ddace138431) | Testing & Driver Simulation (SDI-12 / GPIO) | **SDI-12 Wake and Transmit Direction State Leak**: Early return on invalid command left direction in TX mode. | [ERR-035 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-035-2026-09-14-sdi12-wake-transmit-error-direction-leak.md) |
 | **`ERR-036`** | 2026-09-14 15:21:08 | [`4ad93b1`](https://github.com/Thejus26/rain-predict/commit/4ad93b14ae571f69bdf991bae211617e1d38623c) | Testing & Driver Communication (SDI-12 / UART) | **SDI-12 Response RX Buffer Over-Read in Soil Probe Queries**: Bulk buffer drain consumed multi-stage response frames causing query timeout. | [ERR-036 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-036-2026-09-14-sdi12-response-rx-buffer-over-read-query-timeout.md) |
+| **`ERR-037`** | 2026-09-14 17:33:00 | [`41a32b2`](https://github.com/Thejus26/rain-predict/commit/41a32b2941f78347b2e2c02f70249505b187e19c) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_telemetry_codec.c**: All 13 unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-037 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-037-2026-09-14-missing-static-prototypes-in-test-telemetry-codec.md) |
 
 ---
 
@@ -52,7 +53,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Testing Macros & Mock Architectural Collisions" : 16
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 11
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 12
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2

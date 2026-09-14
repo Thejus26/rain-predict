@@ -28,7 +28,7 @@ void tearDown(void) {
 /**
  * @brief Verify NULL pointer guards on periodic encoder and decoder.
  */
-void test_periodic_codec_null_guards(void) {
+static void test_periodic_codec_null_guards(void) {
     telemetry_periodic_data_t data;
     uint8_t buffer[TELEMETRY_PERIODIC_PAYLOAD_SIZE];
     size_t encoded_len = 0;
@@ -48,7 +48,7 @@ void test_periodic_codec_null_guards(void) {
 /**
  * @brief Verify buffer bounds rejection for truncated destination arrays.
  */
-void test_periodic_codec_buffer_underflow(void) {
+static void test_periodic_codec_buffer_underflow(void) {
     telemetry_periodic_data_t data;
     uint8_t buffer[TELEMETRY_PERIODIC_PAYLOAD_SIZE];
     size_t encoded_len = 0;
@@ -66,7 +66,7 @@ void test_periodic_codec_buffer_underflow(void) {
 /**
  * @brief Test exact hexadecimal bit-match for nominal tropical daytime profile.
  */
-void test_periodic_encode_nominal_daytime_hex_match(void) {
+static void test_periodic_encode_nominal_daytime_hex_match(void) {
     telemetry_periodic_data_t data = {
         .temperature_c          = 24.50f,
         .humidity_pct           = 85.25f,
@@ -98,7 +98,7 @@ void test_periodic_encode_nominal_daytime_hex_match(void) {
 /**
  * @brief Test sub-zero temperature two's-complement sign preservation.
  */
-void test_periodic_encode_subzero_temperature(void) {
+static void test_periodic_encode_subzero_temperature(void) {
     telemetry_periodic_data_t data = {
         .temperature_c          = -12.75f,
         .humidity_pct           = 99.90f,
@@ -138,7 +138,7 @@ void test_periodic_encode_subzero_temperature(void) {
 /**
  * @brief Test bitfield packing, flag masking, and isolation in Bytes 9, 10, and 11.
  */
-void test_periodic_encode_bitfield_masks(void) {
+static void test_periodic_encode_bitfield_masks(void) {
     telemetry_periodic_data_t data = {
         .temperature_c          = 20.00f,
         .humidity_pct           = 50.00f,
@@ -179,7 +179,7 @@ void test_periodic_encode_bitfield_masks(void) {
 /**
  * @brief Test maximum physical boundary clamping (no integer wrap-around).
  */
-void test_periodic_encode_upper_boundary_clamping(void) {
+static void test_periodic_encode_upper_boundary_clamping(void) {
     telemetry_periodic_data_t data = {
         .temperature_c          = 150.0f,    /* Exceeds 85.0 °C */
         .humidity_pct           = 120.0f,    /* Exceeds 100.0 % */
@@ -218,7 +218,7 @@ void test_periodic_encode_upper_boundary_clamping(void) {
 /**
  * @brief Test minimum physical boundary clamping (no integer underflow).
  */
-void test_periodic_encode_lower_boundary_clamping(void) {
+static void test_periodic_encode_lower_boundary_clamping(void) {
     telemetry_periodic_data_t data = {
         .temperature_c          = -80.0f,   /* Below -40.0 °C */
         .humidity_pct           = -20.0f,   /* Below 0.0 % */
@@ -256,7 +256,7 @@ void test_periodic_encode_lower_boundary_clamping(void) {
 /**
  * @brief Test comprehensive lossless round-trip encoding and decoding.
  */
-void test_periodic_roundtrip_lossless_fidelity(void) {
+static void test_periodic_roundtrip_lossless_fidelity(void) {
     const float test_temps[] = { -39.99f, -10.50f, 0.00f, 15.33f, 28.75f, 42.10f, 84.99f };
     const float test_pressures[] = { 300.00f, 650.40f, 950.22f, 1013.25f, 1099.98f };
     const float test_humidities[] = { 0.00f, 25.40f, 65.50f, 92.80f, 100.00f };
@@ -306,7 +306,7 @@ void test_periodic_roundtrip_lossless_fidelity(void) {
 /**
  * @brief Verify NULL pointer guards on alert encoder and decoder.
  */
-void test_alert_codec_null_guards(void) {
+static void test_alert_codec_null_guards(void) {
     telemetry_alert_data_t data;
     uint8_t buffer[TELEMETRY_ALERT_PAYLOAD_SIZE];
     size_t encoded_len = 0;
@@ -324,7 +324,7 @@ void test_alert_codec_null_guards(void) {
 /**
  * @brief Verify buffer bounds rejection for truncated alert destination arrays.
  */
-void test_alert_codec_buffer_underflow(void) {
+static void test_alert_codec_buffer_underflow(void) {
     telemetry_alert_data_t data;
     uint8_t buffer[TELEMETRY_ALERT_PAYLOAD_SIZE];
     size_t encoded_len = 0;
@@ -341,7 +341,7 @@ void test_alert_codec_buffer_underflow(void) {
 /**
  * @brief Test exact hexadecimal bit-match for severe convective storm alert.
  */
-void test_alert_encode_severe_storm_hex_match(void) {
+static void test_alert_encode_severe_storm_hex_match(void) {
     telemetry_alert_data_t data = {
         .alert_state            = RAIN_ALERT_IMMINENT,
         .trigger_cause          = ALERT_TRIGGER_CPI_THRESHOLD,
@@ -370,7 +370,7 @@ void test_alert_encode_severe_storm_hex_match(void) {
 /**
  * @brief Test signed pressure rate quantization, negative drop rates, and clamping.
  */
-void test_alert_encode_signed_pressure_rate(void) {
+static void test_alert_encode_signed_pressure_rate(void) {
     telemetry_alert_data_t data = {
         .alert_state            = RAIN_ALERT_IMMINENT,
         .trigger_cause          = ALERT_TRIGGER_PRESSURE_PLUNGE,
@@ -406,7 +406,7 @@ void test_alert_encode_signed_pressure_rate(void) {
 /**
  * @brief Test full alert round-trip encoding and decoding across all enum states.
  */
-void test_alert_roundtrip_lossless_fidelity(void) {
+static void test_alert_roundtrip_lossless_fidelity(void) {
     for (uint8_t state = 0; state <= 3; state++) {
         for (uint8_t trig = 0; trig <= 7; trig++) {
             telemetry_alert_data_t src = {
