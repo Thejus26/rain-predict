@@ -17,6 +17,19 @@
 #include "i2c_bus.h"
 #include "bme280_driver.h"
 
+/** @brief Local helper macros for integer tolerance assertions within +/- delta */
+#define TEST_ASSERT_INT16_WITHIN(delta, expected, actual) \
+    TEST_ASSERT_TRUE(((int32_t)(actual) >= ((int32_t)(expected) - (int32_t)(delta))) && \
+                     ((int32_t)(actual) <= ((int32_t)(expected) + (int32_t)(delta))))
+
+#define TEST_ASSERT_UINT32_WITHIN(delta, expected, actual) \
+    TEST_ASSERT_TRUE(((uint32_t)(actual) >= ((uint32_t)(expected) - (uint32_t)(delta))) && \
+                     ((uint32_t)(actual) <= ((uint32_t)(expected) + (uint32_t)(delta))))
+
+#define TEST_ASSERT_UINT16_WITHIN(delta, expected, actual) \
+    TEST_ASSERT_TRUE(((uint32_t)(actual) >= ((uint32_t)(expected) - (uint32_t)(delta))) && \
+                     ((uint32_t)(actual) <= ((uint32_t)(expected) + (uint32_t)(delta))))
+
 /* Standard Bosch Datasheet Trimming Test Vectors (BST-BME280-DS002-15 Appendix 8.1) */
 #define VECTOR_DIG_T1       27504U
 #define VECTOR_DIG_T2       26435
