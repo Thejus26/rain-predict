@@ -158,6 +158,11 @@ status_t sdi12_wake_and_transmit(const char *p_cmd) {
         return STATUS_ERROR_NULL_POINTER;
     }
 
+    size_t len = strlen(p_cmd);
+    if (len == 0U || len > (size_t)SDI12_MAX_BUFFER_SIZE || p_cmd[len - 1U] != '!') {
+        return STATUS_ERROR_INVALID_PARAM;
+    }
+
     /* Flush stale RX buffer */
     (void)uart_bus_flush(UART_PORT_SDI12);
 
@@ -165,7 +170,11 @@ status_t sdi12_wake_and_transmit(const char *p_cmd) {
     sdi12_send_break_and_mark();
 
     /* Transmit formatted ASCII command and transition to RX */
-    return sdi12_transmit_command(p_cmd);
+    status_t status = sdi12_transmit_command(p_cmd);
+    if (status != STATUS_OK) {
+        sdi12_set_direction(SDI12_DIR_RX);
+    }
+    return status;
 }
 
 /* ============================================================================
