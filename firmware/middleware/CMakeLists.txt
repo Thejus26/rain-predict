@@ -8,6 +8,7 @@ add_library(firmware_middleware STATIC
     src/moving_avg_filter.c
     src/dew_point.c
     src/power_mgr.c
+    src/telemetry_codec.c
 )
 
 target_include_directories(firmware_middleware PUBLIC
