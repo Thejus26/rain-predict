@@ -439,8 +439,10 @@ status_t modbus_query_slave_raw(uint8_t slave_addr,
     uint8_t  rx_buf[MODBUS_MAX_FRAME_SIZE];
     uint16_t rx_len = 0U;
 
+#if defined(HAVE_STM32WLXX_HAL)
     /* Step 2: Flush UART RX Ring Buffer to discard stale noise */
     (void)uart_bus_flush(UART_PORT_RS485);
+#endif
 
     /* Step 3: Assert DE=HIGH (Transmitter Mode) */
     modbus_set_direction_tx();
