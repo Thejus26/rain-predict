@@ -247,6 +247,8 @@ typedef struct {
     uint8_t  address;
     bool     is_active;
     uint8_t  registers[SIM_I2C_REG_SPACE];
+    uint16_t word_registers[SIM_I2C_REG_SPACE];
+    bool     word_reg_valid[SIM_I2C_REG_SPACE];
     uint32_t read_count;
     uint32_t write_count;
     uint8_t  last_reg;
@@ -380,6 +382,33 @@ uint8_t i2c_bus_test_get_last_reg(uint8_t dev_addr) {
     return (p_dev != NULL) ? p_dev->last_reg : 0x00U;
 }
 
+status_t i2c_bus_test_set_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr, uint16_t value) {
+    sim_i2c_device_t *p_dev = sim_find_or_create_device(dev_addr);
+    if (p_dev == NULL) {
+        return STATUS_ERR_INVALID_PARAM;
+    }
+    p_dev->word_registers[reg_addr] = value;
+    p_dev->word_reg_valid[reg_addr] = true;
+    p_dev->registers[reg_addr] = (uint8_t)((value >> 8) & 0xFFU);
+    if ((uint32_t)reg_addr + 1U < SIM_I2C_REG_SPACE) {
+        p_dev->registers[reg_addr + 1U] = (uint8_t)(value & 0xFFU);
+    }
+    return STATUS_OK;
+}
+
+uint16_t i2c_bus_test_get_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr) {
+    sim_i2c_device_t *p_dev = sim_find_device(dev_addr);
+    if (p_dev != NULL && p_dev->word_reg_valid[reg_addr]) {
+        return p_dev->word_registers[reg_addr];
+    }
+    if (p_dev != NULL) {
+        uint8_t msb = p_dev->registers[reg_addr];
+        uint8_t lsb = ((uint32_t)reg_addr + 1U < SIM_I2C_REG_SPACE) ? p_dev->registers[reg_addr + 1U] : 0U;
+        return (uint16_t)(((uint16_t)msb << 8) | (uint16_t)lsb);
+    }
+    return 0x0000U;
+}
+
 status_t i2c_bus_init(uint32_t speed_hz) {
     if (speed_hz != I2C_BUS_SPEED_STANDARD_HZ && speed_hz != I2C_BUS_SPEED_FAST_HZ) {
         return STATUS_ERR_INVALID_PARAM;
@@ -450,7 +479,16 @@ status_t i2c_bus_read(uint8_t dev_addr,
 
     for (uint16_t i = 0; i < length; i++) {
         uint8_t curr_reg = (uint8_t)(reg_addr + i);
-        uint8_t val = p_dev->registers[curr_reg];
+        uint8_t val = 0;
+        if (p_dev->word_reg_valid[reg_addr] && length == 2U) {
+            if (i == 0U) {
+                val = (uint8_t)((p_dev->word_registers[reg_addr] >> 8) & 0xFFU);
+            } else {
+                val = (uint8_t)(p_dev->word_registers[reg_addr] & 0xFFU);
+            }
+        } else {
+            val = p_dev->registers[curr_reg];
+        }
         if (s_sim_active_fault_type == 5U &&
             (s_sim_fault_trigger_delay == 0U || s_sim_transaction_count >= s_sim_fault_trigger_delay)) {
             val ^= 0xFFU;
@@ -510,6 +548,11 @@ status_t i2c_bus_write(uint8_t dev_addr,
 
     p_dev->write_count++;
     p_dev->last_reg = reg_addr;
+
+    if (length == 2U) {
+        p_dev->word_registers[reg_addr] = (uint16_t)(((uint16_t)p_data[0] << 8) | (uint16_t)p_data[1]);
+        p_dev->word_reg_valid[reg_addr] = true;
+    }
 
     for (uint16_t i = 0; i < length; i++) {
         uint8_t curr_reg = (uint8_t)(reg_addr + i);
