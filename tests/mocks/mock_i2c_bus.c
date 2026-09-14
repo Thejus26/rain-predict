@@ -28,6 +28,14 @@ uint8_t mock_i2c_get_register(uint8_t dev_addr, uint8_t reg_addr) {
     return i2c_bus_test_get_slave_reg(dev_addr, reg_addr);
 }
 
+status_t mock_i2c_set_word_register(uint8_t dev_addr, uint8_t reg_addr, uint16_t value) {
+    return i2c_bus_test_set_slave_word_reg(dev_addr, reg_addr, value);
+}
+
+uint16_t mock_i2c_get_word_register(uint8_t dev_addr, uint8_t reg_addr) {
+    return i2c_bus_test_get_slave_word_reg(dev_addr, reg_addr);
+}
+
 void mock_i2c_inject_fault(mock_i2c_fault_t fault, uint32_t trigger_after_n_calls) {
     i2c_bus_test_inject_fault_advanced((uint32_t)fault, trigger_after_n_calls);
 }

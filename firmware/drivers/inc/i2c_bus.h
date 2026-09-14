@@ -244,6 +244,23 @@ uint32_t i2c_bus_test_get_write_count(uint8_t dev_addr);
  */
 uint8_t i2c_bus_test_get_last_reg(uint8_t dev_addr);
 
+/**
+ * @brief Configures a simulated 16-bit word register in test mode.
+ * @param[in] dev_addr 7-bit device address.
+ * @param[in] reg_addr 8-bit register address.
+ * @param[in] value    16-bit word value to store.
+ * @return status_t    STATUS_OK on success.
+ */
+status_t i2c_bus_test_set_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr, uint16_t value);
+
+/**
+ * @brief Reads a simulated 16-bit word register in test mode.
+ * @param[in] dev_addr 7-bit device address.
+ * @param[in] reg_addr 8-bit register address.
+ * @return uint16_t Current 16-bit word value.
+ */
+uint16_t i2c_bus_test_get_slave_word_reg(uint8_t dev_addr, uint8_t reg_addr);
+
 #endif /* !HAVE_STM32WLXX_HAL */
 
 #ifdef __cplusplus
