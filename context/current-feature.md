@@ -1,41 +1,16 @@
-# Current Feature: S4-T2.3 - TI OPT3001 Day/Night Classification & Solar Cloud Attenuation Scoring
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement hysteresis-gated ambient day/night state machine (`opt3001_classify_day_state`): `NIGHT` ($< 10\text{ Lux}$), `TWILIGHT` ($10\text{ to }50\text{ Lux}$), `DAYLIGHT` ($\ge 50\text{ Lux}$) with $5.0\text{ Lux}$ deadband ($10\text{ to }15\text{ Lux}$).
-- Implement confirmed daylight status query function (`opt3001_is_daylight`) with rising $\ge 50\text{ Lux}$ and falling $< 40\text{ Lux}$ hysteresis.
-- Implement multi-tier daylight convective storm cloud attenuation scoring (`opt3001_evaluate_solar_attenuation`):
-  - Severe Attenuation (Score = 100): Drop ratio $\ge 70\%$ and $\text{Lux}_{\text{current}} < 3000\text{ Lux}$.
-  - Moderate Attenuation (Score = 65): Drop ratio $\ge 50\%$.
-  - Minor Attenuation (Score = 30): Drop ratio $\ge 30\%$.
-  - No Attenuation (Score = 0): Steady, diffuse, or increasing sunlight.
-- Implement solar cloud drop alarm flag (`solar_drop_alarm = true` when drop ratio $\ge 50\%$) for LoRaWAN Byte 10 Bit 7.
-- Implement daytime interlock and historical $5,000\text{ Lux}$ threshold guard to suppress false alarms at sunset/dusk.
-- Implement master solar context evaluator `opt3001_update_solar_context()` populating `opt3001_solar_context_t`.
-- Update ThrowTheSwitch Unity test suite (`tests/unit/test_opt3001.c`) covering test cases TC-S4-T2.3-01 through TC-S4-T2.3-10.
+<!-- Add goals here -->
 
 ## Notes
 
-- Hardware constraints: STM32WLE5CCU6 (Cortex-M4 @ 48 MHz).
-- Thresholds:
-  - `OPT3001_NIGHT_THRESHOLD_LUX` = $10.0\text{f}$
-  - `OPT3001_DAWN_THRESHOLD_LUX` = $15.0\text{f}$
-  - `OPT3001_DAYLIGHT_CONFIRM_LUX` = $50.0\text{f}$
-  - `OPT3001_DUSK_THRESHOLD_LUX` = $40.0\text{f}$
-  - `OPT3001_ATTENUATION_MIN_HIST_LUX` = $5000.0\text{f}$
-  - `OPT3001_ATTENUATION_SEVERE_MAX_LUX` = $3000.0\text{f}$
-  - `OPT3001_DROP_RATIO_SEVERE` = $0.70\text{f}$
-  - `OPT3001_DROP_RATIO_MODERATE` = $0.50\text{f}$
-  - `OPT3001_DROP_RATIO_MINOR` = $0.30\text{f}$
-- Target Files:
-  - [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h)
-  - [`firmware/drivers/src/opt3001_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/opt3001_driver.c)
-  - [`tests/unit/test_opt3001.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_opt3001.c)
-- Defensive programming: Zero dynamic allocation, zero-division suppression on drop ratio, bounds clamping on drop ratio in $[0.0, 1.0]$, NULL pointer checking.
+<!-- Add notes here -->
 
 ## History
 
@@ -102,5 +77,6 @@ In Progress
 - 2026-09-14: S4-T1.5 - Implemented and verified Bosch BME280 Driver Unit Test Suite (tests/unit/test_bme280.c) under ThrowTheSwitch Unity covering chip ID validation, 2-phase calibration NVM unpacking, signed bit-split math (dig_H4, dig_H5), all-zero corrupt NVM detection, forced-mode register write sequencing (0xF2 -> 0xF5 -> 0xF4), status polling timeout, atomic 8-byte burst ADC readout, Cortex-M4 single-precision FPU math (Bosch reference vectors, sub-zero temperatures, zero-division guards, physical boundary clamping, centi-unit integer scaling), and humidity saturation tracking (1-hour assertion, 3% hysteresis exit, daylight condensation creep detection with -1.5% offset, 24-hour zero-rain automated soft reset recovery, and active rain suppression). Completed S4-T1 (Bosch BME280 Sensor Driver).
 - 2026-09-14: S4-T2.1 - Implemented TI OPT3001 Ambient Light Sensor Hardware Initialization, 16-bit Big-Endian Register Readout, Device ID Verification (0x5449 / 0x3001), 100ms Auto-Range Single-Shot Trigger (0xCA10), Conversion Ready Flag (CRF) Polling with 150ms Timeout, Raw Exponent/Mantissa Bitfield Separation, and ThrowTheSwitch Unity Unit Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 - 2026-09-14: S4-T2.2 - Implemented TI OPT3001 Exponential Lux Calculation (opt3001_raw_to_lux), 32-bit Exact Fixed-Point Integer Math (opt3001_raw_to_centi_lux), Solar Irradiance Estimation (opt3001_lux_to_irradiance), LoRaWAN 16-bit Telemetry Scaling (opt3001_lux_to_telemetry_u16), Master Reading APIs (opt3001_convert_raw, opt3001_read_lux), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
+- 2026-09-14: S4-T2.3 - Implemented TI OPT3001 Hysteresis-Gated Day/Night Classification (opt3001_classify_day_state, opt3001_is_daylight), Multi-Tier Convective Storm Cloud Attenuation Scoring (opt3001_evaluate_solar_attenuation), LoRaWAN Byte 10 Bit 7 Solar Drop Alarm Flag, Sunset False-Alarm Interlock, Master Solar Context Evaluator (opt3001_update_solar_context), and ThrowTheSwitch Unity Test Suite (firmware/drivers/inc/opt3001_driver.h, firmware/drivers/src/opt3001_driver.c, tests/unit/test_opt3001.c).
 
 
