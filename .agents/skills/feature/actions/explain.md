@@ -9,7 +9,9 @@
    - Give a clear 1-2 sentence plain-English explanation of what it does and why it was changed, avoiding dense jargon.
    - Use concrete real-world comparisons to explain functions, structs, registers, or mathematical formulas.
 5. **How It All Connects (The Step-by-Step Story)**:
-   - Provide an intuitive diagram or journey tracking raw physical measurements $\rightarrow$ smart edge math $\rightarrow$ final field action (e.g., siren/LoRa/valve).
+   - Trace the exact data journey from physical sensation $\rightarrow$ filtering $\rightarrow$ nowcasting math $\rightarrow$ final field action (e.g. siren/LoRaWAN/flash).
+   - If local knowledge graph is available, query the path between entry driver functions and output handlers (e.g. `graphify path "<source_fn>" "<dest_fn>"`) to ensure complete call sequence accuracy.
+   - Provide an intuitive Mermaid sequence or flowchart diagram mapping this journey.
 6. **Why This Matters in Practice**:
    - Highlight the tangible real-world benefit (e.g., saving battery, preventing false alarms during solar heating, protecting tea crops from rain).
 

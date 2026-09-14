@@ -2,10 +2,11 @@
 
 1. **Verify & Stage Changes**:
    - Verify code compiles without warnings and all unit/host tests pass.
-   - Stage modified source files, test files, and the error report:
+   - Stage ONLY modified source files, test files, and the error report:
      ```bash
      git add <impacted-files> context/errors/
      ```
+   - Ensure no local virtual environment, tool caches, or private graph outputs are staged.
 
 2. **Commit the Fix**:
    - Commit using Conventional Commits format (per `context/ai-interaction.md`):

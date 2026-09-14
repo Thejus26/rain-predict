@@ -8,5 +8,6 @@
    - 🛡️ Memory & pointer safety (zero `malloc`, `NULL` checks, bounded buffers)
    - ⚡ Power & timing compliance (no busy-waits, proper sleep mode handling)
    - ⚠️ Status code handling and remote bus timeout guards
+   - 🌐 Architectural layering & dependency integrity (consult local knowledge graph if available to verify unidirectional Layer 1..4 dependencies and check for circular includes or orphaned structs)
    - 🚫 Scope creep (unnecessary changes or dependencies)
 4. Final verdict: **Ready to complete** or **Action items required**.
