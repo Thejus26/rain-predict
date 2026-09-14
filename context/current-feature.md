@@ -1,31 +1,16 @@
-# Current Feature: S4-T1.2 - Bosch BME280 Forced-Mode Trigger & Measurement Readout
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Update [`firmware/drivers/inc/bme280_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280_driver.h) and [`firmware/drivers/src/bme280_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bme280_driver.c) with forced-mode control and raw ADC burst acquisition routines adhering to C99 standards, Doxygen documentation, and zero dynamic memory allocation.
-- Enforce strict register write ordering: `ctrl_hum` (`0xF2`) $\to$ `config` (`0xF5`) $\to$ `ctrl_meas` (`0xF4`) for single-shot forced mode activation.
-- Implement `bme280_configure()`: Apply meteorological profile (temperature $\times 2$, pressure $\times 16$, humidity $\times 1$, IIR filter coefficient 4).
-- Implement `bme280_trigger_forced_mode()`: Arms single-shot conversion by writing `mode = 0b01` (`FORCED_MODE`, combined byte `0x55`) to `ctrl_meas` (`0xF4`).
-- Implement `bme280_is_measuring()` and `bme280_wait_for_completion()`: Non-blocking bounded polling on register `0xF3` bit 3 (`measuring`) with a $60\text{ms}$ timeout guard (`BME280_MEASUREMENT_TIMEOUT_MS`).
-- Implement `bme280_read_raw_data()`: Atomic 8-byte continuous burst readout from `0xF7` to `0xFE` with 20-bit pressure, 20-bit temperature, and 16-bit humidity unpacking.
-- Implement `bme280_sample_forced_raw()`: Master high-level coordinator function triggering forced mode, polling completion, and reading raw ADC registers.
-- Update unit test suite [`tests/unit/test_bme280.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_bme280.c) covering configuration sequence, trigger byte composition, status polling, 8-byte burst reads, 20-bit/16-bit ADC unpacking test vectors, $60\text{ms}$ timeout guards, and defensive parameter checks.
+<!-- Add goals here -->
 
 ## Notes
 
-- **Control & Status Registers**:
-  - `0xF2`: `ctrl_hum` (Humidity oversampling `osrs_h[2:0]`)
-  - `0xF3`: `status` (Bit 3 `measuring`, Bit 0 `im_update`)
-  - `0xF4`: `ctrl_meas` (`osrs_t[7:5] \| osrs_p[4:2] \| mode[1:0]`)
-  - `0xF5`: `config` (`t_sb[7:5] \| filter[4:2] \| spi3w_e[0]`)
-  - `0xF7..0xFE`: Data registers (`press_msb..hum_lsb`, 8 bytes continuous)
-- **Meteorological Profile**: $T \times 2$ (`0x02`), $P \times 16$ (`0x05`), $H \times 1$ (`0x01`), IIR Filter 4 (`0x02`). Combined `ctrl_meas` trigger byte: `0x55`.
-- **Timing & Guards**: Max conversion duration guard $60\text{ms}$ (`BME280_MEASUREMENT_TIMEOUT_MS`), burst read length $8\text{ bytes}$ (`BME280_RAW_BURST_DATA_LEN`).
-- **Memory & Concurrency**: Zero dynamic memory allocation, shadow latch protection via single continuous 8-byte burst read.
+<!-- Add notes here -->
 
 ## History
 
@@ -86,4 +71,6 @@ In Progress
 - 2026-09-13: S3-T4.3 - Implemented Independent Watchdog (IWDG) driver and supervision (firmware/core/inc/watchdog.h, firmware/core/src/watchdog.c, tests/unit/test_watchdog.c) covering STM32WLE5 dedicated 32 kHz LSI clocking, /64 prescaler divider (500 Hz / 2.0 ms tick), 4000 reload count (8.0s deterministic timeout), anti-masking safe refresh logic (IWDG_KR 0xAAAA), boot reset reason diagnostics (RCC_CSR_IWDGRSTF), DBGMCU Stop 2 and Standby sleep counter freeze, and ThrowTheSwitch Unity test suite.
 - 2026-09-13: S3-T4.4 - Implemented Battery ADC Voltage Measurement and Solar Harvesting Telemetry (firmware/drivers/inc/bsp_adc.h, firmware/drivers/src/bsp_adc.c, firmware/middleware/inc/power_mgr.h, firmware/middleware/src/power_mgr.c, tests/unit/test_bsp_adc.c) covering STM32WLE5 ADC1 driver with internal factory VREFINT_CAL (0x1FFF75AA) calibration, PB1 high-side P-MOSFET divider gate control with 2.0ms RC stabilization delay (< 10 nA standby leakage), 8x oversampled averaging, 8-segment non-linear LiFePO4 State of Charge (SoC) interpolation (0-100%), 3-tier battery health categorization (Optimal/Low/Critical), adaptive duty-cycle sleep throttling (>= 15 min for Low, 60 min for Critical), solar harvesting classification (Night/Discharging/Active Harvest/Float Charged), bit-packed LoRaWAN Byte 11 (6-bit Vbat @ 20mV LSB + sensor error and reset flags), and ThrowTheSwitch Unity test suite. Completed Sprint 3 (Core MCU Architecture, BSP & Power Management).
 - 2026-09-14: S4-T1.1 - Implemented Bosch BME280 Factory Trimming Parameter Readout and Calibration Unpacking (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c, firmware/drivers/CMakeLists.txt, tests/CMakeLists.txt) covering Chip ID verification (0xD0 -> 0x60), 2-phase burst NVM readout (26 bytes from 0x88, 7 bytes from 0xE1), little-endian temperature/pressure parameter unpacking, signed 12-bit humidity bit-split unpacking (dig_H4 and dig_H5), defensive sanity validation against corrupt/uninitialized NVM, device lifecycle initialization, and ThrowTheSwitch Unity test suite.
+- 2026-09-14: S4-T1.2 - Implemented Bosch BME280 Forced-Mode Trigger, Bounded Conversion Status Polling, and 8-Byte Continuous Burst Raw ADC Readout (firmware/drivers/inc/bme280_driver.h, firmware/drivers/src/bme280_driver.c, tests/unit/test_bme280.c) covering strict register write ordering (0xF2 -> 0xF5 -> 0xF4), 0x55 single-shot forced-mode trigger byte composition (T:x2, P:x16, H:x1, IIR filter 4), 60ms watchdog timeout guard, atomic 8-byte continuous burst readout (0xF7..0xFE) with shadow latch locking, 20-bit pressure/temperature and 16-bit humidity ADC word unpacking, and ThrowTheSwitch Unity test suite.
+
 
