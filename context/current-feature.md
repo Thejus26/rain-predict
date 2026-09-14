@@ -1,30 +1,16 @@
-# Current Feature: S4-T5.3 - SDI-12 Driver Unit Test Suite
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement and verify comprehensive ThrowTheSwitch Unity unit test suite in [`tests/unit/test_sdi12.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sdi12.c).
-- Verify physical break ($13.0\text{ ms}$) and mark ($9.0\text{ ms}$) timing sequences, `PC2` direction toggling, and turnaround line release to RX listening mode.
-- Verify SDI-12 command formatting (`?!`, `a!`, `aM!`, `aD0!`, `aI!`), address range validation (`'0'-'9'`, `'a'-'z'`, `'A'-'Z'`, `'?'`), and trailing `'!'` delimiter enforcement.
-- Verify measurement info parsing (`atttn\r\n`), slave address matching, and non-digit error handling.
-- Verify single-line data response parsing with multi-parameter positive, negative, and scientific notation floating-point token extraction.
-- Verify 22-byte fixed-format sensor identification (`aI!`) decoding into vendor, model, firmware, and serial fields.
-- Verify 2-stage soil moisture telemetry acquisition cycles (`sdi12_query_soil_probe`) with agronomic clamping ($[0.0, 1.0]\text{ m}^3/\text{m}^3$ VWC, $\ge 0.0\text{ dS/m}$ EC) and timeout/frame error resilience.
-- Verify single-wire wildcard address discovery (`?!`).
-- Maintain zero dynamic memory allocation and strict C99 compliance (`-Wall -Wextra -Werror`).
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- **Task Spec**: [`context/specs/s4-t5.3-test-sdi12.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s4-t5.3-test-sdi12.md)
-- **Target Files**:
-  - [`tests/unit/test_sdi12.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_sdi12.c)
-  - [`firmware/drivers/inc/sdi12_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/sdi12_driver.h)
-  - [`firmware/drivers/src/sdi12_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/sdi12_driver.c)
-- **Hardware Configuration**: STM32WLE5 LPUART1 on `PC0` (TX) and `PC1` (RX) at 1200 baud, 7-E-1 format; `PC2` (`SDI12_DIR`) half-duplex direction control pin (HIGH = TX mode, LOW = RX listening mode).
-- **Mock Subsystems**: Virtualized via [`tests/mocks/mock_uart_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_uart_bus.h) (`UART_PORT_SDI12`) and [`tests/mocks/mock_gpio.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/mocks/mock_gpio.h) (`GPIOC` pin 2 / pin 0).
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -103,3 +89,4 @@ In Progress
 - 2026-09-14: S4-T4.4 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for RS-485 Modbus RTU Master Protocol Driver (tests/unit/test_modbus_rtu.c) covering 34 unit tests across FC03 request generation, standard polynomial 0xA001 CRC-16 computation (bitwise and Flash LUT equivalence across 64 iterations, incremental updates, and corruption detection), unicast parameter bounds enforcement, response parsing, Modbus 0x83 exception handling, big-endian 16-bit word unpacking, meteorological unit decoding (T, RH, P, Wind speed/direction) with physical saturation clamping, PA1 transceiver direction guard timing, master raw queries, timeout handling (150ms), and automated 3-attempt retry recovery on CRC error. Completed S4-T4 (RS-485 Modbus RTU Master Protocol Driver).
 - 2026-09-14: S4-T5.1 - Implemented SDI-12 Bus Break & Mark Timing Engine (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, firmware/drivers/CMakeLists.txt, tests/unit/test_sdi12.c, tests/CMakeLists.txt) covering STM32WLE5 LPUART1 1200-baud 7E1 physical layer, PC2 half-duplex direction control, 13.0ms break spacing (+5V) and 9.0ms mark sequence (0V) with GPIO dynamic mode switching, command transmission with hardware TC synchronization, \r\n ASCII response acquisition with 1000ms timeout guard, fail-safe RX line release, zero dynamic memory allocation, and ThrowTheSwitch Unity test suite.
 - 2026-09-14: S4-T5.2 - Implemented SDI-12 Command Formatter & Multi-Parameter ASCII Response Parser (firmware/drivers/inc/sdi12_driver.h, firmware/drivers/src/sdi12_driver.c, tests/unit/test_sdi12.c) covering command formatting (?!, a!, aI!, aM!, aC!, aD0!, aAb!) with address validation and ! delimiter enforcement, measurement info parsing (atttn\r\n), deterministic zero-heap floating-point token extraction (including negative and scientific notation), sensor identification decoding (aI!), high-level 2-stage soil probe acquisition orchestrator (sdi12_query_soil_probe) with agronomic clamping, probe address discovery (sdi12_query_address), and ThrowTheSwitch Unity unit test suite.
+- 2026-09-14: S4-T5.3 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for SDI-12 Bus Driver (tests/unit/test_sdi12.c) covering 29 unit tests across physical break/mark timing (13ms/9ms), half-duplex PC2 direction toggling, command syntax (?!, a!, aM!, aD0!, aI!), measurement info parsing (atttn\r\n), multi-parameter floating-point data response parsing (positive, negative, scientific notation), sensor identification decoding (22-byte string), 2-stage soil moisture query orchestration (sdi12_query_soil_probe) with agronomic clamping, address discovery (sdi12_query_address), and timeout/fault resilience. Completed Sprint 4 (Sensor Drivers & Remote Field Bus Interfaces).
