@@ -1,16 +1,32 @@
-# Current Feature
+# Current Feature: S5-T2.3 - Automated JavaScript Decoder Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Create [`tools/decoders/test_decoders.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/test_decoders.js) test runner script with zero external npm dependencies using native Node.js `assert` and `path` modules.
+- Implement Suite 1: FPort 1 periodic environmental telemetry verification (12 bytes) covering nominal daytime tropical weather (Vector 1), sub-zero mountain frost (Vector 2), and active rain with hardware fault flags (Vector 3) across both ChirpStack and TTN decoders.
+- Implement Suite 2: FPort 2 urgent storm alert packet verification (4 bytes) covering severe storm alert (Vector 4), barometric plunge squall (Vector 5), and first rain tip pulse trigger (Vector 6) with signed barometric pressure rate decoding.
+- Implement Suite 3: FPort 10 downlink command encoding & decoding verification covering command `0x01` (sampling interval), `0x02` (station elevation), `0x03` (alert thresholds), and `0x04` (system action/reboot) with round-trip fidelity between ChirpStack and TTN.
+- Implement Suite 4: Defensive error handling and truncation guard tests verifying short payloads and unsupported ports return error structures without throwing uncaught exceptions, plus ChirpStack v3 legacy compatibility (`Decode`/`Encode`).
+- Validate strict floating-point precision comparisons (`assertClose`) for temperature ($\pm 0.01^\circ\text{C}$), pressure ($\pm 0.02\text{ hPa}$), humidity ($\pm 0.01\%$), and pressure rate ($\pm 0.05\text{ hPa/hr}$).
+- Implement ANSI colorized CLI reporting with pass/fail metrics and deterministic process exit codes (`process.exit(0)` on pass, `process.exit(1)` on failure).
+- Ensure all 10 verification test cases (TC-S5-T2.3-01 through TC-S5-T2.3-10) execute and achieve 100% pass rate.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Task Specification**: [`context/specs/s5-t2.3-test-decoders.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s5-t2.3-test-decoders.md)
+- **Target Deliverable**: [`tools/decoders/test_decoders.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/test_decoders.js)
+- **Modules Under Test**:
+  - [`tools/decoders/chirpstack_codec.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/chirpstack_codec.js) (ChirpStack v3 & v4 compatible)
+  - [`tools/decoders/ttn_decoder.js`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/decoders/ttn_decoder.js) (The Things Network v3 / TTS compatible)
+- **Firmware Parity Reference**:
+  - [`firmware/middleware/src/telemetry_codec.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/telemetry_codec.c)
+  - [`tests/unit/test_telemetry_codec.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_telemetry_codec.c)
+- **Runtime Constraints**: Node.js built-ins only (`assert`, `path`); no external npm packages.
+- **Execution Command**: `node tools/decoders/test_decoders.js`
 
 ## History
 
