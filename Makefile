@@ -5,7 +5,7 @@
 # =============================================================================
 
 .DEFAULT_GOAL := help
-.PHONY: all test sim firmware coverage asan format check-format lint clean help
+.PHONY: all test decoders sim firmware coverage asan format check-format lint clean help
 
 # -----------------------------------------------------------------------------
 # Configuration & Directory Paths
@@ -39,6 +39,10 @@ all: ## Build host test binaries and algorithmic modules (Debug)
 
 test: all ## Build and execute all host unit tests with Unity
 	@ctest --test-dir $(BUILD_DIR) --output-on-failure --verbose
+
+decoders: ## Execute automated JavaScript payload decoder test suite
+	@node tools/decoders/test_decoders.js
+
 
 # -----------------------------------------------------------------------------
 # Python Microclimate Simulation

@@ -293,3 +293,17 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_telemetry_codec.c")
         LIBRARIES firmware_middleware firmware_core
     )
 endif()
+
+# -----------------------------------------------------------------------------
+# 10. JavaScript Gateway Payload Decoder Tests
+# -----------------------------------------------------------------------------
+find_program(NODE_EXECUTABLE NAMES node nodejs)
+if(NODE_EXECUTABLE AND EXISTS "${CMAKE_SOURCE_DIR}/tools/decoders/test_decoders.js")
+    add_test(NAME js_decoders
+        COMMAND ${NODE_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/decoders/test_decoders.js
+    )
+    set_tests_properties(js_decoders PROPERTIES
+        TIMEOUT 15
+    )
+endif()
+
