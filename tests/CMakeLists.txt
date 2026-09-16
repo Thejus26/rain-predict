@@ -294,6 +294,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_telemetry_codec.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_flash_storage.c")
+    add_firmware_test(flash_storage
+        SOURCES unit/test_flash_storage.c
+        LIBRARIES firmware_middleware firmware_core
+    )
+endif()
+
 # -----------------------------------------------------------------------------
 # 10. JavaScript Gateway Payload Decoder Tests
 # -----------------------------------------------------------------------------
