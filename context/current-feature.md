@@ -1,64 +1,16 @@
-# Current Feature: STM32WLE5 Flash Page Erase & Double-Word Programming Manager (S5-T3.1)
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- [x] Define on-chip Flash geometry, partition constants, error aliases, and public API function prototypes in `firmware/middleware/inc/flash_storage.h`.
-- [x] Implement `firmware/middleware/src/flash_storage.c` with hardware peripheral initialization (`flash_storage_init`) and error flag clearing.
-- [x] Implement register key unlock sequence (`flash_storage_unlock`) writing `FLASH_KEY1` (`0x45670123U`) and `FLASH_KEY2` (`0xCDEF89ABU`), and register locking (`flash_storage_lock`) with `FLASH_CR_LOCK`.
-- [x] Implement 2 KB page erase operation (`flash_storage_erase_page`) for dedicated NVM pages (120–127) and full partition erase (`flash_storage_erase_all_nvm_pages`) with bounded 50 ms timeout guards.
-- [x] Implement 64-bit double-word programming (`flash_storage_write_dword`) with strict 8-byte alignment verification.
-- [x] Implement arbitrary byte buffer programming (`flash_storage_write_bytes`) with automatic 64-bit block alignment buffering, padding, and read-modify-write preservation.
-- [x] Implement memory-mapped direct byte read access (`flash_storage_read_bytes`) and erased-page validation (`flash_storage_is_page_erased`).
-- [x] Enforce strict defensive boundary protection restricting all erase and write operations to dedicated NVM Pages 120–127 (`0x0803C000`–`0x0803FFFF`), protecting Application firmware (Pages 0–119).
-- [x] Provide dual-target simulation architecture: `#if defined(HOST_TEST) || !defined(STM32WLE5xx)` static RAM mock emulation with 1->0 physical bitwise programming behavior, and STM32 CubeWL HAL peripheral drivers for target deployment.
-- [x] Register `flash_storage` in `firmware/middleware/CMakeLists.txt` and prepare comprehensive ThrowTheSwitch Unity test harness in `tests/unit/test_flash_storage.c`.
+<!-- Goals will be loaded from feature spec -->
 
 ## Notes
 
-- **Task ID**: `S5-T3.1` (Parent Task: `S5-T3: Implement On-Chip Flash Circular Ring-Buffer Logging`).
-- **Specification Document**: `context/specs/s5-t3.1-flash-page-manager.md`.
-- **Target Files**:
-  - `firmware/middleware/inc/flash_storage.h`
-  - `firmware/middleware/src/flash_storage.c`
-- **Hardware Architecture & Flash Geometry**:
-  - Target MCU: STMicroelectronics STM32WLE5CC (ARM Cortex-M4 @ 48 MHz).
-  - Total Flash Memory: 256 KB (262,144 bytes) mapped `0x08000000` to `0x0803FFFF` across 128 physical pages (2,048 bytes / 2 KB per page).
-  - Application Partition: Pages 0–119 (`0x08000000`–`0x0803BFFF`, 240 KB), write-protected by software bounds guards.
-  - Dedicated NVM Partition: Pages 120–127 (`0x0803C000`–`0x0803FFFF`, 8 pages = 16 KB total).
-    - Page 120 (`0x0803C000`–`0x0803C7FF`): Ring Buffer Sector 0 (Records 0..127)
-    - Page 121 (`0x0803C800`–`0x0803CFFF`): Ring Buffer Sector 1 (Records 128..255)
-    - Page 122 (`0x0803D000`–`0x0803D7FF`): Ring Buffer Sector 2 (Records 256..383)
-    - Page 123 (`0x0803D800`–`0x0803DFFF`): Ring Buffer Sector 3 (Records 384..511)
-    - Page 124 (`0x0803E000`–`0x0803E7FF`): Ring Buffer Sector 4 (Records 512..639)
-    - Page 125 (`0x0803E800`–`0x0803EFFF`): Ring Buffer Sector 5 (Records 640..767)
-    - Page 126 (`0x0803F000`–`0x0803F7FF`): Ring Buffer Sector 6 (Records 768..895)
-    - Page 127 (`0x0803F800`–`0x0803FFFF`): Ring Buffer Sector 7 & Station Metadata Header
-  - Programming Granularity: 64-bit double-word (`uint64_t`, 8-byte aligned).
-  - Erase Granularity: 2 KB physical page erase (all bits reset to `0xFF`).
-  - Physical Endurance: 10,000 erase/program cycles per page; data retention > 10 years at 85°C.
-- **Hardware Registers & Key Sequences**:
-  - Keys: `FLASH_KEY1 = 0x45670123U`, `FLASH_KEY2 = 0xCDEF89ABU`.
-  - Registers: `FLASH->KEYR`, `FLASH->CR`, `FLASH->SR`.
-  - Control Flags: `FLASH_CR_LOCK`, `FLASH_CR_PG`, `FLASH_CR_PER`, `FLASH_CR_PNB`, `FLASH_CR_STRT`.
-  - Status Flags: `FLASH_SR_BSY`, `FLASH_FLAG_ALL_ERRORS` (`EOP`, `OPERR`, `PROGERR`, `WRPERR`, `PGAERR`, `SIZERR`, `PGSERR`, `MISSERR`, `FASTERR`).
-  - Timeout: 50 ms bounded hardware polling timeout (`FLASH_STORAGE_TIMEOUT_MS`).
-- **Discovered Module Dependencies (via Knowledge Graph)**:
-  - Upstream:
-    - `firmware/core/inc/status.h` (status code enumeration and error aliases: `STATUS_OK`, `STATUS_ERR_INVALID_PARAM`, `STATUS_ERR_NULL_PTR`, `STATUS_ERR_OUT_OF_RANGE` / `STATUS_ERROR_OUT_OF_BOUNDS`, `STATUS_ERR_HARDWARE`, `STATUS_ERR_TIMEOUT`).
-    - `firmware/core/inc/stm32wlxx_hal_conf.h` (`HAL_FLASH_MODULE_ENABLED`).
-  - Downstream Consumers:
-    - `S5-T3.2` (`context/specs/s5-t3.2-flash-ring-buffer.md`): Wear-leveling circular record engine (`flash_ring_buffer`).
-    - `S5-T3.3`: Reconnect LoRa playback retransmission queue.
-    - `S5-T3.4` (`context/specs/s5-t3.4-test-flash-storage.md`): Flash storage unit test suite (`tests/unit/test_flash_storage.c`).
-    - `S6-T3.1`: Application state machine non-volatile logging (`STATE_LOG_NVM`).
-- **Coding Standards & Constraints**:
-  - Zero dynamic memory allocation (no `malloc` / `free`).
-  - Strict C99 compliance (`-Wall -Wextra -Wpedantic -Werror -std=c99`).
-  - All public APIs documented with Doxygen comments.
+<!-- Notes will be loaded from feature spec -->
 
 ## History
 
@@ -144,4 +96,5 @@ In Progress
 - 2026-09-15: S5-T2.1 - Implemented ChirpStack v3 & v4 JavaScript Payload Codec (tools/decoders/chirpstack_codec.js) covering decodeUplink for FPort 1 (12-byte periodic environmental telemetry with Zambretti English translation) and FPort 2 (4-byte urgent storm alert with signed pressure rate and trigger codes), encodeDownlink for FPort 10 (commands 0x01-0x04), legacy v3 Decode/Encode compatibility, defensive length/port guards, and CommonJS module exports with 100% verification across all test vectors. Completed S5-T2.1.
 - 2026-09-15: S5-T2.2 - Implemented The Things Network (TTN v3) JavaScript Payload Formatter (tools/decoders/ttn_decoder.js) covering decodeUplink for FPort 1 (12-byte periodic environmental telemetry) and FPort 2 (4-byte urgent storm alert), encodeDownlink and decodeDownlink for FPort 10 (commands 0x01-0x04), defensive length/port/schema guards, 26-state Zambretti dictionary, and CommonJS module exports with 100% verification across all test cases. Completed S5-T2.2.
 - 2026-09-15: S5-T2.3 - Implemented Automated JavaScript Gateway Decoder Test Suite (tools/decoders/test_decoders.js) covering 23 verification tests across FPort 1 periodic environmental telemetry (nominal daytime, sub-zero mountain frost with two's-complement temperature sign preservation, and active rain with diagnostic fault flags), FPort 2 urgent storm alert telemetry (severe storm warning, barometric plunge squall with signed pressure drop rate, and first rain tip pulse trigger), FPort 10 bidirectional downlink command encoding/decoding (sampling interval, station elevation, CPI alert thresholds, and reboot/rejoin system actions), defensive truncation/invalid-port error handling, ChirpStack v3 legacy API compatibility (Decode/Encode), zero external npm dependencies, Makefile decoders target, and CMake js_decoders CTest registration. Completed S5-T2.3 and Sprint Task S5-T2 (JavaScript Gateway Payload Decoders).
+- 2026-09-16: S5-T3.1 - Implemented STM32WLE5 Flash Page Erase, 64-Bit Double-Word Programming & Sector Partition Manager (firmware/middleware/inc/flash_storage.h, firmware/middleware/src/flash_storage.c, firmware/middleware/CMakeLists.txt, tests/unit/test_flash_storage.c, tests/CMakeLists.txt) covering dedicated NVM partition protection (Pages 120-127, 16 KB total), write-protection for application firmware (Pages 0-119), 2 KB page erase and full partition erase with 50 ms bounded timeout guards, 64-bit double-word programming with strict 8-byte alignment verification, arbitrary byte buffer programming with read-modify-write preservation of unaligned double-words, memory-mapped direct reads, erased-page validation, host RAM mock emulation with 1->0 physical bitwise AND transitions, target STM32CubeWL HAL peripheral integration, STATUS_ERROR_OUT_OF_BOUNDS status alias, and ThrowTheSwitch Unity unit test suite. Completed S5-T3.1.
 
