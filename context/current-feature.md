@@ -1,16 +1,64 @@
-# Current Feature
+# Current Feature: STM32WLE5 Flash Page Erase & Double-Word Programming Manager (S5-T3.1)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- [x] Define on-chip Flash geometry, partition constants, error aliases, and public API function prototypes in `firmware/middleware/inc/flash_storage.h`.
+- [x] Implement `firmware/middleware/src/flash_storage.c` with hardware peripheral initialization (`flash_storage_init`) and error flag clearing.
+- [x] Implement register key unlock sequence (`flash_storage_unlock`) writing `FLASH_KEY1` (`0x45670123U`) and `FLASH_KEY2` (`0xCDEF89ABU`), and register locking (`flash_storage_lock`) with `FLASH_CR_LOCK`.
+- [x] Implement 2 KB page erase operation (`flash_storage_erase_page`) for dedicated NVM pages (120–127) and full partition erase (`flash_storage_erase_all_nvm_pages`) with bounded 50 ms timeout guards.
+- [x] Implement 64-bit double-word programming (`flash_storage_write_dword`) with strict 8-byte alignment verification.
+- [x] Implement arbitrary byte buffer programming (`flash_storage_write_bytes`) with automatic 64-bit block alignment buffering, padding, and read-modify-write preservation.
+- [x] Implement memory-mapped direct byte read access (`flash_storage_read_bytes`) and erased-page validation (`flash_storage_is_page_erased`).
+- [x] Enforce strict defensive boundary protection restricting all erase and write operations to dedicated NVM Pages 120–127 (`0x0803C000`–`0x0803FFFF`), protecting Application firmware (Pages 0–119).
+- [x] Provide dual-target simulation architecture: `#if defined(HOST_TEST) || !defined(STM32WLE5xx)` static RAM mock emulation with 1->0 physical bitwise programming behavior, and STM32 CubeWL HAL peripheral drivers for target deployment.
+- [x] Register `flash_storage` in `firmware/middleware/CMakeLists.txt` and prepare comprehensive ThrowTheSwitch Unity test harness in `tests/unit/test_flash_storage.c`.
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Task ID**: `S5-T3.1` (Parent Task: `S5-T3: Implement On-Chip Flash Circular Ring-Buffer Logging`).
+- **Specification Document**: `context/specs/s5-t3.1-flash-page-manager.md`.
+- **Target Files**:
+  - `firmware/middleware/inc/flash_storage.h`
+  - `firmware/middleware/src/flash_storage.c`
+- **Hardware Architecture & Flash Geometry**:
+  - Target MCU: STMicroelectronics STM32WLE5CC (ARM Cortex-M4 @ 48 MHz).
+  - Total Flash Memory: 256 KB (262,144 bytes) mapped `0x08000000` to `0x0803FFFF` across 128 physical pages (2,048 bytes / 2 KB per page).
+  - Application Partition: Pages 0–119 (`0x08000000`–`0x0803BFFF`, 240 KB), write-protected by software bounds guards.
+  - Dedicated NVM Partition: Pages 120–127 (`0x0803C000`–`0x0803FFFF`, 8 pages = 16 KB total).
+    - Page 120 (`0x0803C000`–`0x0803C7FF`): Ring Buffer Sector 0 (Records 0..127)
+    - Page 121 (`0x0803C800`–`0x0803CFFF`): Ring Buffer Sector 1 (Records 128..255)
+    - Page 122 (`0x0803D000`–`0x0803D7FF`): Ring Buffer Sector 2 (Records 256..383)
+    - Page 123 (`0x0803D800`–`0x0803DFFF`): Ring Buffer Sector 3 (Records 384..511)
+    - Page 124 (`0x0803E000`–`0x0803E7FF`): Ring Buffer Sector 4 (Records 512..639)
+    - Page 125 (`0x0803E800`–`0x0803EFFF`): Ring Buffer Sector 5 (Records 640..767)
+    - Page 126 (`0x0803F000`–`0x0803F7FF`): Ring Buffer Sector 6 (Records 768..895)
+    - Page 127 (`0x0803F800`–`0x0803FFFF`): Ring Buffer Sector 7 & Station Metadata Header
+  - Programming Granularity: 64-bit double-word (`uint64_t`, 8-byte aligned).
+  - Erase Granularity: 2 KB physical page erase (all bits reset to `0xFF`).
+  - Physical Endurance: 10,000 erase/program cycles per page; data retention > 10 years at 85°C.
+- **Hardware Registers & Key Sequences**:
+  - Keys: `FLASH_KEY1 = 0x45670123U`, `FLASH_KEY2 = 0xCDEF89ABU`.
+  - Registers: `FLASH->KEYR`, `FLASH->CR`, `FLASH->SR`.
+  - Control Flags: `FLASH_CR_LOCK`, `FLASH_CR_PG`, `FLASH_CR_PER`, `FLASH_CR_PNB`, `FLASH_CR_STRT`.
+  - Status Flags: `FLASH_SR_BSY`, `FLASH_FLAG_ALL_ERRORS` (`EOP`, `OPERR`, `PROGERR`, `WRPERR`, `PGAERR`, `SIZERR`, `PGSERR`, `MISSERR`, `FASTERR`).
+  - Timeout: 50 ms bounded hardware polling timeout (`FLASH_STORAGE_TIMEOUT_MS`).
+- **Discovered Module Dependencies (via Knowledge Graph)**:
+  - Upstream:
+    - `firmware/core/inc/status.h` (status code enumeration and error aliases: `STATUS_OK`, `STATUS_ERR_INVALID_PARAM`, `STATUS_ERR_NULL_PTR`, `STATUS_ERR_OUT_OF_RANGE` / `STATUS_ERROR_OUT_OF_BOUNDS`, `STATUS_ERR_HARDWARE`, `STATUS_ERR_TIMEOUT`).
+    - `firmware/core/inc/stm32wlxx_hal_conf.h` (`HAL_FLASH_MODULE_ENABLED`).
+  - Downstream Consumers:
+    - `S5-T3.2` (`context/specs/s5-t3.2-flash-ring-buffer.md`): Wear-leveling circular record engine (`flash_ring_buffer`).
+    - `S5-T3.3`: Reconnect LoRa playback retransmission queue.
+    - `S5-T3.4` (`context/specs/s5-t3.4-test-flash-storage.md`): Flash storage unit test suite (`tests/unit/test_flash_storage.c`).
+    - `S6-T3.1`: Application state machine non-volatile logging (`STATE_LOG_NVM`).
+- **Coding Standards & Constraints**:
+  - Zero dynamic memory allocation (no `malloc` / `free`).
+  - Strict C99 compliance (`-Wall -Wextra -Wpedantic -Werror -std=c99`).
+  - All public APIs documented with Doxygen comments.
 
 ## History
 

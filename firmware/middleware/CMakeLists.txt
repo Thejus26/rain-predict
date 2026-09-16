@@ -9,6 +9,7 @@ add_library(firmware_middleware STATIC
     src/dew_point.c
     src/power_mgr.c
     src/telemetry_codec.c
+    src/flash_storage.c
 )
 
 target_include_directories(firmware_middleware PUBLIC
