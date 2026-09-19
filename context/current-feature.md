@@ -1,34 +1,16 @@
-# Current Feature: S6-T2.3 Alert Manager Unit Test Suite
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Create host-executable unit test suite `tests/unit/test_alert_manager.c` using the ThrowTheSwitch Unity framework.
-- Implement 24 comprehensive test cases across 4 categories:
-  - Category A: Lifecycle & Configuration (TC-ALERT-01 through TC-ALERT-06).
-  - Category B: Visual LED Flash Timing & Waveforms (TC-ALERT-07 through TC-ALERT-12).
-  - Category C: Acoustic Buzzer Cadence & Estate Siren Actuation (TC-ALERT-13 through TC-ALERT-18).
-  - Category D: Deterministic Priority Resolution & Battery Throttling (TC-ALERT-19 through TC-ALERT-24).
-- Provide Layer 2 host mock indicator driver implementation (`bsp_indicators.h`) tracking pin states, timed durations, and call counts.
-- Validate non-blocking delta-stepping, 10s auto-cutoff duration clamping, 30-minute anti-chatter cooldown, nighttime quiet hours, and low-battery mutes.
-- Add `test_alert_manager` target to `tests/CMakeLists.txt` via `add_firmware_test(alert_manager)`.
+<!-- Goals will be populated when a feature is loaded -->
 
 ## Notes
 
-- Testing Framework: ThrowTheSwitch Unity (`unity.h`, `UNITY_BEGIN()`, `RUN_TEST()`, `UNITY_END()`).
-- Hardware Mocking:
-  - Statically allocated `mock_bsp_indicators_t` structure.
-  - Implements `bsp_indicators_init`, `bsp_led_set`, `bsp_led_toggle`, `bsp_buzzer_set`, `bsp_relay_set`, `bsp_relay_trigger_timed`, `bsp_indicators_all_off`.
-- Coverage Target: 100% statement, branch, and conditional coverage of `alert_manager.h` and `alert_manager.c`.
-- Discovered Module Dependencies:
-  - `firmware/app/inc/alert_manager.h`: Primary module under test.
-  - `firmware/drivers/inc/bsp_indicators.h`: Layer 2 actuator driver interface to mock.
-  - `firmware/app/inc/rain_algo.h`: Rain alert state definitions.
-  - `firmware/app/inc/measurement_scheduler.h`: Battery preservation tiers.
-  - `firmware/core/inc/status.h`: System status codes.
+<!-- Notes will be populated when a feature is loaded -->
 
 ## History
 
@@ -59,3 +41,4 @@ In Progress
 - 2026-09-19: S6-T1.2 — Implemented Battery Preservation Throttling (3-tier battery preservation engine with 30-min Conservation and 60-min Critical interval extension, 100 mV anti-oscillation hysteresis with 2-consecutive reading recovery filter, peripheral actuation gating muting buzzer/siren, Modbus/SDI-12 bus isolation, and LoRa RF power capping to +14 dBm in Critical tier).
 - 2026-09-19: S6-T2.1 — Implemented Status LED Flash Patterns & Visual Alert Engine (8-state optical matrix including 5% Green healthy pulse, 50% Amber watch blink, 50% Red warning blink, 10 Hz Red rapid strobe, Red double-flash for active rain, and alternating Green/Red fault beacon; non-blocking millisecond tick animation; strict priority cascade with battery preservation throttling down to 8 uA in Tier 2 and 0 uA shutdown in Tier 3/sleep).
 - 2026-09-19: S6-T2.2 — Implemented Audible Buzzer Burst & Estate Siren Relay Trigger (5-state acoustic cadence including single watch chirp, double warning chirp, 200ms storm burst, and periodic fault tone; 10s auto-cutoff relay pulse; 30-minute anti-chatter cooldown hysteresis; nighttime quiet hours muting; battery preservation interlocks muting buzzers/siren in Conservation and Critical tiers).
+- 2026-09-19: S6-T2.3 — Implemented Alert Manager Unit Test Suite (24 Unity test cases across Categories A..D validating initialization defaults, LED waveforms, buzzer chirps, 10s auto-cutoff siren pulses, 30-min anti-chatter cooldown, night quiet hours, battery preservation throttling, and sensor fault overrides).
