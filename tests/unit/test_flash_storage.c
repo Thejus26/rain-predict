@@ -30,7 +30,7 @@ void tearDown(void) {
 /**
  * @brief TC-S5-T3.1-05: Page Erase Operation & is_page_erased check.
  */
-void test_flash_page_erase_and_check(void) {
+static void test_flash_page_erase_and_check(void) {
     /* Page 120 initially erased by setUp */
     TEST_ASSERT_TRUE(flash_storage_is_page_erased(120U));
 
@@ -47,7 +47,7 @@ void test_flash_page_erase_and_check(void) {
 /**
  * @brief TC-S5-T3.1-06: 64-bit Double-Word Programming and Readback.
  */
-void test_flash_write_dword_success(void) {
+static void test_flash_write_dword_success(void) {
     uint64_t write_val = 0xAABBCCDDEEFF0011ULL;
     uint32_t target_addr = FLASH_STORAGE_BASE_ADDR + 16U;
 
@@ -61,7 +61,7 @@ void test_flash_write_dword_success(void) {
 /**
  * @brief TC-S5-T3.1-09: Bitwise AND Inversion Behavior (1 -> 0 only without erase).
  */
-void test_flash_bitwise_and_programming(void) {
+static void test_flash_bitwise_and_programming(void) {
     uint32_t target_addr = FLASH_STORAGE_BASE_ADDR;
     uint64_t initial_val = 0xAA55AA55AA55AA55ULL;
     uint64_t second_val  = 0x0000000000000000ULL;
@@ -77,7 +77,7 @@ void test_flash_bitwise_and_programming(void) {
 /**
  * @brief TC-S5-T3.1-02, TC-S5-T3.1-03, TC-S5-T3.1-04: Address and Page Bounds Guards.
  */
-void test_flash_out_of_bounds_guards(void) {
+static void test_flash_out_of_bounds_guards(void) {
     /* Below partition (Page 119 - protected firmware application area) */
     TEST_ASSERT_EQUAL(STATUS_ERROR_INVALID_PARAM, flash_storage_erase_page(119U));
     /* Above partition (Page 128) */
@@ -101,7 +101,7 @@ void test_flash_out_of_bounds_guards(void) {
 /**
  * @brief TC-S5-T3.1-10: Unaligned Double-Word Write Rejection.
  */
-void test_flash_unaligned_write_rejection(void) {
+static void test_flash_unaligned_write_rejection(void) {
     /* 0x0803C004 is 4-byte aligned but not 8-byte aligned */
     TEST_ASSERT_EQUAL(STATUS_ERROR_INVALID_PARAM, flash_storage_write_dword(0x0803C004U, 0x1234ULL));
     TEST_ASSERT_EQUAL(STATUS_ERROR_INVALID_PARAM, flash_storage_write_dword(0x0803C002U, 0x1234ULL));
@@ -111,7 +111,7 @@ void test_flash_unaligned_write_rejection(void) {
 /**
  * @brief TC-S5-T3.1-07: Arbitrary Byte Buffer Writing with Read-Modify-Write Preservation.
  */
-void test_flash_write_bytes_arbitrary_length(void) {
+static void test_flash_write_bytes_arbitrary_length(void) {
     uint8_t src[19];
     for (uint8_t i = 0; i < 19; i++) {
         src[i] = (uint8_t)(i + 0x30);
@@ -133,7 +133,7 @@ void test_flash_write_bytes_arbitrary_length(void) {
 /**
  * @brief TC-S5-T3.1-08: Full NVM Partition Bulk Erase (All 8 pages).
  */
-void test_flash_erase_all_nvm_pages(void) {
+static void test_flash_erase_all_nvm_pages(void) {
     /* Dirty pages 120 and 126 */
     uint64_t dummy = 0x12345678ULL;
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_dword(FLASH_STORAGE_BASE_ADDR, dummy));
@@ -152,7 +152,7 @@ void test_flash_erase_all_nvm_pages(void) {
 /**
  * @brief TC-S5-T3.1-01: NULL Pointer and Zero Length Safety Guards.
  */
-void test_flash_null_pointer_guards(void) {
+static void test_flash_null_pointer_guards(void) {
     TEST_ASSERT_EQUAL(STATUS_ERROR_NULL_POINTER, flash_storage_write_bytes(FLASH_STORAGE_BASE_ADDR, NULL, 10U));
     TEST_ASSERT_EQUAL(STATUS_ERROR_NULL_POINTER, flash_storage_read_bytes(FLASH_STORAGE_BASE_ADDR, NULL, 10U));
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_bytes(FLASH_STORAGE_BASE_ADDR, (const uint8_t *)"A", 0U));
@@ -162,7 +162,7 @@ void test_flash_null_pointer_guards(void) {
 /**
  * @brief Lock and Unlock Sequences.
  */
-void test_flash_lock_unlock(void) {
+static void test_flash_lock_unlock(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_unlock());
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_lock());
 }

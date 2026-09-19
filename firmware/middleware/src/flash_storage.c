@@ -9,7 +9,13 @@
 #include "flash_storage.h"
 #include <string.h>
 
-#if defined(HOST_TEST) || !defined(STM32WLE5xx)
+#if defined(__has_include)
+#if __has_include("stm32wlxx_hal.h")
+#define HAVE_STM32WLXX_HAL 1
+#endif
+#endif
+
+#if defined(HOST_TEST) || !defined(STM32WLE5xx) || !defined(HAVE_STM32WLXX_HAL)
 /* ========================================================================== */
 /* Host Desktop Simulation / Unity Mock Emulation Engine                      */
 /* ========================================================================== */
@@ -190,7 +196,9 @@ bool flash_storage_is_page_erased(uint32_t page_num) {
 /* Target STM32WLE5 Hardware Register & HAL Driver Implementation             */
 /* ========================================================================== */
 
+#if defined(HAVE_STM32WLXX_HAL)
 #include "stm32wlxx_hal.h"
+#endif
 
 static inline bool is_valid_nvm_address(uint32_t addr, size_t len) {
     if (addr < FLASH_STORAGE_BASE_ADDR || len == 0U) {
