@@ -7,6 +7,7 @@ add_library(firmware_app STATIC
     src/zambretti.c
     src/trend_detector.c
     src/rain_algo.c
+    src/measurement_scheduler.c
 )
 
 target_include_directories(firmware_app PUBLIC

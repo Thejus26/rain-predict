@@ -173,6 +173,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_rain_algo.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_measurement_scheduler.c")
+    add_firmware_test(measurement_scheduler
+        SOURCES unit/test_measurement_scheduler.c
+        LIBRARIES firmware_app firmware_middleware firmware_core
+    )
+endif()
+
 # -----------------------------------------------------------------------------
 # 7. Core MCU Architecture & BSP Tests
 # -----------------------------------------------------------------------------

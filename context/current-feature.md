@@ -1,16 +1,59 @@
-# Current Feature
+# Current Feature: S6-T1.1 - Adaptive Multi-Rate Measurement Scheduler
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add measurable criteria and deliverables for the feature -->
+- Implement `measurement_scheduler` module in `firmware/app/inc/measurement_scheduler.h` and `firmware/app/src/measurement_scheduler.c`.
+- Multi-Rate Operational Modes:
+  - `SCHEDULER_MODE_NOMINAL`: 15 minutes (900 s) interval under fair weather ($CPI < 30\%$, $|\Delta P/\Delta t| < 0.5\text{ hPa/hr}$, 0 rain).
+  - `SCHEDULER_MODE_STORM_WATCH`: 5 minutes (300 s) interval triggered by storm precursors ($CPI \ge 40\%$, $\Delta P/\Delta t \le -1.0\text{ hPa/hr}$, or daylight solar cloud drop alarm).
+  - `SCHEDULER_MODE_ACTIVE_RAIN`: 2 minutes (120 s) interval triggered by rain gauge pulse accumulator ($> 0$ pulses / $> 0.2\text{ mm}$).
+  - `SCHEDULER_MODE_OVERRIDE`: Custom interval (60 s to 3600 s) via LoRaWAN downlink FPort 10 Cmd 0x01 (0 to disable/revert).
+- Anti-Chatter Hysteresis Hold-Down Logic:
+  - 30-minute consecutive calm hold-down window (6 samples @ 5 min) with $CPI \le 30\%$ and steady pressure before relaxing from Storm Watch to Nominal.
+  - 10-minute zero-rain hold-down window before transitioning from Active Rain to Storm Watch.
+- Active Execution Time Sleep Compensation:
+  - Compensate RTC sleep duration: $T_{\text{sleep}} = \max(1, T_{\text{target}} - \lceil T_{\text{active\_ms}} / 1000 \rceil)$ to preserve exact measurement cadence.
+- Diagnostic Tracking & Status Reporting:
+  - Track cumulative wakeups across Nominal, Storm Watch, and Active Rain modes.
+  - Provide `measurement_scheduler_init()`, `measurement_scheduler_evaluate()`, `measurement_scheduler_set_override_interval()`, `measurement_scheduler_clear_override()`, `measurement_scheduler_get_status()`, and `measurement_scheduler_reset()`.
+- 10-Point Verification & ThrowTheSwitch Unity Unit Test Matrix (`tests/unit/test_measurement_scheduler.c`):
+  - TC-SCHED-01: Nominal initial mode evaluation.
+  - TC-SCHED-02: Storm trigger by CPI score.
+  - TC-SCHED-03: Storm trigger by barometric plunge.
+  - TC-SCHED-04: Active rain acceleration.
+  - TC-SCHED-05: Anti-chatter hold-down countdown (30 min).
+  - TC-SCHED-06: Active execution time compensation.
+  - TC-SCHED-07: Downlink override activation.
+  - TC-SCHED-08: Downlink override clear & reversion.
+  - TC-SCHED-09: Cumulative wakeup counter tracking.
+  - TC-SCHED-10: Defensive parameter & NULL pointer guards.
+- Zero dynamic memory allocation (no `malloc`/`free`), MISRA C / C99 compliant, integrated into CMake build targets.
 
 ## Notes
 
-<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
+- **Task Specification**: [`context/specs/s6-t1.1-adaptive-measurement-scheduler.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t1.1-adaptive-measurement-scheduler.md)
+- **Target Files**:
+  - [`firmware/app/inc/measurement_scheduler.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/measurement_scheduler.h)
+  - [`firmware/app/src/measurement_scheduler.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/measurement_scheduler.c)
+  - [`tests/unit/test_measurement_scheduler.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_measurement_scheduler.c)
+- **Hardware & Power Constraints**:
+  - Target SoC: STMicroelectronics STM32WLE5CCU6 (ARM Cortex-M4 @ 48 MHz MSI).
+  - Low Power Mode: Stop 2 deep sleep (< 3.0 µA current draw) with full SRAM1/SRAM2 retention.
+  - Periodic Wakeup: Hardware RTC periodic alarm on EXTI line 19 clocked by LSE 32.768 kHz quartz oscillator.
+  - Asynchronous Interrupts: Rain gauge tipping bucket reed switch on PA0 / EXTI0 (< 5 µs wakeup).
+  - Battery Life: Nominal 15-min sampling yields > 3.5 years life; continuous 5-min storm watch yields > 1.4 years life on 2500 mAh LiFePO4 battery without solar harvesting.
+- **Discovered Module Dependencies**:
+  - [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h): Universal return codes (`STATUS_OK`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_OUT_OF_BOUNDS`, `STATUS_ERROR_NOT_INITIALIZED`).
+  - [`firmware/app/inc/rain_algo.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/rain_algo.h): CPI calculation, alert classification, meteorological constants.
+  - [`firmware/middleware/inc/power_mgr.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/power_mgr.h): Stop 2 deep sleep manager & RTC wakeup timer configuration.
+  - [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h): Tipping bucket pulse accumulator & EXTI0 triggers.
+  - [`firmware/drivers/inc/opt3001_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001_driver.h): Solar cloud attenuation alarm flag.
+  - [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h): Barometric pressure rate gradient ($dP/dt$).
+  - Downstream Tasks: `S6-T1.2` (Battery Preservation Throttling), `S6-T3.1` (Main App State Machine Lifecycle).
 
 ## History
 
