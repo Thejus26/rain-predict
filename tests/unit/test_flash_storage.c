@@ -1,13 +1,15 @@
 /**
  * @file    test_flash_storage.c
- * @brief   ThrowTheSwitch Unity unit tests for STM32WLE5 Flash storage driver (S5-T3.1).
- * @details Verifies page erase, 64-bit double-word programming, arbitrary byte buffer writing,
- *          partition boundary guards, 8-byte alignment verification, and 1->0 physical bitwise AND behavior.
+ * @brief   Comprehensive Unity unit test suite for STM32WLE5 Flash NVM, wear-leveling ring buffer,
+ *          and LoRaWAN reconnect historical playback manager (S5-T3.4).
+ * @details Verifies Category A (Low-Level Flash HAL), Category B (Circular Ring Buffer & Wear-Leveling),
+ *          and Category C (Historical Playback & LoRaWAN Reconnect Queue).
  */
 
 #include "unity.h"
 #include "flash_storage.h"
 #include "flash_playback.h"
+#include "telemetry_codec.h"
 #include <string.h>
 
 /* ========================================================================== */
@@ -83,6 +85,11 @@ static void test_flash_bitwise_and_programming(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_dword(target_addr, second_val));
 
     uint64_t result_val = 0xFFFFFFFFFFFFFFFFULL;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_read_bytes(target_addr, (uint8_t *)&result_val, sizeof(uint64_t)));
+    TEST_ASSERT_EQUAL_HEX64(0x0000000000000000ULL, result_val);
+
+    /* Invariant: Attempting to write 1s over 0s without an erase has no effect (0 remains 0) */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_dword(target_addr, 0xFFFFFFFFFFFFFFFFULL));
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_read_bytes(target_addr, (uint8_t *)&result_val, sizeof(uint64_t)));
     TEST_ASSERT_EQUAL_HEX64(0x0000000000000000ULL, result_val);
 }
@@ -458,6 +465,18 @@ static void test_playback_batch_sizing_dr5_and_dr0(void) {
     TEST_ASSERT_TRUE(batch_dr5.more_pending);
     TEST_ASSERT_EQUAL_HEX8(0x90U, batch_dr5.payload[0]); /* 0x80 (more) | 16 */
     TEST_ASSERT_EQUAL_UINT16(1U, batch_dr5.start_seq_id);
+
+    /* Reset session and test DR3 (SF9 / 115B MTU) -> packs 9 records */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_reset());
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    flash_playback_batch_t batch_dr3;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(3U, &batch_dr3));
+    TEST_ASSERT_EQUAL_UINT8(9U, batch_dr3.record_count);
+    TEST_ASSERT_EQUAL_UINT16(111U, batch_dr3.length);
+    TEST_ASSERT_TRUE(batch_dr3.more_pending);
+    TEST_ASSERT_EQUAL_HEX8(0x89U, batch_dr3.payload[0]); /* 0x80 (more) | 9 */
+    TEST_ASSERT_EQUAL_UINT16(1U, batch_dr3.start_seq_id);
 
     /* Reset session and test DR0 (SF12 / 51B MTU) -> packs 4 records */
     TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_reset());
