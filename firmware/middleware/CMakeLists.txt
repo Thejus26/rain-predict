@@ -12,6 +12,7 @@ add_library(firmware_middleware STATIC
     src/flash_storage.c
     src/flash_playback.c
     src/lorawan_service.c
+    src/lorawan_regional.c
 )
 
 target_include_directories(firmware_middleware PUBLIC
