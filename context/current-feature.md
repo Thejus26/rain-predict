@@ -1,62 +1,16 @@
-# Current Feature: S5-T4.1 - STM32WL Sub-GHz LoRaWAN Network Service (lorawan_service)
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- [x] Implement `firmware/middleware/inc/lorawan_service.h` providing full API definitions, state machine enums (`lorawan_state_t`), RF modes (`lorawan_rf_mode_t`), credentials structure (`lorawan_credentials_t`), downlink packet structure (`lorawan_rx_packet_t`), and diagnostic status structure (`lorawan_status_t`).
-- [x] Implement `firmware/middleware/src/lorawan_service.c` providing:
-  - Stack initialization (`lorawan_service_init`) with factory DevEUI fallback (UID64) or custom OTAA credentials.
-  - Sub-GHz 3-way RF switch routing (`lorawan_set_rf_switch`) for `PC3`, `PC4`, and `PC5` (SHUTDOWN, RX, TX_HP +22dBm, TX_LP +14dBm).
-  - Over-The-Air Activation (`lorawan_join_otaa`) with simulated/hardware Join-Request and state transitions.
-  - Unconfirmed uplink transmission (`lorawan_send_unconfirmed`) on application ports (1..223) up to 242 bytes.
-  - Confirmed uplink transmission (`lorawan_send_confirmed`) requiring gateway ACK with retry tracking.
-  - Non-blocking state processing step (`lorawan_service_process_step`) managing TX -> WAIT_RX1 -> WAIT_RX2 -> JOINED transitions.
-  - Downlink packet reception callback registration (`lorawan_register_rx_callback`) and dispatching for FPort 10 / ACK flags.
-  - Stack reset (`lorawan_reset`) and diagnostic status query (`lorawan_get_status`).
-- [x] Ensure 100% MISRA C / C99 compliance and zero dynamic memory allocation (`malloc`/`free` strictly prohibited).
-- [x] Configure `firmware/middleware/CMakeLists.txt` to include `lorawan_service.c`.
-- [x] Implement comprehensive ThrowTheSwitch Unity test suite in `tests/unit/test_lorawan_service.c` covering the 10-point test matrix (TC-LORA-01 through TC-LORA-10):
-  - TC-LORA-01: Unjoined Initial State verification
-  - TC-LORA-02: OTAA Join-Request Transition & RF switch TX_HP setting
-  - TC-LORA-03: Join-Accept Processing & DevAddr / FCntUp initialization
-  - TC-LORA-04: Unconfirmed Uplink Transmission & state progression
-  - TC-LORA-05: RX1/RX2 Sequence & Frame Counter (`fcnt_up`) increment
-  - TC-LORA-06: Confirmed Uplink & ACK Reception handling
-  - TC-LORA-07: Unjoined Transmission Rejection (`STATUS_ERROR_NOT_INITIALIZED`)
-  - TC-LORA-08: Port and Payload Boundary Clamping (`STATUS_ERROR_OUT_OF_BOUNDS`)
-  - TC-LORA-09: Downlink Dispatch Callback execution with payload/RSSI/SNR
-  - TC-LORA-10: Stack Reset & Re-join Safeguards
-- [x] Register test suite in `tests/CMakeLists.txt`.
+<!-- Add measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Target Microcontroller**: STMicroelectronics STM32WLE5CC (ARM Cortex-M4 @ 48 MHz).
-- **Sub-GHz Transceiver**: Monolithic Semtech SX126x-derivative radio via internal `SUBGHZSPI` / `SUBGHZ` peripheral.
-- **RF Power & Switch Truth Table**:
-  - `PC4` (`FE_CTRL1`), `PC5` (`FE_CTRL2`), `PC3` (`FE_CTRL3`):
-    - `RF_SHUTDOWN`: `PC4=0, PC5=0, PC3=0` (Radio asleep, leakage < 50 nA)
-    - `RF_RX`: `PC4=1, PC5=0, PC3=0` (ANT -> RFI)
-    - `RF_TX_HP`: `PC4=0, PC5=1, PC3=0` (RFO_HP -> ANT, up to +22 dBm)
-    - `RF_TX_LP`: `PC4=0, PC5=0, PC3=1` (RFO_LP -> ANT, up to +14 dBm)
-- **Clock Reference**: 32 MHz TCXO RF oscillator regulated via `SUBGHZ_TCXO_TRIM` (1.7V, 5ms stabilization delay).
-- **LoRaWAN Application Port Allocation**:
-  - `FPort 1`: Periodic environmental telemetry (12 bytes; `telemetry_codec`)
-  - `FPort 2`: Urgent convective storm alert (4 bytes; `alert_manager`)
-  - `FPort 3`: Flash historical backlog playback batches (`flash_playback`)
-  - `FPort 10`: Downlink remote configuration commands
-- **Security & Session Invariants**:
-  - OTAA root keys: DevEUI (8B), JoinEUI/AppEUI (8B), AppKey (16B AES-128).
-  - Session state: DevAddr (32-bit), NwkSKey (16B), AppSKey (16B), FCntUp (32-bit monotonic), FCntDown (32-bit monotonic).
-- **Discovered Codebase Dependencies** (via graphify knowledge graph):
-  - `firmware/core/inc/status.h`: System status codes (`STATUS_OK`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_OUT_OF_BOUNDS`, `STATUS_ERROR_BUSY`, `STATUS_ERROR_NOT_INITIALIZED`, `STATUS_ERROR_HARDWARE`).
-  - `firmware/core/inc/board_config.h`: GPIO pin allocations for RF switch control (`PC3`, `PC4`, `PC5`).
-  - `firmware/core/inc/system_clock.h`: 32 MHz TCXO RF clocking management.
-  - `firmware/middleware/inc/telemetry_codec.h`: Binary serialization schemas for FPort 1 and FPort 2.
-  - `firmware/middleware/inc/flash_playback.h`: Backlog queue transmission integration (FPort 3).
-- **Memory & Execution Constraints**: Zero dynamic memory allocation (`malloc`/`free` prohibited); static buffers bounded to `LORAWAN_MAX_PAYLOAD_SIZE` (242 bytes). Non-blocking state processing.
+<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -146,4 +100,5 @@ In Progress
 - 2026-09-19: S5-T3.2 - Implemented STM32WLE5 On-Chip Flash Wear-Leveling Circular Ring Buffer (firmware/middleware/inc/flash_storage.h, firmware/middleware/src/flash_storage.c, firmware/core/inc/status.h, tests/unit/test_flash_storage.c) covering dedicated 14 KB NVM partition (Pages 120-126, 896 record slots, Page 127 metadata isolation), 16-byte double-word aligned record layout, O(N) fast boot recovery scanner, two 64-bit dword writes per push, automatic page rollover erase, FIFO pop, non-destructive peek, in-place 0x0000 transmitted bit invalidation, and ThrowTheSwitch Unity unit test suite (TC-RING-01 through TC-RING-10). Completed S5-T3.2.
 - 2026-09-19: S5-T3.3 - Implemented LoRaWAN Reconnect Historical Playback & Re-transmission Queue Manager (firmware/middleware/inc/flash_playback.h, firmware/middleware/src/flash_playback.c, firmware/core/inc/status.h, tests/unit/test_flash_storage.c) covering LoRaWAN FPort 3 multi-record batch protocol (3B header + up to 16 records, 195B max payload), dynamic MTU batch sizing by Data Rate (DR0..DR2: 4 records / 51B, DR3: 9 records / 111B, DR4..DR5: 16 records / 195B), non-blocking state machine (ARMED, FETCH_BATCH, WAIT_ACK, ACKNOWLEDGED, NACK_RETRY, DUTY_WAIT, PREEMPTED, COMPLETED, ABORTED), priority preemption/resumption for live acquisition and storm alerts, confirmed ACK Flash tail advancement, 3-attempt NACK retry abort with zero data loss, 1% duty-cycle compliance (72h backlog drained in < 8.5 minutes @ DR5), and Category C ThrowTheSwitch Unity unit test suite (TC-PLAY-01 through TC-PLAY-10). Completed S5-T3.3.
 - 2026-09-19: S5-T3.4 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for STM32WLE5 Flash Storage & LoRaWAN Playback Queue (tests/unit/test_flash_storage.c) covering 27 unit tests across Category A Flash HAL Driver (2 KB page erase, 64-bit double-word programming, physical 1->0 bitwise AND transitions and 0->1 blocking without erase, partition bounds [Pages 120-127], 8-byte alignment, arbitrary byte writes with read-modify-write preservation, bulk erase of all 8 pages, and NULL guards), Category B Wear-Leveling Circular Ring Buffer (clean init, single push, non-destructive peek, FIFO pop, in-place 0x0000 transmitted bit invalidation, page rollover auto-erase, 896-capacity wrap-around overwrite with oldest record drop, fast O(N) boot recovery, corrupted magic isolation, and clear reset), and Category C Reconnect Playback Manager (empty trigger guard, multi-rate dynamic MTU batch sizing [DR5: 16 records / 195B, DR3: 9 records / 111B, DR0: 4 records / 51B], confirmed ACK tail advance, NACK retry counter and 3-attempt abort policy, high-priority preemption/resumption, full 72-hour backlog drain loop [288 records across 18 batches], and NULL pointer safety). Completed S5-T3 (On-Chip Flash Circular Ring-Buffer Logging & Playback).
+- 2026-09-19: S5-T4.1 - Implemented STM32WL Sub-GHz LoRaWAN Class A Stack and Network Service (firmware/middleware/inc/lorawan_service.h, firmware/middleware/src/lorawan_service.c, firmware/core/inc/status.h, firmware/middleware/CMakeLists.txt, tests/CMakeLists.txt, tests/unit/test_lorawan_service.c) covering OTAA activation with 128-bit AES keys and factory UID64 fallback, 3-way RF switch steering (PC3, PC4, PC5 for RX, TX_HP +22dBm, TX_LP +14dBm, and ultra-low-leakage SHUTDOWN < 50 nA), unconfirmed/confirmed uplink transmission engines with boundary clamping (FPort 1..223, 1..242 bytes), non-blocking tick processing step (JOINING -> JOINED, TX_UPLINK -> WAIT_RX1 -> WAIT_RX2 -> JOINED), gateway ACK verification, downlink callback dispatching for FPort 10 commands, stack reset, zero heap allocation, and ThrowTheSwitch Unity test suite covering TC-LORA-01 through TC-LORA-10 plus defensive guards. Completed S5-T4.1.
 
