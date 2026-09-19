@@ -400,3 +400,415 @@ bool flash_storage_is_page_erased(uint32_t page_num) {
 }
 
 #endif
+
+/* ========================================================================== */
+/* Circular Ring Buffer State & Internal Helpers (S5-T3.2)                     */
+/* ========================================================================== */
+
+static flash_ring_state_t s_ring_state = {
+    .head_index  = 0U,
+    .tail_index  = 0U,
+    .valid_count = 0U,
+    .next_seq_id = 0U,
+    .is_full     = false,
+    .is_empty    = true
+};
+
+static bool s_ring_initialized = false;
+
+static uint32_t flash_ring_slot_to_addr(uint32_t slot_idx) {
+    if (slot_idx >= FLASH_RING_TOTAL_CAPACITY) {
+        return 0U;
+    }
+    uint32_t page_offset = slot_idx / FLASH_RING_RECORDS_PER_PAGE;
+    uint32_t slot_in_page = slot_idx % FLASH_RING_RECORDS_PER_PAGE;
+    return FLASH_STORAGE_BASE_ADDR + (page_offset * FLASH_STORAGE_PAGE_SIZE) +
+           (slot_in_page * FLASH_RING_RECORD_SIZE);
+}
+
+static status_t flash_ring_read_slot(uint32_t slot_idx, flash_record_t *record) {
+    if (record == NULL || slot_idx >= FLASH_RING_TOTAL_CAPACITY) {
+        return STATUS_ERROR_INVALID_PARAM;
+    }
+    uint32_t addr = flash_ring_slot_to_addr(slot_idx);
+    return flash_storage_read_bytes(addr, (uint8_t *)record, FLASH_RING_RECORD_SIZE);
+}
+
+/* ========================================================================== */
+/* Wear-Leveling Circular Ring Buffer Implementation (S5-T3.2)                 */
+/* ========================================================================== */
+
+status_t flash_ring_init(void) {
+    status_t status = flash_storage_init();
+    if (status != STATUS_OK) {
+        return status;
+    }
+
+    s_ring_state.head_index  = 0U;
+    s_ring_state.tail_index  = 0U;
+    s_ring_state.valid_count = 0U;
+    s_ring_state.next_seq_id = 0U;
+    s_ring_state.is_full     = false;
+    s_ring_state.is_empty    = true;
+
+    uint32_t first_valid_idx  = FLASH_RING_TOTAL_CAPACITY;
+    uint32_t first_erased_idx = FLASH_RING_TOTAL_CAPACITY;
+    uint32_t last_valid_idx   = FLASH_RING_TOTAL_CAPACITY;
+    uint32_t max_seq_slot     = 0U;
+    uint16_t max_seq_id       = 0U;
+    bool     has_records      = false;
+
+    /* Scan all 896 record slots across Pages 120..126 */
+    for (uint32_t i = 0U; i < FLASH_RING_TOTAL_CAPACITY; i++) {
+        flash_record_t rec;
+        if (flash_ring_read_slot(i, &rec) != STATUS_OK) {
+            continue;
+        }
+
+        if (rec.magic_status == FLASH_RING_MAGIC_VALID) {
+            if (first_valid_idx == FLASH_RING_TOTAL_CAPACITY) {
+                first_valid_idx = i;
+            }
+            last_valid_idx = i;
+            s_ring_state.valid_count++;
+            if (!has_records || rec.sequence_id > max_seq_id) {
+                max_seq_id = rec.sequence_id;
+                max_seq_slot = i;
+                has_records = true;
+            }
+        } else if (rec.magic_status == FLASH_RING_MAGIC_ERASED) {
+            if (first_erased_idx == FLASH_RING_TOTAL_CAPACITY) {
+                first_erased_idx = i;
+            }
+        }
+    }
+
+    if (s_ring_state.valid_count == 0U) {
+        /* Buffer is completely empty */
+        s_ring_state.head_index  = (first_erased_idx != FLASH_RING_TOTAL_CAPACITY) ? first_erased_idx : 0U;
+        s_ring_state.tail_index  = s_ring_state.head_index;
+        s_ring_state.is_empty    = true;
+        s_ring_state.is_full     = false;
+        s_ring_state.next_seq_id = 0U;
+    } else {
+        s_ring_state.is_empty = false;
+        s_ring_state.next_seq_id = (uint16_t)(max_seq_id + 1U);
+
+        if (first_erased_idx != FLASH_RING_TOTAL_CAPACITY) {
+            s_ring_state.head_index = first_erased_idx;
+            s_ring_state.is_full = false;
+        } else {
+            /* Full buffer or wrap-around boundary */
+            s_ring_state.head_index = (max_seq_slot + 1U) % FLASH_RING_TOTAL_CAPACITY;
+            s_ring_state.is_full = (s_ring_state.valid_count >= FLASH_RING_TOTAL_CAPACITY);
+        }
+
+        /* Determine tail index */
+        uint32_t determined_tail = first_valid_idx;
+        if (s_ring_state.valid_count >= FLASH_RING_TOTAL_CAPACITY) {
+            determined_tail = (max_seq_slot + 1U) % FLASH_RING_TOTAL_CAPACITY;
+        } else if (first_valid_idx == 0U && last_valid_idx == (FLASH_RING_TOTAL_CAPACITY - 1U)) {
+            for (uint32_t i = 1U; i < FLASH_RING_TOTAL_CAPACITY; i++) {
+                flash_record_t curr, prev;
+                if (flash_ring_read_slot(i, &curr) == STATUS_OK &&
+                    flash_ring_read_slot(i - 1U, &prev) == STATUS_OK) {
+                    if (curr.magic_status == FLASH_RING_MAGIC_VALID &&
+                        prev.magic_status != FLASH_RING_MAGIC_VALID) {
+                        determined_tail = i;
+                        break;
+                    }
+                }
+            }
+        }
+        s_ring_state.tail_index = determined_tail;
+    }
+
+    s_ring_initialized = true;
+    return STATUS_OK;
+}
+
+status_t flash_ring_push(const uint8_t *payload, uint16_t seq_id) {
+    if (!s_ring_initialized) {
+        status_t st = flash_ring_init();
+        if (st != STATUS_OK) {
+            return st;
+        }
+    }
+    if (payload == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+
+    uint32_t target_slot = s_ring_state.head_index;
+    uint32_t page_idx = FLASH_STORAGE_START_PAGE + (target_slot / FLASH_RING_RECORDS_PER_PAGE);
+
+    /* Check if target slot resides on a page boundary that requires erase */
+    if ((target_slot % FLASH_RING_RECORDS_PER_PAGE) == 0U) {
+        if (!flash_storage_is_page_erased(page_idx) && !s_ring_state.is_full) {
+            status_t erase_st = flash_storage_erase_page(page_idx);
+            if (erase_st != STATUS_OK) {
+                return erase_st;
+            }
+
+            /* If the erased page contained the tail, advance tail to next page */
+            uint32_t tail_page = FLASH_STORAGE_START_PAGE + (s_ring_state.tail_index / FLASH_RING_RECORDS_PER_PAGE);
+            if (tail_page == page_idx && !s_ring_state.is_empty) {
+                s_ring_state.tail_index = ((target_slot / FLASH_RING_RECORDS_PER_PAGE + 1U) % FLASH_RING_DATA_PAGES) *
+                                          FLASH_RING_RECORDS_PER_PAGE;
+            }
+        }
+    }
+
+    /* In host mock emulation, if overwriting an existing slot, reset slot memory to 0xFF */
+#if defined(HOST_TEST) || !defined(STM32WLE5xx) || !defined(HAVE_STM32WLXX_HAL)
+    if (s_ring_state.is_full) {
+        uint32_t slot_addr_temp = flash_ring_slot_to_addr(target_slot);
+        uint32_t mock_offset = slot_addr_temp - FLASH_STORAGE_BASE_ADDR;
+        memset(&s_mock_flash_nvm[mock_offset], FLASH_STORAGE_ERASED_BYTE, FLASH_RING_RECORD_SIZE);
+    }
+#endif
+
+    /* Construct 16-byte record */
+    flash_record_t record;
+    record.magic_status = FLASH_RING_MAGIC_VALID;
+    record.sequence_id  = seq_id;
+    memcpy(record.payload, payload, FLASH_RING_TELEMETRY_PAYLOAD_SIZE);
+
+    /* Write record in two 64-bit double-word operations */
+    uint32_t slot_addr = flash_ring_slot_to_addr(target_slot);
+    uint64_t dword0 = 0ULL;
+    uint64_t dword1 = 0ULL;
+    memcpy(&dword0, &record, sizeof(uint64_t));
+    memcpy(&dword1, ((const uint8_t *)&record) + sizeof(uint64_t), sizeof(uint64_t));
+
+    status_t st = flash_storage_write_dword(slot_addr, dword0);
+    if (st != STATUS_OK) {
+        return st;
+    }
+
+    st = flash_storage_write_dword(slot_addr + sizeof(uint64_t), dword1);
+    if (st != STATUS_OK) {
+        return st;
+    }
+
+    /* Advance head pointer */
+    s_ring_state.head_index = (s_ring_state.head_index + 1U) % FLASH_RING_TOTAL_CAPACITY;
+    s_ring_state.next_seq_id = (uint16_t)(seq_id + 1U);
+    s_ring_state.is_empty = false;
+
+    if (s_ring_state.valid_count < FLASH_RING_TOTAL_CAPACITY) {
+        s_ring_state.valid_count++;
+        if (s_ring_state.valid_count == FLASH_RING_TOTAL_CAPACITY) {
+            s_ring_state.is_full = true;
+        }
+    } else {
+        /* Buffer is full: overwrite oldest record, advance tail */
+        s_ring_state.tail_index = (s_ring_state.tail_index + 1U) % FLASH_RING_TOTAL_CAPACITY;
+        s_ring_state.is_full = true;
+    }
+
+    return STATUS_OK;
+}
+
+status_t flash_ring_pop(flash_record_t *out_record) {
+    if (!s_ring_initialized) {
+        status_t st = flash_ring_init();
+        if (st != STATUS_OK) {
+            return st;
+        }
+    }
+    if (out_record == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+    if (s_ring_state.valid_count == 0U) {
+        return STATUS_ERROR_EMPTY;
+    }
+
+    /* Find next valid record starting at tail_index */
+    flash_record_t rec;
+    status_t st = STATUS_ERROR_EMPTY;
+    uint32_t scanned = 0U;
+
+    while (scanned < FLASH_RING_TOTAL_CAPACITY) {
+        uint32_t slot = s_ring_state.tail_index;
+        st = flash_ring_read_slot(slot, &rec);
+        if (st == STATUS_OK && rec.magic_status == FLASH_RING_MAGIC_VALID) {
+            break;
+        }
+        s_ring_state.tail_index = (s_ring_state.tail_index + 1U) % FLASH_RING_TOTAL_CAPACITY;
+        scanned++;
+    }
+
+    if (scanned >= FLASH_RING_TOTAL_CAPACITY || rec.magic_status != FLASH_RING_MAGIC_VALID) {
+        s_ring_state.valid_count = 0U;
+        s_ring_state.is_empty = true;
+        s_ring_state.is_full = false;
+        return STATUS_ERROR_EMPTY;
+    }
+
+    *out_record = rec;
+
+    /* Invalidate record in Flash (write 0x0000 to magic word) */
+    uint32_t slot_addr = flash_ring_slot_to_addr(s_ring_state.tail_index);
+    uint16_t transmitted_magic = FLASH_RING_MAGIC_TRANSMITTED;
+    st = flash_storage_write_bytes(slot_addr, (const uint8_t *)&transmitted_magic, sizeof(uint16_t));
+    if (st != STATUS_OK) {
+        return st;
+    }
+
+    /* Advance tail */
+    s_ring_state.tail_index = (s_ring_state.tail_index + 1U) % FLASH_RING_TOTAL_CAPACITY;
+    if (s_ring_state.valid_count > 0U) {
+        s_ring_state.valid_count--;
+    }
+    s_ring_state.is_full = false;
+    if (s_ring_state.valid_count == 0U) {
+        s_ring_state.is_empty = true;
+    }
+
+    return STATUS_OK;
+}
+
+status_t flash_ring_peek(uint32_t offset_from_tail, flash_record_t *out_record) {
+    if (!s_ring_initialized) {
+        status_t st = flash_ring_init();
+        if (st != STATUS_OK) {
+            return st;
+        }
+    }
+    if (out_record == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+    if (offset_from_tail >= s_ring_state.valid_count) {
+        return STATUS_ERROR_OUT_OF_BOUNDS;
+    }
+
+    /* Walk forward offset_from_tail valid records from tail_index */
+    uint32_t valid_seen = 0U;
+    uint32_t slot = s_ring_state.tail_index;
+
+    for (uint32_t i = 0U; i < FLASH_RING_TOTAL_CAPACITY; i++) {
+        flash_record_t rec;
+        status_t st = flash_ring_read_slot(slot, &rec);
+        if (st == STATUS_OK && rec.magic_status == FLASH_RING_MAGIC_VALID) {
+            if (valid_seen == offset_from_tail) {
+                *out_record = rec;
+                return STATUS_OK;
+            }
+            valid_seen++;
+        }
+        slot = (slot + 1U) % FLASH_RING_TOTAL_CAPACITY;
+    }
+
+    return STATUS_ERROR_OUT_OF_BOUNDS;
+}
+
+status_t flash_ring_mark_transmitted(uint32_t count) {
+    if (!s_ring_initialized) {
+        status_t st = flash_ring_init();
+        if (st != STATUS_OK) {
+            return st;
+        }
+    }
+    if (count == 0U) {
+        return STATUS_ERROR_INVALID_PARAM;
+    }
+    if (count > s_ring_state.valid_count) {
+        return STATUS_ERROR_OUT_OF_BOUNDS;
+    }
+
+    uint32_t marked = 0U;
+    while (marked < count && s_ring_state.valid_count > 0U) {
+        flash_record_t rec;
+        status_t st = flash_ring_read_slot(s_ring_state.tail_index, &rec);
+        if (st == STATUS_OK && rec.magic_status == FLASH_RING_MAGIC_VALID) {
+            uint32_t slot_addr = flash_ring_slot_to_addr(s_ring_state.tail_index);
+            uint16_t trans_magic = FLASH_RING_MAGIC_TRANSMITTED;
+            st = flash_storage_write_bytes(slot_addr, (const uint8_t *)&trans_magic, sizeof(uint16_t));
+            if (st != STATUS_OK) {
+                return st;
+            }
+            s_ring_state.valid_count--;
+            marked++;
+        }
+        s_ring_state.tail_index = (s_ring_state.tail_index + 1U) % FLASH_RING_TOTAL_CAPACITY;
+    }
+
+    s_ring_state.is_full = false;
+    if (s_ring_state.valid_count == 0U) {
+        s_ring_state.is_empty = true;
+    }
+
+    return STATUS_OK;
+}
+
+uint32_t flash_ring_get_count(void) {
+    if (!s_ring_initialized) {
+        (void)flash_ring_init();
+    }
+    return s_ring_state.valid_count;
+}
+
+uint32_t flash_ring_get_capacity(void) {
+    return FLASH_RING_TOTAL_CAPACITY;
+}
+
+bool flash_ring_is_full(void) {
+    if (!s_ring_initialized) {
+        (void)flash_ring_init();
+    }
+    return s_ring_state.is_full;
+}
+
+bool flash_ring_is_empty(void) {
+    if (!s_ring_initialized) {
+        (void)flash_ring_init();
+    }
+    return s_ring_state.is_empty;
+}
+
+uint32_t flash_ring_get_head_index(void) {
+    if (!s_ring_initialized) {
+        (void)flash_ring_init();
+    }
+    return s_ring_state.head_index;
+}
+
+uint32_t flash_ring_get_tail_index(void) {
+    if (!s_ring_initialized) {
+        (void)flash_ring_init();
+    }
+    return s_ring_state.tail_index;
+}
+
+status_t flash_ring_get_state(flash_ring_state_t *out_state) {
+    if (!s_ring_initialized) {
+        status_t st = flash_ring_init();
+        if (st != STATUS_OK) {
+            return st;
+        }
+    }
+    if (out_state == NULL) {
+        return STATUS_ERROR_NULL_POINTER;
+    }
+    memcpy(out_state, &s_ring_state, sizeof(flash_ring_state_t));
+    return STATUS_OK;
+}
+
+status_t flash_ring_clear(void) {
+    for (uint32_t p = FLASH_STORAGE_START_PAGE; p < (FLASH_STORAGE_START_PAGE + FLASH_RING_DATA_PAGES); p++) {
+        status_t st = flash_storage_erase_page(p);
+        if (st != STATUS_OK) {
+            return st;
+        }
+    }
+
+    s_ring_state.head_index  = 0U;
+    s_ring_state.tail_index  = 0U;
+    s_ring_state.valid_count = 0U;
+    s_ring_state.next_seq_id = 0U;
+    s_ring_state.is_full     = false;
+    s_ring_state.is_empty    = true;
+    s_ring_initialized       = true;
+
+    return STATUS_OK;
+}

@@ -1,16 +1,47 @@
-# Current Feature
+# Current Feature: STM32WLE5 On-Chip Flash Wear-Leveling Circular Ring Buffer (S5-T3.2)
 
 ## Status
 
-Not Started
+Complete
 
 ## Goals
 
-<!-- Goals will be loaded from feature spec -->
+- Implement `flash_ring_t` geometry and constants in `flash_storage.h`: 7 data pages (Pages 120..126, 14 KB), Page 127 for station metadata, 16 bytes per slot (`FLASH_RING_RECORD_SIZE`), 128 slots per page (`FLASH_RING_SLOTS_PER_PAGE`), and 896 total capacity slots (`FLASH_RING_TOTAL_CAPACITY`).
+- Enforce 16-byte record layout: 2-byte Magic/Status header (`0xFFFF` Free, `0xAA55` Valid, `0x0000` Transmitted), 2-byte monotonic Sequence ID (`uint16_t`), and 12-byte packed periodic telemetry payload (`uint8_t[12]`).
+- Implement `flash_ring_init()` fast boot recovery scanner: scans 896 slot headers in $O(N)$ time without persistent metadata wear to reconstruct head pointer, tail pointer, valid unread count, and next sequence ID.
+- Implement `flash_ring_push()`: writes 16-byte record via two 64-bit double-word writes, performs automatic 2 KB page erase on page boundary rollover before writing into new page, and drops oldest record when buffer reaches 100% capacity (896 records).
+- Implement `flash_ring_pop()`: reads oldest pending record (`0xAA55`), invalidates slot in-place by programming `magic = 0x0000` without erasing the page, advances tail index, and decrements valid count.
+- Implement `flash_ring_peek()`: non-destructively retrieves unread record at specified offset (`0 <= offset < count`) without advancing tail index.
+- Implement `flash_ring_mark_transmitted()`: batch invalidates up to $N$ oldest records by writing `0x0000` magic header and advances tail pointer.
+- Implement query accessors: `flash_ring_get_count()`, `flash_ring_is_empty()`, `flash_ring_is_full()`, `flash_ring_get_head_index()`, `flash_ring_get_tail_index()`.
+- Implement `flash_ring_clear()`: diagnostic/factory reset bulk-erasing all 7 data pages (Pages 120..126) and zeroing state variables.
+- Verify 100% compliance with `coding-standards.md`: strict C99 (`-Wall -Wextra -Werror`), zero dynamic memory allocation (`malloc`/`free` prohibited), and defensive status code propagation (`status_t`).
 
 ## Notes
 
-<!-- Notes will be loaded from feature spec -->
+- **Hardware & Storage Geometry**:
+  - MCU: STM32WLE5CCU6 (256 KB Flash, 64 KB SRAM)
+  - Dedicated NVM partition: Pages 120..127 (16 KB total, `0x0803C000` to `0x0803FFFF`)
+  - Ring buffer data area: Pages 120..126 (14 KB total, 896 slots, `0x0803C000` to `0x0803F7FF`)
+  - Metadata page: Page 127 (`0x0803F800` to `0x0803FFFF`) reserved for station configuration
+  - Flash programming unit: Strict 64-bit (8-byte) double-word alignment
+  - 16-byte record layout fits into 2 double-words ($128\text{ bits}$)
+- **Flash In-Place Bit Lifecycle**:
+  - Erased / Empty slot: `magic == 0xFFFF` (`1111 1111 1111 1111_2`)
+  - Valid / Pending record: `magic == 0xAA55` (`1010 1010 0101 0101_2`)
+  - Transmitted / Invalidated: `magic == 0x0000` (`0000 0000 0000 0000_2`)
+  - In-place bit clearing ($1 \rightarrow 0$) allows invalidating records without page erases
+- **Timing & Energy Constraints**:
+  - Page erase: 22.0 ms nominal, 24.5 ms worst-case
+  - Double-word write: 85 us nominal, 100 us worst-case
+  - Push WCET: < 25.4 ms (on page rollover with erase), < 0.20 ms (nominal slot write)
+  - Pop WCET: < 0.15 ms
+- **Discovered Module Dependencies (via Knowledge Graph)**:
+  - Header: [`firmware/middleware/inc/flash_storage.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_storage.h)
+  - Source: [`firmware/middleware/src/flash_storage.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/flash_storage.c)
+  - Status codes: [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h)
+  - Telemetry encoder: [`firmware/middleware/inc/telemetry_codec.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/telemetry_codec.h)
+  - Downstream consumers: `S5-T3.3` (LoRa Reconnect Playback Service), `S5-T3.4` (Flash Storage Test Suite), `S6-T3.1` (Main App State Machine `STATE_LOG_NVM`)
 
 ## History
 
