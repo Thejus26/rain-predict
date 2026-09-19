@@ -1,16 +1,51 @@
-# Current Feature
+# Current Feature: S5-T4.2 - LoRaWAN Regional Channel Plans, Duty-Cycle & Adaptive Data Rate (ADR)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add measurable criteria and deliverables for the feature -->
+- Implement LoRaWAN regional channel plan configurations for **IN865** (India 865-867 MHz), **EU868** (Europe/Sri Lanka/Kenya 863-870 MHz), and **US915** Sub-Band 2 (Americas 902-928 MHz).
+- Implement pseudo-random round-robin TX channel selection and dynamic RX1/RX2 receive window frequency and Data Rate mapping.
+- Implement exact physical LoRaWAN Time-on-Air (ToA) mathematical formula for SF7..SF12 with explicit header, CRC enabled, and low data rate optimization.
+- Implement rolling Sub-GHz 1% duty-cycle tracking and minimum off-time enforcement ($T_{\text{off}} = 99 \times T_{\text{on}}$).
+- Implement End-Device Adaptive Data Rate (ADR) state machine with `ADR_ACK_LIMIT` (64), `ADR_ACK_DELAY` (32), data rate step-down, and maximum TX power boost.
+- Implement `LinkADRReq` MAC command parser and `LinkADRAns` response generator validating Data Rate, TX power, and channel masks.
+- Provide complete C99 / MISRA C implementation in [`firmware/middleware/inc/lorawan_regional.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/lorawan_regional.h) and [`firmware/middleware/src/lorawan_regional.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/lorawan_regional.c) with zero dynamic memory allocation.
+- Implement comprehensive ThrowTheSwitch Unity test suite in [`tests/unit/test_lorawan_regional.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_lorawan_regional.c) covering test matrix `TC-REG-01` through `TC-REG-10` plus defensive parameter validation guards.
+- Integrate `lorawan_regional` into [`firmware/middleware/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/CMakeLists.txt) and [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
 
 ## Notes
 
-<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
+- **Target Files**:
+  - Header: [`firmware/middleware/inc/lorawan_regional.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/lorawan_regional.h)
+  - Source: [`firmware/middleware/src/lorawan_regional.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/lorawan_regional.c)
+  - Tests: [`tests/unit/test_lorawan_regional.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_lorawan_regional.c)
+- **Module Dependencies & Core Headers**:
+  - [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h): Universal system status codes (`STATUS_OK`, `STATUS_ERROR_INVALID_PARAM`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_NOT_INITIALIZED`, `STATUS_ERROR_HARDWARE`, `STATUS_ERROR_OUT_OF_BOUNDS`).
+  - [`firmware/middleware/inc/lorawan_service.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/lorawan_service.h): LoRaWAN Class A service core and state machine.
+- **Regional Frequencies & Sub-Band Allocations**:
+  - **IN865 (India)**: 865.0625 MHz, 865.4025 MHz, 865.9850 MHz (DR0..DR5, 125 kHz). Max power +22 dBm conducted. RX2: 866.550 MHz @ DR2 (SF10 / 125 kHz).
+  - **EU868 (Europe/Sri Lanka/Kenya)**: 868.100 MHz, 868.300 MHz, 868.500 MHz (DR0..DR5, 125 kHz). Max power +14 dBm ERP (+16 dBm EIRP). RX2: 869.525 MHz @ DR0 (SF12 / 125 kHz).
+  - **US915 Sub-Band 2 (Americas)**: 8 channels 903.9 MHz to 905.3 MHz (200 kHz step, DR0..DR3, 125 kHz). RX1: $923.3\text{ MHz} + (\text{Ch} \pmod 8) \times 600\text{ kHz}$, Data Rate $= 10 - \text{TX\_DR}$. RX2: 923.3 MHz @ DR8 (SF12 / 500 kHz).
+- **Physical Time-on-Air (ToA) Formula**:
+  - Symbol duration: $T_{\text{sym}} = \frac{2^{SF}}{BW}$
+  - Preamble duration: $T_{\text{preamble}} = (N_{\text{preamble}} + 4.25) \times T_{\text{sym}} \quad (N_{\text{preamble}} = 8)$
+  - Payload symbols: $N_{\text{payload}} = 8 + \max\left(\left\lceil \frac{8PL - 4SF + 28 + 16CRC - 20IH}{4(SF - 2DE)} \right\rceil \times (CR + 4), 0\right)$
+  - Payload duration: $T_{\text{payload}} = N_{\text{payload}} \times T_{\text{sym}}$
+  - Total ToA: $T_{\text{on}} = T_{\text{preamble}} + T_{\text{payload}}$
+  - Parameters: Explicit header ($IH = 0$), $CR = 1$ ($4/5$), Uplink CRC enabled ($CRC = 1$), Low Data Rate Optimization enabled for SF11/SF12 ($DE = 1$).
+- **Duty-Cycle & Regulatory Off-Time Constraints**:
+  - 1% duty-cycle enforcement: $T_{\text{off}} = T_{\text{on}} \times \frac{1 - 0.01}{0.01} = 99 \times T_{\text{on}}$.
+  - US915: 100% duty-cycle allowance (governed by 400 ms dwell time limit).
+- **ADR State Machine Parameters**:
+  - `ADR_ACK_LIMIT = 64`: Assert `ADRACKReq` in uplink frame header when 64 uplinks elapse without downlink.
+  - `ADR_ACK_DELAY = 32`: If no downlink after 96 uplinks, decrease DR by 1 (e.g. DR5 -> DR4), increase TX power to maximum (+22 dBm), and reset counter to 64.
+  - Downlink reception resets counter to 0 and clears `ADRACKReq`.
+- **Memory & Coding Standards**:
+  - C99 and MISRA C compliant; zero heap allocation (`malloc`/`free` strictly prohibited).
+  - All state stored in static module context (`lorawan_adr_state_t`, `lorawan_duty_cycle_state_t`, `lorawan_channel_t`).
 
 ## History
 
