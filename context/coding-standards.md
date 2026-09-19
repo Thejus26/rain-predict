@@ -12,9 +12,10 @@ Targeting the **STMicroelectronics STM32WLE5** SoC (ARM Cortex-M4 with integrate
 - **Target Language**: **C99 / C11** for embedded target firmware; **Python 3.10+** for desktop test harnesses, tooling, and data simulation.
 - **Compiler**: `arm-none-eabi-gcc` (GNU Arm Embedded Toolchain) or Keil / IAR equivalent.
 - **Compiler Flags & Diagnostics**:
-  - Code must compile with zero warnings under:
+  - Code must compile with zero warnings under strict diagnostic flags:
     ```bash
-    -Wall -Wextra -Wpedantic -Wshadow -Wstrict-prototypes -Wpointer-arith -Werror
+    -Wall -Wextra -Wpedantic -Wshadow -Wstrict-prototypes -Wpointer-arith \
+    -Wundef -Wmissing-prototypes -Wredundant-decls -Wformat=2 -Wwrite-strings -Werror
     ```
 - **Standard Types**: Strictly use `<stdint.h>` and `<stdbool.h>` fixed-width integer types (`uint8_t`, `int16_t`, `uint32_t`, `bool`, etc.). Avoid bare C types like `int`, `long`, `short`, or `unsigned` except for standard loop indices where width is irrelevant.
 
@@ -152,6 +153,8 @@ Because the node is solar/battery powered in remote tea estates, power efficienc
 2. **Numerical Stability**:
    - Guard against division by zero and invalid logarithmic/exponential inputs (`log()`, `sqrt()`).
    - Clamp calculations to physically realistic ranges (e.g., RH between 0.0% and 100.0%, Barometric Pressure between 500 hPa and 1100 hPa).
+3. **Analytical Ground Truth for Test Vectors**:
+   - Reference test vectors in unit test suites must be calculated using the identical canonical formulas and constants defined in the system specifications (e.g., Magnus-Tetens vs Goff-Gratch, WMO hypsometric barometric equations). Never hardcode approximate empirical numbers from external calculators without validating the underlying formula constants.
 
 ---
 
@@ -194,14 +197,72 @@ Because the node is solar/battery powered in remote tea estates, power efficienc
 
 ## 10. Verification, Testing & Tooling
 
+### 10.1 Static Analysis & Automated Formatting
 1. **Static Analysis**:
    - Code must pass `cppcheck --enable=all` and `clang-tidy` checks before pull requests are merged.
 2. **Automated Formatting**:
-   - A `.clang-format` configuration file will enforce code formatting across all commits.
-3. **Unit Testing**:
-   - Pure algorithmic modules (e.g., `rain_algo.c`, filter math) must be testable on host machines (x86_64 / PC) using Unity or Ceedling test frameworks.
-4. **Git Commit Conventions**:
-   - Use Conventional Commits format:
+   - A `.clang-format` configuration file enforces uniform code formatting (4-space indent, 100-column limit, 1TBS/K&R braces, right-aligned pointers) across all commits.
+
+### 10.2 Git Commit Conventions
+1. **Conventional Commits**:
+   - Use Conventional Commits format across all commits:
      - `feat(sensor): add bme280 continuous sampling driver`
      - `fix(algo): correct pressure delta sign in falling trend check`
      - `docs(standards): update low-power pin configuration guidelines`
+
+### 10.3 Unit Test Linkage & Scope (Rule on `-Wmissing-prototypes`)
+1. **Mandatory `static` Specifier for Test Functions**:
+   - Under `-Wmissing-prototypes -Werror`, any function with external linkage that lacks a previous prototype declaration triggers a fatal compilation error.
+   - All unit test case functions in `tests/unit/*.c` must be declared with internal linkage using `static void`:
+     ```c
+     static void test_bme280_forced_mode_conversion(void) {
+         /* Test assertions */
+     }
+     ```
+2. **Harness Hook Exceptions**:
+   - Only ThrowTheSwitch Unity lifecycle hooks (`void setUp(void)`, `void tearDown(void)` prototyped in `unity.h`) and the test runner entry point (`int main(void)`) retain external linkage.
+3. **Internal Helper Functions & Mock Callbacks**:
+   - All local helper functions, mock callbacks, and test setup utilities defined in test files must also be declared `static`.
+
+### 10.4 Whitelisted Unity Assertion Macros & Tolerance Guidelines
+1. **Prohibition of Non-Existent Integer Tolerance Macros**:
+   - Standard ThrowTheSwitch Unity v2.5.x does **not** provide integer tolerance macros (e.g., `TEST_ASSERT_INT_WITHIN`, `TEST_ASSERT_INT16_WITHIN`, `TEST_ASSERT_UINT16_WITHIN`, `TEST_ASSERT_UINT32_WITHIN`). Never use them.
+2. **Integer Tolerance Bounds Checking**:
+   - To verify integer quantities within an expected tolerance window, use explicit compound boolean assertions:
+     ```c
+     TEST_ASSERT_TRUE((actual >= (expected - delta)) && (actual <= (expected + delta)));
+     ```
+3. **Floating-Point Tolerances**:
+   - Use `TEST_ASSERT_FLOAT_WITHIN(delta, expected, actual)` for single-precision floats and `TEST_ASSERT_DOUBLE_WITHIN` for double precision.
+4. **Prohibition of `TEST_PASS()`**:
+   - Never call `TEST_PASS()`, which is not a standard Unity macro. In Unity, passing tests execute without triggering failing assertions. If an explicit true assert is required, use `TEST_ASSERT_TRUE(true)`.
+5. **Array & Buffer Assertions**:
+   - For byte arrays, frame buffers, and telemetry payload verification, use `TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, actual, length)`.
+
+### 10.5 Dual-Target Compilation & Hardware Header Preprocessor Gating
+1. **Target Header Inclusion Guards**:
+   - STM32CubeWL HAL headers (`stm32wlxx_hal.h`), CMSIS device definitions, and hardware peripheral headers must never be included unconditionally in files compiled by host test runners.
+   - Guard hardware includes with target preprocessor macros:
+     ```c
+     #if defined(STM32WLE5xx) || defined(EMBEDDED_TARGET)
+     #include "stm32wlxx_hal.h"
+     #endif
+     ```
+2. **Hardware Intrinsics & Factory Calibration Registers**:
+   - Direct MCU registers, NVIC interrupt controllers, and factory calibration UID words (e.g., `HAL_GetUIDw0()`, `HAL_GetUIDw1()`) must provide compile-time host mock shims under `tests/mocks/` or be abstracted through BSP accessors.
+
+### 10.6 Mock Driver Behavioral Invariants & Simulation Isolation
+1. **Read Idempotency & Side-Effect Freedom**:
+   - Mock register reads, address search routines, and diagnostic query APIs must be strictly idempotent and side-effect free.
+   - Inspecting an unconfigured I2C/SPI address or querying device status must never alter device state, allocate phantom virtual devices, or mutate control flags (e.g., clearing OPT3001 CRF bit) unless explicitly requested by a simulated write transaction.
+2. **Discrete Protocol Frame Boundaries**:
+   - Simulated serial bus drivers (USART/RS-485 Modbus RTU, LPUART/SDI-12) must deliver only the exact byte length requested by the transaction.
+   - Do not drain or purge entire multi-stage response queues during pre-transmission flushes or retry cycles, which leads to artificial query timeouts in multi-message transactions.
+
+### 10.7 Unused Variables & Strict Diagnostic Hygiene
+1. **Zero Unused Variables or Parameters**:
+   - Under `-Wall -Wextra -Werror`, any unused local variable or unused parameter causes a fatal build failure.
+   - In test files and driver implementations, every declared variable must be asserted, consumed, or explicitly suppressed using `(void)variable;`.
+2. **Const Pointer Discipline**:
+   - When passing read-only memory buffers to parsers, codecs, and ring buffer push routines, maintain `const` qualification throughout the call chain. Never cast away `const` unless strictly mandated by third-party C interfaces.
+
