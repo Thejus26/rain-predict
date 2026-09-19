@@ -315,6 +315,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_lorawan_regional.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_lorawan_tx_queue.c")
+    add_firmware_test(lorawan_tx_queue
+        SOURCES unit/test_lorawan_tx_queue.c
+        LIBRARIES firmware_middleware firmware_core
+    )
+endif()
+
 # -----------------------------------------------------------------------------
 # 10. JavaScript Gateway Payload Decoder Tests
 # -----------------------------------------------------------------------------
