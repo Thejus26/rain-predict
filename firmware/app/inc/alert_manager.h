@@ -1,8 +1,8 @@
 /**
  * @file    alert_manager.h
- * @brief   Application alert coordinator and visual status LED engine.
- * @details Manages multi-pattern visual indicators, audible alert coordination,
- *          and low-battery preservation overrides for tea plantation monitoring.
+ * @brief   Application alert coordinator, visual LED patterns, and acoustic actuation.
+ * @details Unified manager for status LEDs, audible piezo buzzer bursts, estate siren
+ *          relay triggers, battery preservation overrides, and anti-chatter cooldowns.
  *
  * Target: STM32WLE5 (ARM Cortex-M4 @ 48 MHz)
  */
@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 /* ========================================================================== */
-/* Constants & Timing Definitions                                             */
+/* Visual LED Timing Constants                                                */
 /* ========================================================================== */
 
 #define ALERT_LED_HEALTHY_ON_MS         50U     /**< Green pulse ON time (ms) */
@@ -55,6 +55,21 @@ extern "C" {
 #define ALERT_LED_CONSERVE_PERIOD_MS    5000U   /**< Conservation cycle period */
 
 /* ========================================================================== */
+/* Acoustic & Siren Timing Constants                                          */
+/* ========================================================================== */
+
+#define ALERT_SIREN_MAX_DURATION_MS     10000U  /**< Maximum siren pulse: 10 seconds */
+#define ALERT_SIREN_DEFAULT_DURATION_MS 10000U  /**< Default storm siren pulse: 10s */
+#define ALERT_SIREN_COOLDOWN_SEC        1800U   /**< Siren cooldown window: 30 minutes */
+
+#define ALERT_BUZZER_CHIRP_MS           50U     /**< Short chirp duration (ms) */
+#define ALERT_BUZZER_DOUBLE_PULSE_MS    100U    /**< Double chirp pulse width (ms) */
+#define ALERT_BUZZER_DOUBLE_GAP_MS      100U    /**< Double chirp pulse gap (ms) */
+#define ALERT_BUZZER_BURST_CADENCE_MS   200U    /**< Storm burst toggle rate (ms) */
+#define ALERT_BUZZER_FAULT_ON_MS        500U    /**< Fault beep ON time (ms) */
+#define ALERT_BUZZER_FAULT_PERIOD_MS    2000U   /**< Fault beep cycle period (ms) */
+
+/* ========================================================================== */
 /* Enumerations & Type Definitions                                            */
 /* ========================================================================== */
 
@@ -74,6 +89,18 @@ typedef enum {
 } alert_led_pattern_t;
 
 /**
+ * @brief  Audible piezoelectric buzzer sound pattern identifiers.
+ */
+typedef enum {
+    ALERT_BUZZER_PATTERN_OFF = 0,       /**< Buzzer silent */
+    ALERT_BUZZER_PATTERN_SHORT_CHIRP,   /**< Single 50ms chirp */
+    ALERT_BUZZER_PATTERN_DOUBLE_CHIRP,  /**< Double 100ms chirp */
+    ALERT_BUZZER_PATTERN_STORM_BURST,   /**< Continuous 200ms toggle burst */
+    ALERT_BUZZER_PATTERN_FAULT_BEEP,    /**< Periodic 500ms warning beep */
+    ALERT_BUZZER_PATTERN_MAX
+} alert_buzzer_pattern_t;
+
+/**
  * @brief  Input operational state evaluated by alert manager.
  */
 typedef struct {
@@ -83,6 +110,7 @@ typedef struct {
     battery_throttle_tier_t battery_tier;       /**< Active battery preservation tier */
     bool                    sensor_fault;       /**< True if sensor bus / hardware error */
     bool                    is_sleeping;        /**< True if entering/in low-power sleep */
+    uint8_t                 rtc_hour_0_to_23;   /**< Current 24-hour clock for quiet hours */
 } alert_input_t;
 
 /**
@@ -92,20 +120,28 @@ typedef struct {
     bool     enable_visual_leds;                /**< Master enable for status LEDs */
     bool     enable_audible_buzzer;             /**< Master enable for piezo buzzer */
     bool     enable_siren_relay;                /**< Master enable for siren relay */
-    uint32_t active_display_duration_ms;        /**< Max duration to animate LEDs per active cycle */
+    bool     enable_night_quiet_hours;          /**< Mute external siren at night */
+    uint8_t  quiet_hours_start_hour;            /**< Quiet hours start (default: 20 -> 8 PM) */
+    uint8_t  quiet_hours_end_hour;              /**< Quiet hours end (default: 6 -> 6 AM) */
+    uint32_t active_display_duration_ms;        /**< Max duration to animate indicators per cycle */
 } alert_manager_config_t;
 
 /**
  * @brief  Diagnostic status snapshot of the alert coordinator.
  */
 typedef struct {
-    alert_led_pattern_t active_pattern;         /**< Currently active LED flash pattern */
-    bool                green_led_state;        /**< Real-time physical state of Green LED */
-    bool                red_led_state;          /**< Real-time physical state of Red LED */
-    uint32_t            pattern_elapsed_ms;     /**< Milliseconds into current pattern cycle */
-    uint32_t            total_alerts_imminent;  /**< Lifetime count of storm alerts triggered */
-    uint32_t            total_alerts_warning;   /**< Lifetime count of warning alerts triggered */
-    bool                is_throttled;           /**< True if visual alerts throttled by battery */
+    alert_led_pattern_t    active_led_pattern;      /**< Currently active LED flash pattern */
+    alert_buzzer_pattern_t active_buzzer_pattern;   /**< Currently active buzzer pattern */
+    bool                   green_led_state;         /**< Real-time physical state of Green LED */
+    bool                   red_led_state;           /**< Real-time physical state of Red LED */
+    bool                   buzzer_state;            /**< Real-time physical state of Buzzer */
+    bool                   siren_relay_active;      /**< Real-time physical state of Siren Relay */
+    uint32_t               siren_remaining_ms;      /**< Milliseconds remaining on active siren pulse */
+    uint32_t               siren_cooldown_sec;      /**< Seconds remaining on siren cooldown timer */
+    uint32_t               total_siren_activations; /**< Lifetime count of siren relay triggers */
+    uint32_t               total_alerts_imminent;   /**< Lifetime count of storm alerts triggered */
+    uint32_t               total_alerts_warning;    /**< Lifetime count of warning alerts triggered */
+    bool                   is_throttled;            /**< True if acoustic alerts throttled by battery */
 } alert_manager_status_t;
 
 /* ========================================================================== */
@@ -113,55 +149,87 @@ typedef struct {
 /* ========================================================================== */
 
 /**
- * @brief  Initializes the Alert Manager and configures default operational parameters.
+ * @brief  Initializes the Alert Manager, clears actuators, and arms default configs.
  * @param[in] p_config  Pointer to configuration structure (or NULL for defaults).
  * @return status_t     STATUS_OK on success, or error code.
  */
 status_t alert_manager_init(const alert_manager_config_t *p_config);
 
 /**
- * @brief  Updates the alert manager state based on latest meteorological and system inputs.
+ * @brief  Updates alert evaluation based on latest meteorological, battery, and system inputs.
  * @param[in] p_input   Pointer to current operational inputs.
  * @return status_t     STATUS_OK on success, or error code.
  */
 status_t alert_manager_update(const alert_input_t *p_input);
 
 /**
- * @brief  Advances the non-blocking pattern animation timing by elapsed milliseconds.
+ * @brief  Advances non-blocking pattern animation, buzzer cadence, and siren timers by delta_ms.
  * @param[in] delta_ms  Milliseconds elapsed since last execution step.
- * @return status_t     STATUS_OK on success, or error code.
+ * @return status_t     STATUS_OK on success.
  */
 status_t alert_manager_process_step(uint32_t delta_ms);
 
 /**
- * @brief  Directly forces a specific visual LED pattern (manual test or override).
- * @param[in] pattern   Target LED pattern to apply.
- * @return status_t     STATUS_OK on success, or STATUS_ERR_INVALID_PARAM / STATUS_ERR_INVALID_ARG.
+ * @brief  Directly triggers the estate siren relay with hardware/software auto-shutoff.
+ * @param[in] duration_ms Pulse duration in ms (clamped to ALERT_SIREN_MAX_DURATION_MS).
+ * @return status_t       STATUS_OK on success, STATUS_ERR_BUSY if in cooldown, or error code.
+ */
+status_t alert_manager_trigger_siren(uint32_t duration_ms);
+
+/**
+ * @brief  Directly forces a specific visual LED pattern.
+ * @param[in] pattern     Target LED pattern.
+ * @return status_t       STATUS_OK on success, or STATUS_ERR_INVALID_ARG / STATUS_ERR_INVALID_PARAM.
  */
 status_t alert_manager_set_led_pattern(alert_led_pattern_t pattern);
 
 /**
+ * @brief  Directly forces a specific audible buzzer pattern.
+ * @param[in] pattern     Target buzzer pattern.
+ * @return status_t       STATUS_OK on success, or STATUS_ERR_INVALID_ARG / STATUS_ERR_INVALID_PARAM.
+ */
+status_t alert_manager_set_buzzer_pattern(alert_buzzer_pattern_t pattern);
+
+/**
  * @brief  Retrieves the currently active visual LED pattern.
- * @return alert_led_pattern_t Active pattern enum identifier.
+ * @return alert_led_pattern_t Active pattern enum.
  */
 alert_led_pattern_t alert_manager_get_active_led_pattern(void);
 
 /**
- * @brief  Forces all LEDs and alert actuators completely OFF immediately.
- * @return status_t     STATUS_OK on success.
+ * @brief  Retrieves the currently active audible buzzer pattern.
+ * @return alert_buzzer_pattern_t Active buzzer pattern enum.
+ */
+alert_buzzer_pattern_t alert_manager_get_active_buzzer_pattern(void);
+
+/**
+ * @brief  Checks whether the estate siren relay is currently energized.
+ * @return bool True if siren relay is ON.
+ */
+bool alert_manager_is_siren_active(void);
+
+/**
+ * @brief  Retrieves the remaining siren anti-chatter cooldown duration in seconds.
+ * @return uint32_t Seconds remaining (0 if ready to fire).
+ */
+uint32_t alert_manager_get_siren_cooldown_remaining_sec(void);
+
+/**
+ * @brief  Forces all visual LEDs, piezo buzzer, and siren relay completely OFF immediately.
+ * @return status_t STATUS_OK on success.
  */
 status_t alert_manager_force_all_off(void);
 
 /**
  * @brief  Retrieves human-readable English descriptor for an LED pattern.
- * @param[in] pattern   Pattern enum identifier.
- * @return const char*  Pointer to static flash string.
+ * @param[in] pattern   Pattern enum.
+ * @return const char*  Static string descriptor.
  */
 const char *alert_manager_get_pattern_name(alert_led_pattern_t pattern);
 
 /**
- * @brief  Retrieves real-time diagnostics and status telemetry from the alert coordinator.
- * @param[out] p_status Pointer to destination status structure.
+ * @brief  Retrieves real-time diagnostics snapshot from the alert manager.
+ * @param[out] p_status Destination status struct pointer.
  * @return status_t     STATUS_OK on success, or STATUS_ERR_NULL_PTR.
  */
 status_t alert_manager_get_status(alert_manager_status_t *p_status);
