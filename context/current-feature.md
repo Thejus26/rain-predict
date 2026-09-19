@@ -1,16 +1,44 @@
-# Current Feature
+# Current Feature: S6-T2.1 Status LED Flash Patterns & Visual Alert Engine
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be populated when a feature is loaded -->
+- Implement Status LED Flash Patterns & Visual Alert Engine (`alert_manager.h` and `alert_manager.c`).
+- Provide non-blocking pattern animation timing via asynchronous tick processor (`alert_manager_process_step(delta_ms)`).
+- Implement complete 8-state optical flash pattern matrix:
+  - `ALERT_LED_PATTERN_OFF`: Dark / All OFF (Stop 2 sleep or Critical Battery Tier 3).
+  - `ALERT_LED_PATTERN_HEALTHY_PULSE`: Green pulse 50ms ON / 950ms OFF (1.0 Hz, 5% duty cycle, CPI < 30%).
+  - `ALERT_LED_PATTERN_WATCH_AMBER`: Amber blink 250ms ON / 250ms OFF (2.0 Hz, 50% duty cycle, 30% <= CPI < 60%).
+  - `ALERT_LED_PATTERN_WARNING_RED`: Red warning blink 200ms ON / 200ms OFF (2.5 Hz, 50% duty cycle, 60% <= CPI < 80%).
+  - `ALERT_LED_PATTERN_IMMINENT_STROBE`: Red rapid strobe 50ms ON / 50ms OFF (10.0 Hz, 50% duty cycle, CPI >= 80% or overrides).
+  - `ALERT_LED_PATTERN_ACTIVE_RAIN`: Red double flash 50ms ON / 50ms OFF / 50ms ON / 850ms OFF (1.0 Hz, 10% duty cycle).
+  - `ALERT_LED_PATTERN_SYSTEM_FAULT`: Alternating Green/Red beacon (100ms Green, 100ms Red, 100ms Green, 100ms Red, 600ms OFF).
+  - `ALERT_LED_PATTERN_CONSERVATION`: Green micro-pulse 10ms ON / 4990ms OFF (0.2 Hz, 0.2% duty cycle).
+- Implement strict priority cascade: Pre-Sleep Off -> Critical Battery Tier 3 Suppressed -> System Hardware Fault -> Rain Imminent Strobe -> Active Rain Double Flash -> Rain Likely Warning -> Rain Possible Watch -> Conservation Micro-Pulse -> Healthy Pulse.
+- Support direct manual pattern override via `alert_manager_set_led_pattern()` and all-off emergency cutoff via `alert_manager_force_all_off()`.
+- Provide runtime status telemetry and diagnostics via `alert_manager_get_status()` and pattern string lookup via `alert_manager_get_pattern_name()`.
 
 ## Notes
 
-<!-- Notes will be populated when a feature is loaded -->
+- Hardware Constraints:
+  - Green Status LED connected to `PB8` (`BSP_LED_GREEN`).
+  - Red Warning/Alarm LED connected to `PB9` (`BSP_LED_RED`).
+  - Active-High push-pull driven via Layer 2 driver `bsp_indicators.h`.
+- Power Constraints:
+  - Standard LED draw: ~4.0 mA per LED (~8.0 mA total during Amber).
+  - Average current in Healthy mode: ~200 uA.
+  - Average current in Conservation mode (Battery Tier 2: 2.90V <= Vbat < 3.10V): ~8 uA (25x reduction).
+  - Critical Tier 3 (Vbat < 2.90V) or Deep Sleep: 0.0 uA (complete LED suppression).
+- Timing & Execution:
+  - Non-blocking delta_ms stepping, zero busy-wait loops, MISRA-C compliant, zero dynamic heap allocation.
+- Discovered Module Dependencies:
+  - `firmware/drivers/inc/bsp_indicators.h`: Low-level LED control (`bsp_led_set`, `bsp_indicators_all_off`).
+  - `firmware/app/inc/rain_algo.h`: Rain alert states (`rain_alert_state_t`).
+  - `firmware/app/inc/measurement_scheduler.h`: Battery preservation tiers (`battery_throttle_tier_t`).
+  - `firmware/core/inc/status.h`: System status definitions.
 
 ## History
 
