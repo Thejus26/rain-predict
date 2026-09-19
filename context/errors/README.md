@@ -47,6 +47,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-037`** | 2026-09-14 17:33:00 | [`41a32b2`](https://github.com/Thejus26/rain-predict/commit/41a32b2941f78347b2e2c02f70249505b187e19c) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_telemetry_codec.c**: All 13 unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-037 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-037-2026-09-14-missing-static-prototypes-in-test-telemetry-codec.md) |
 | **`ERR-038`** | 2026-09-16 22:23:00 | [`c7a4e3b`](https://github.com/Thejus26/rain-predict/commit/c7a4e3b1c933c2fb2f95041113931688db123fdb) | Strict C99 & Embedded Toolchain Diagnostics | **Flash Storage CI Build Failures**: Missing static qualifiers and Hex64 macro in unit tests, and missing HAL header in target build. | [ERR-038 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-038-2026-09-16-flash-storage-test-diagnostics-and-embedded-hal-include-error.md) |
 | **`ERR-039`** | 2026-09-19 15:47:00 | [`a752ee2`](https://github.com/Thejus26/rain-predict/commit/a752ee20be2f934f0c82d7078bc5d7d78b1e4328) | Strict C99 & Embedded Toolchain Diagnostics | **LoRaWAN Service Target Cross-Compilation Failures**: Implicit declarations for `HAL_GetUIDw0`/`w1` and `HAL_GPIO_WritePin` under target toolchain. | [ERR-039 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-039-2026-09-19-lorawan-service-implicit-hal-declaration-errors.md) |
+| **`ERR-040`** | 2026-09-19 16:45:00 | [`a1e1447`](https://github.com/Thejus26/rain-predict/commit/a1e144787ab78af7911ad30f3a700f071c4b2dc0) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_lorawan_tx_queue.c**: All 12 unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-040 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-040-2026-09-19-missing-static-prototypes-in-test-lorawan-tx-queue.md) |
 
 ---
 
@@ -55,7 +56,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Testing Macros & Mock Architectural Collisions" : 16
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 14
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 15
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2

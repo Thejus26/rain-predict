@@ -78,7 +78,7 @@ void tearDown(void) {
 /**
  * @brief TC-QUE-01: Empty Queue Process Tick
  */
-void test_tc_que_01_empty_queue_process_tick(void) {
+static void test_tc_que_01_empty_queue_process_tick(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_tx_queue_init());
 
     status_t st = lorawan_tx_queue_process_step();
@@ -97,7 +97,7 @@ void test_tc_que_01_empty_queue_process_tick(void) {
 /**
  * @brief TC-QUE-02: Single Periodic Telemetry Enqueue
  */
-void test_tc_que_02_single_periodic_telemetry_enqueue(void) {
+static void test_tc_que_02_single_periodic_telemetry_enqueue(void) {
     const uint8_t periodic_buf[12] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
                                       0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C};
 
@@ -122,7 +122,7 @@ void test_tc_que_02_single_periodic_telemetry_enqueue(void) {
 /**
  * @brief TC-QUE-03: Urgent Alert Preemption (Priority Inversion)
  */
-void test_tc_que_03_urgent_alert_preemption(void) {
+static void test_tc_que_03_urgent_alert_preemption(void) {
     const uint8_t periodic_buf[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     const uint8_t alert_buf[4]     = {0xAA, 0xBB, 0xCC, 0xDD};
 
@@ -170,7 +170,7 @@ void test_tc_que_03_urgent_alert_preemption(void) {
 /**
  * @brief TC-QUE-04: Periodic Deduplication Rule
  */
-void test_tc_que_04_periodic_deduplication_rule(void) {
+static void test_tc_que_04_periodic_deduplication_rule(void) {
     const uint8_t frame_a[12] = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
                                  0x11, 0x11, 0x11, 0x11, 0x11, 0x11};
     const uint8_t frame_b[12] = {0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
@@ -192,7 +192,7 @@ void test_tc_que_04_periodic_deduplication_rule(void) {
 /**
  * @brief TC-QUE-05: Duty Cycle Blocking Enforcement
  */
-void test_tc_que_05_duty_cycle_blocking_enforcement(void) {
+static void test_tc_que_05_duty_cycle_blocking_enforcement(void) {
     /* Arm regional duty-cycle off-time */
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_regional_init(LORAWAN_REGION_IN865, 0U));
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_regional_update_duty_cycle(865062500U, 51U));
@@ -231,7 +231,7 @@ void test_tc_que_05_duty_cycle_blocking_enforcement(void) {
 /**
  * @brief TC-QUE-06: Urgent Alert Duty-Cycle Emergency Bypass
  */
-void test_tc_que_06_urgent_alert_duty_cycle_emergency_bypass(void) {
+static void test_tc_que_06_urgent_alert_duty_cycle_emergency_bypass(void) {
     /* Set active duty off-time */
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_regional_init(LORAWAN_REGION_IN865, 0U));
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_regional_update_duty_cycle(865062500U, 51U));
@@ -255,7 +255,7 @@ void test_tc_que_06_urgent_alert_duty_cycle_emergency_bypass(void) {
 /**
  * @brief TC-QUE-07: Confirmed ACK Completion Callback
  */
-void test_tc_que_07_confirmed_ack_completion_callback(void) {
+static void test_tc_que_07_confirmed_ack_completion_callback(void) {
     const uint8_t payload[16] = {0x0F};
     uint32_t user_magic = 0xCAFEBABE;
 
@@ -280,7 +280,7 @@ void test_tc_que_07_confirmed_ack_completion_callback(void) {
 /**
  * @brief TC-QUE-08: Confirmed NACK Retry Counter
  */
-void test_tc_que_08_confirmed_nack_retry_counter(void) {
+static void test_tc_que_08_confirmed_nack_retry_counter(void) {
     const uint8_t payload[8] = {1, 2, 3, 4, 5, 6, 7, 8};
 
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_tx_queue_enqueue_playback(payload, 8U, true,
@@ -312,7 +312,7 @@ void test_tc_que_08_confirmed_nack_retry_counter(void) {
 /**
  * @brief TC-QUE-09: Max Retries Dropped & Callback Invocation
  */
-void test_tc_que_09_max_retries_dropped_and_callback(void) {
+static void test_tc_que_09_max_retries_dropped_and_callback(void) {
     const uint8_t payload[8] = {1, 2, 3, 4, 5, 6, 7, 8};
 
     TEST_ASSERT_EQUAL(STATUS_OK, lorawan_tx_queue_enqueue_playback(payload, 8U, true,
@@ -347,7 +347,7 @@ void test_tc_que_09_max_retries_dropped_and_callback(void) {
 /**
  * @brief TC-QUE-10: Capacity Overflow & NULL Parameter Guards
  */
-void test_tc_que_10_capacity_overflow_and_null_guards(void) {
+static void test_tc_que_10_capacity_overflow_and_null_guards(void) {
     const uint8_t dummy[4] = {1, 2, 3, 4};
 
     /* Fill all 8 queue slots */
@@ -394,7 +394,7 @@ void test_tc_que_10_capacity_overflow_and_null_guards(void) {
 /**
  * @brief Additional Test: MAC Response Enqueue and Full Priority Tier Hierarchy
  */
-void test_tc_que_11_full_priority_tier_hierarchy(void) {
+static void test_tc_que_11_full_priority_tier_hierarchy(void) {
     const uint8_t d[4] = {0x55, 0xAA, 0x55, 0xAA};
 
     /* Enqueue in reverse priority order: Tier 3, Tier 2, Tier 1, Tier 0 */
@@ -434,7 +434,7 @@ void test_tc_que_11_full_priority_tier_hierarchy(void) {
 /**
  * @brief Additional Test: Flash Playback Preemption on Alert Enqueue
  */
-void test_tc_que_12_playback_preemption_on_alert(void) {
+static void test_tc_que_12_playback_preemption_on_alert(void) {
     /* Initialize flash storage and push a telemetry record */
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_init());
     uint8_t dummy_telemetry[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
