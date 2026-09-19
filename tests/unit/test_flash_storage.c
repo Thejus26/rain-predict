@@ -7,6 +7,7 @@
 
 #include "unity.h"
 #include "flash_storage.h"
+#include "flash_playback.h"
 #include <string.h>
 
 /* ========================================================================== */
@@ -18,6 +19,7 @@ void setUp(void) {
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_init());
     TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_erase_all_nvm_pages());
     TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_init());
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_init(NULL));
 }
 
 void tearDown(void) {
@@ -420,6 +422,208 @@ static void test_ring_parameter_guards(void) {
 }
 
 /* ========================================================================== */
+/* Category C: Historical Playback & LoRaWAN Reconnect Tests (S5-T3.3)         */
+/* ========================================================================== */
+
+/**
+ * @brief TC-PLAY-01: Empty Ring Buffer Trigger Guard.
+ */
+static void test_playback_trigger_empty_buffer(void) {
+    TEST_ASSERT_EQUAL(STATUS_ERROR_EMPTY, flash_playback_trigger());
+
+    flash_playback_status_t status;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_IDLE, status.state);
+    TEST_ASSERT_FALSE(status.is_active);
+}
+
+/**
+ * @brief TC-PLAY-02 & TC-PLAY-03: Dynamic Batch Sizing at DR5 (SF7) and DR0 (SF12).
+ */
+static void test_playback_batch_sizing_dr5_and_dr0(void) {
+    uint8_t p[12];
+    for (uint16_t i = 0; i < 20; i++) {
+        generate_dummy_telemetry_payload(p, i);
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_push(p, (uint16_t)(i + 1U)));
+    }
+    TEST_ASSERT_EQUAL_UINT32(20U, flash_ring_get_count());
+
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    /* Test DR5 (SF7 / 222B MTU) -> packs 16 records */
+    flash_playback_batch_t batch_dr5;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(5U, &batch_dr5));
+    TEST_ASSERT_EQUAL_UINT8(16U, batch_dr5.record_count);
+    TEST_ASSERT_EQUAL_UINT16(195U, batch_dr5.length);
+    TEST_ASSERT_TRUE(batch_dr5.more_pending);
+    TEST_ASSERT_EQUAL_HEX8(0x90U, batch_dr5.payload[0]); /* 0x80 (more) | 16 */
+    TEST_ASSERT_EQUAL_UINT16(1U, batch_dr5.start_seq_id);
+
+    /* Reset session and test DR0 (SF12 / 51B MTU) -> packs 4 records */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_reset());
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    flash_playback_batch_t batch_dr0;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(0U, &batch_dr0));
+    TEST_ASSERT_EQUAL_UINT8(4U, batch_dr0.record_count);
+    TEST_ASSERT_EQUAL_UINT16(51U, batch_dr0.length);
+    TEST_ASSERT_TRUE(batch_dr0.more_pending);
+    TEST_ASSERT_EQUAL_HEX8(0x84U, batch_dr0.payload[0]); /* 0x80 (more) | 4 */
+}
+
+/**
+ * @brief TC-PLAY-04: Confirmed ACK & Flash Tail Advancement.
+ */
+static void test_playback_confirmed_ack_tail_advance(void) {
+    uint8_t p[12];
+    for (uint16_t i = 0; i < 20; i++) {
+        generate_dummy_telemetry_payload(p, i);
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_push(p, (uint16_t)(i + 1U)));
+    }
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    flash_playback_batch_t batch;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(5U, &batch)); /* 16 records */
+
+    /* Simulate transmission ACK from gateway */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_on_tx_result(true));
+
+    flash_playback_status_t status;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL_UINT32(16U, status.total_records_sent);
+    TEST_ASSERT_EQUAL_UINT32(4U, status.remaining_records);
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_DUTY_WAIT, status.state);
+}
+
+/**
+ * @brief TC-PLAY-05 & TC-PLAY-06: NACK Retry Counter & Max Retries Abort Policy.
+ */
+static void test_playback_nack_retry_and_abort(void) {
+    uint8_t p[12];
+    for (uint16_t i = 0; i < 5; i++) {
+        generate_dummy_telemetry_payload(p, i);
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_push(p, (uint16_t)(i + 1U)));
+    }
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    flash_playback_batch_t batch;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(5U, &batch));
+
+    /* 1st NACK */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_on_tx_result(false));
+    flash_playback_status_t status;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_NACK_RETRY, status.state);
+    TEST_ASSERT_EQUAL_UINT8(1U, status.current_retry_count);
+    TEST_ASSERT_EQUAL_UINT32(5U, flash_ring_get_count()); /* Retained intact */
+
+    /* 2nd NACK */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_on_tx_result(false));
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL_UINT8(2U, status.current_retry_count);
+
+    /* 3rd NACK -> Abort */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_on_tx_result(false));
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_ABORTED, status.state);
+    TEST_ASSERT_EQUAL_UINT32(5U, flash_ring_get_count()); /* Zero data loss */
+}
+
+/**
+ * @brief TC-PLAY-07: Real-time Live Measurement Preemption & Resumption.
+ */
+static void test_playback_preempt_and_resume(void) {
+    uint8_t p[12];
+    for (uint16_t i = 0; i < 10; i++) {
+        generate_dummy_telemetry_payload(p, i);
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_push(p, (uint16_t)(i + 1U)));
+    }
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    flash_playback_batch_t batch;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(5U, &batch));
+
+    /* Live sample / storm alert preemption */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_preempt());
+    flash_playback_status_t status;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_PREEMPTED, status.state);
+
+    /* Resume playback */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_resume());
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_WAIT_ACK, status.state);
+}
+
+/**
+ * @brief TC-PLAY-08: Full 72-Hour Backlog (288 Records) Complete Drain.
+ */
+static void test_playback_72hour_backlog_drain(void) {
+    uint8_t p[12];
+    /* Load 288 records (72 hours @ 15-min interval) */
+    for (uint16_t i = 0; i < 288; i++) {
+        generate_dummy_telemetry_payload(p, i);
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_push(p, (uint16_t)(i + 1U)));
+    }
+    TEST_ASSERT_EQUAL_UINT32(288U, flash_ring_get_count());
+
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    uint32_t batches_processed = 0U;
+    while (flash_ring_get_count() > 0U) {
+        flash_playback_batch_t batch;
+        status_t st = flash_playback_build_next_batch(5U, &batch);
+        if (st != STATUS_OK) {
+            break;
+        }
+
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_on_tx_result(true));
+        batches_processed++;
+
+        /* Simulate state step tick */
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_process_step());
+    }
+
+    /* 288 records / 16 records per batch = exactly 18 batches */
+    TEST_ASSERT_EQUAL_UINT32(18U, batches_processed);
+    TEST_ASSERT_EQUAL_UINT32(0U, flash_ring_get_count());
+    TEST_ASSERT_TRUE(flash_ring_is_empty());
+
+    flash_playback_status_t status;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_get_status(&status));
+    TEST_ASSERT_EQUAL(PLAYBACK_STATE_COMPLETED, status.state);
+    TEST_ASSERT_EQUAL_UINT32(288U, status.total_records_sent);
+}
+
+/**
+ * @brief TC-PLAY-09: Last Batch Tail Clamping.
+ */
+static void test_playback_last_batch_tail_clamping(void) {
+    uint8_t p[12];
+    for (uint16_t i = 0; i < 5; i++) {
+        generate_dummy_telemetry_payload(p, i);
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_ring_push(p, (uint16_t)(i + 1U)));
+    }
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_trigger());
+
+    flash_playback_batch_t batch;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_build_next_batch(5U, &batch));
+    TEST_ASSERT_EQUAL_UINT8(5U, batch.record_count);
+    TEST_ASSERT_FALSE(batch.more_pending);
+    TEST_ASSERT_EQUAL_UINT16(63U, batch.length);
+    TEST_ASSERT_EQUAL_HEX8(0x05U, batch.payload[0]);
+}
+
+/**
+ * @brief TC-PLAY-10: Defensive Parameter Clamping & NULL Guards.
+ */
+static void test_playback_parameter_guards(void) {
+    TEST_ASSERT_EQUAL(STATUS_ERROR_NULL_POINTER, flash_playback_build_next_batch(0U, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERROR_NULL_POINTER, flash_playback_get_status(NULL));
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_playback_init(NULL));
+}
+
+/* ========================================================================== */
 /* Main Unity Test Runner                                                     */
 /* ========================================================================== */
 
@@ -448,6 +652,16 @@ int main(void) {
     RUN_TEST(test_ring_corrupted_slot_recovery);
     RUN_TEST(test_ring_clear_resets_all);
     RUN_TEST(test_ring_parameter_guards);
+
+    /* Category C: Historical Playback & LoRaWAN Reconnect Tests */
+    RUN_TEST(test_playback_trigger_empty_buffer);
+    RUN_TEST(test_playback_batch_sizing_dr5_and_dr0);
+    RUN_TEST(test_playback_confirmed_ack_tail_advance);
+    RUN_TEST(test_playback_nack_retry_and_abort);
+    RUN_TEST(test_playback_preempt_and_resume);
+    RUN_TEST(test_playback_72hour_backlog_drain);
+    RUN_TEST(test_playback_last_batch_tail_clamping);
+    RUN_TEST(test_playback_parameter_guards);
 
     return UNITY_END();
 }

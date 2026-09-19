@@ -1,16 +1,37 @@
-# Current Feature
+# Current Feature: LoRaWAN Reconnect Historical Playback & Re-transmission Queue Manager (S5-T3.3)
 
 ## Status
 
-Not Started
+Complete
 
 ## Goals
 
-<!-- Add measurable criteria and deliverables for the feature -->
+- Implement LoRaWAN FPort 3 batch protocol constants and configuration in `firmware/middleware/inc/flash_playback.h`: `FLASH_PLAYBACK_FPORT 3U`, `FLASH_PLAYBACK_MAX_RECORDS_PER_BATCH 16U`, `FLASH_PLAYBACK_HEADER_SIZE 3U`, `FLASH_PLAYBACK_MAX_FRAME_SIZE 195U`, `FLASH_PLAYBACK_MAX_RETRIES 3U`, control flags (`0x80` More Pending, `0x0F` Record Count K).
+- Define state machine enumeration `flash_playback_state_t`: `IDLE`, `ARMED`, `FETCH_BATCH`, `WAIT_ACK`, `ACKNOWLEDGED`, `NACK_RETRY`, `DUTY_WAIT`, `PREEMPTED`, `COMPLETED`, `ABORTED`.
+- Define batch data structures: `flash_playback_batch_t`, `flash_playback_config_t`, and `flash_playback_status_t`.
+- Implement dynamic batch sizing algorithm `flash_playback_calc_max_k()` in `firmware/middleware/src/flash_playback.c`: dynamically scales $K \in [1, 16]$ based on active LoRaWAN Data Rate MTU (DR0..DR2: 4 records / 51B; DR3: 9 records / 111B; DR4..DR5: 16 records / 195B).
+- Implement non-blocking state machine APIs: `flash_playback_init()`, `flash_playback_trigger()`, `flash_playback_build_next_batch()`, `flash_playback_on_tx_result()`, and `flash_playback_process_step()`.
+- Implement priority preemption and resumption: `flash_playback_preempt()` and `flash_playback_resume()` to immediately yield RF radio to high-priority live acquisition (FPort 1) and urgent convective storm alerts (FPort 2).
+- Implement diagnostic accessors and session management: `flash_playback_get_status()` and `flash_playback_reset()`.
+- Ensure zero data loss: in-place Flash record invalidation (`flash_ring_mark_transmitted(K)`) only executes upon confirmed transmission ACK (`on_tx_result(true)`). Records remain preserved across NACK retries.
+- Implement Category C unit test suite in `tests/unit/test_flash_storage.c` covering TC-PLAY-01 through TC-PLAY-10 (or TC-PLAY-01 through TC-PLAY-06 per test matrix).
+- Ensure strict C99 compliance (`-Wall -Wextra -Werror`), zero dynamic memory allocation (`malloc`/`free` prohibited), and defensive status code propagation (`status_t`).
 
 ## Notes
 
-<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
+- **Hardware & Protocol Constraints**:
+  - MCU: STM32WLE5CCU6 (256 KB Flash, 64 KB SRAM)
+  - LoRaWAN FPort 3: Dedicated Historical Telemetry Batch Port
+  - Regional Duty Cycle: 1% maximum Sub-GHz band limit ($T_{\text{off}} = 99 \times T_{\text{on}}$); 28.0s inter-batch gap enforced in `DUTY_WAIT`
+  - Max Frame Size: 195 bytes (3-byte header + $16 \times 12$-byte records)
+  - Outage Drain Capacity: 72 hours ($288\text{ records}$) drained in 18 batches ($< 8.5\text{ minutes}$) under DR5/SF7
+  - Zero heap allocation: All batch buffers statically allocated
+- **Discovered Module Dependencies (via Knowledge Graph)**:
+  - Target header: [`firmware/middleware/inc/flash_playback.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_playback.h)
+  - Target source: [`firmware/middleware/src/flash_playback.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/flash_playback.c)
+  - Ring buffer manager: [`firmware/middleware/inc/flash_storage.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_storage.h) (`flash_ring_peek()`, `flash_ring_mark_transmitted()`, `flash_ring_get_count()`)
+  - Status codes: [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h) (`STATUS_OK`, `STATUS_ERROR_EMPTY`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_NOT_INITIALIZED`)
+  - Downstream consumers: `S5-T3.4` (Flash Storage Test Suite), `S5-T4.3` (LoRaWAN Uplink Transmission Queue), `S6-T3.1` (Main App State Machine Integration)
 
 ## History
 
