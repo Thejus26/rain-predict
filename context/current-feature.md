@@ -1,16 +1,34 @@
-# Current Feature
+# Current Feature: S6-T2.3 Alert Manager Unit Test Suite
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be populated when a feature is loaded -->
+- Create host-executable unit test suite `tests/unit/test_alert_manager.c` using the ThrowTheSwitch Unity framework.
+- Implement 24 comprehensive test cases across 4 categories:
+  - Category A: Lifecycle & Configuration (TC-ALERT-01 through TC-ALERT-06).
+  - Category B: Visual LED Flash Timing & Waveforms (TC-ALERT-07 through TC-ALERT-12).
+  - Category C: Acoustic Buzzer Cadence & Estate Siren Actuation (TC-ALERT-13 through TC-ALERT-18).
+  - Category D: Deterministic Priority Resolution & Battery Throttling (TC-ALERT-19 through TC-ALERT-24).
+- Provide Layer 2 host mock indicator driver implementation (`bsp_indicators.h`) tracking pin states, timed durations, and call counts.
+- Validate non-blocking delta-stepping, 10s auto-cutoff duration clamping, 30-minute anti-chatter cooldown, nighttime quiet hours, and low-battery mutes.
+- Add `test_alert_manager` target to `tests/CMakeLists.txt` via `add_firmware_test(alert_manager)`.
 
 ## Notes
 
-<!-- Notes will be populated when a feature is loaded -->
+- Testing Framework: ThrowTheSwitch Unity (`unity.h`, `UNITY_BEGIN()`, `RUN_TEST()`, `UNITY_END()`).
+- Hardware Mocking:
+  - Statically allocated `mock_bsp_indicators_t` structure.
+  - Implements `bsp_indicators_init`, `bsp_led_set`, `bsp_led_toggle`, `bsp_buzzer_set`, `bsp_relay_set`, `bsp_relay_trigger_timed`, `bsp_indicators_all_off`.
+- Coverage Target: 100% statement, branch, and conditional coverage of `alert_manager.h` and `alert_manager.c`.
+- Discovered Module Dependencies:
+  - `firmware/app/inc/alert_manager.h`: Primary module under test.
+  - `firmware/drivers/inc/bsp_indicators.h`: Layer 2 actuator driver interface to mock.
+  - `firmware/app/inc/rain_algo.h`: Rain alert state definitions.
+  - `firmware/app/inc/measurement_scheduler.h`: Battery preservation tiers.
+  - `firmware/core/inc/status.h`: System status codes.
 
 ## History
 
