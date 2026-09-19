@@ -1,16 +1,39 @@
-# Current Feature
+# Current Feature: LoRaWAN Multi-Tier Priority Transmission Queue Manager (S5-T4.3)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add measurable criteria and deliverables for the feature -->
+- Implement static multi-tier priority transmission queue manager in `firmware/middleware/inc/lorawan_tx_queue.h` and `firmware/middleware/src/lorawan_tx_queue.c`.
+- Support 4 priority tiers: Tier 0 Urgent Alerts (`TX_PRIORITY_URGENT`, FPort 2, confirmed), Tier 1 Periodic Telemetry (`TX_PRIORITY_PERIODIC`, FPort 1, unconfirmed), Tier 2 Historical Playback (`TX_PRIORITY_PLAYBACK`, FPort 3), and Tier 3 MAC/Config Responses (`TX_PRIORITY_MAC_RESP`, FPort 10).
+- Implement head-of-line extraction and preemption policy ensuring urgent convective storm alerts jump to head-of-line and suspend lower-priority historical playback.
+- Implement routine periodic telemetry deduplication in Tier 1 to retain only the freshest environmental sample and prevent buffer flooding during radio busy/outage states.
+- Integrate regional Sub-GHz regulatory duty-cycle gating (`lorawan_regional_get_off_time_ms`) with emergency bypass for Tier 0 alerts.
+- Provide non-blocking dispatch step (`lorawan_tx_queue_process_step`), transmission completion handler (`lorawan_tx_queue_on_tx_complete`) with confirmed NACK retry tracking, and asynchronous completion callbacks (`lorawan_tx_completion_cb_t`).
+- Implement comprehensive 10-point ThrowTheSwitch Unity unit test suite in `tests/unit/test_lorawan_tx_queue.c` covering TC-QUE-01 through TC-QUE-10.
+- Maintain 100% C99 / MISRA compliance with zero heap allocation (`malloc`/`free` prohibited).
 
 ## Notes
 
-<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
+- **Target Platform**: STMicroelectronics STM32WLE5 Sub-GHz SoC (Cortex-M4 @ 48 MHz).
+- **Memory Limits & Allocation**:
+  - Fixed capacity queue: `LORAWAN_TX_QUEUE_CAPACITY = 8U`.
+  - Max payload per slot: `LORAWAN_TX_QUEUE_MAX_PAYLOAD_SIZE = LORAWAN_MAX_PAYLOAD_SIZE` (up to 242 bytes).
+  - Pure static allocation (`s_queue_slots`); zero dynamic heap usage (`malloc`/`free` prohibited).
+- **Timing & Latency Requirements**:
+  - Tier 0 Urgent Alert: < 100 ms dispatch latency, confirmed mode.
+  - Tier 1 Periodic Telemetry: < 5.0 s dispatch latency, unconfirmed mode.
+  - Tier 2 Playback: best-effort, throttled by 1% regional duty cycle.
+  - Confirmed uplink retry handling up to `LORAWAN_DEFAULT_MAX_RETRIES` (3 retries).
+- **Discovered Module Dependencies**:
+  - `firmware/core/inc/status.h`: System status definitions (`status_t`, `STATUS_OK`, `STATUS_ERROR_IDLE`, `STATUS_ERROR_BUSY`, `STATUS_ERROR_OUT_OF_BOUNDS`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_NOT_INITIALIZED`).
+  - `firmware/middleware/inc/lorawan_service.h`: Radio stack interfaces (`lorawan_send_unconfirmed`, `lorawan_send_confirmed`, constants `LORAWAN_MAX_PAYLOAD_SIZE`, `LORAWAN_DEFAULT_MAX_RETRIES`, `LORAWAN_FPORT_PERIODIC`, `LORAWAN_FPORT_ALERT`, `LORAWAN_FPORT_PLAYBACK`, `LORAWAN_FPORT_MAC_COMMAND`).
+  - `firmware/middleware/inc/lorawan_regional.h`: Sub-band duty cycle querying (`lorawan_regional_get_off_time_ms`).
+  - `firmware/middleware/inc/flash_playback.h`: Flash backlog recovery integration and preemption signaling (`flash_playback_preempt`).
+  - Upstream Producers: `alert_manager.c` (Tier 0), `measurement_scheduler.c` (Tier 1), `flash_playback.c` (Tier 2).
+- **Spec Reference**: `context/specs/s5-t4.3-lorawan-tx-queue.md`
 
 ## History
 
