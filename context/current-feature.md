@@ -1,58 +1,16 @@
-# Current Feature: S6-T1.2 — Battery Preservation Throttling & Low-Power Interval Extension
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Add `battery_throttle_tier_t` enum (`BATTERY_TIER_NORMAL`, `BATTERY_TIER_CONSERVATION`, `BATTERY_TIER_CRITICAL`) to `measurement_scheduler.h`
-- Add `SCHEDULER_MODE_CONSERVATION` (30-min) and `SCHEDULER_MODE_CRITICAL` (60-min) entries to `scheduler_mode_t`
-- Add battery voltage threshold macros: `SCHEDULER_VBAT_CONSERVE_ENTER_V` (3.10 V), `SCHEDULER_VBAT_CONSERVE_RECOVER_V` (3.20 V), `SCHEDULER_VBAT_CRITICAL_ENTER_V` (2.90 V), `SCHEDULER_VBAT_CRITICAL_RECOVER_V` (3.00 V)
-- Add conservation and critical interval constants: `SCHEDULER_INTERVAL_CONSERVE_SEC` (1800 s) and `SCHEDULER_INTERVAL_CRITICAL_SEC` (3600 s)
-- Extend `scheduler_config_t` with `conserve_interval_sec`, `critical_interval_sec`, and 4 Vbat threshold floats
-- Extend `scheduler_decision_t` with `battery_tier`, `actuation_allowed`, `aux_buses_allowed`, and `max_tx_power_dbm` fields
-- Extend `scheduler_status_t` with `battery_tier`, `last_vbat_volts`, `actuation_allowed`, `aux_buses_allowed`, `max_tx_power_dbm`, and `total_wakeups_throttled`
-- Implement `measurement_scheduler_set_battery_voltage(float vbat_volts)` with 3-tier hysteresis state machine and 2-consecutive-reading recovery filter
-- Implement `measurement_scheduler_is_actuation_allowed()` — buzzer/siren only in Tier 1
-- Implement `measurement_scheduler_is_aux_sensor_allowed()` — Modbus/SDI-12 off in Tier 3
-- Implement `measurement_scheduler_get_max_tx_power()` — +22 dBm in Tiers 1 & 2, +14 dBm in Tier 3
-- Modify `measurement_scheduler_evaluate()` to enforce battery tier interval clamping (Critical overrides all to 60 min; Conservation baseline 30 min with rain capped at 5 min)
-- Modify `measurement_scheduler_init()` and `measurement_scheduler_reset()` to initialize new battery state variables
-- Modify `measurement_scheduler_get_status()` to populate new diagnostic fields
-- Validate voltage input bounds [1.0 V, 5.0 V] in `set_battery_voltage()`, reject with `STATUS_ERROR_INVALID_PARAM`
-- Pass all 10 verification test cases from spec (TC-BAT-01 through TC-BAT-10)
+<!-- Goals will be populated when a feature is loaded -->
 
 ## Notes
 
-### Target Files
-- `firmware/app/inc/measurement_scheduler.h` — extend enums, structs, add new function prototypes
-- `firmware/app/src/measurement_scheduler.c` — implement battery tier state machine and peripheral gating
-
-### Dependencies (Upstream)
-- **S6-T1.1** (Measurement Scheduler Core) — already implemented; this task extends it
-- **S3-T4.4** (`bsp_adc.h` / `bsp_adc.c`) — Battery ADC driver provides `bsp_adc_read_battery_voltage()` as Vbat input source
-- **S1-T1.1** (`status.h`) — `STATUS_OK`, `STATUS_ERROR_INVALID_PARAM`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_NOT_INITIALIZED`, `STATUS_ERROR_OUT_OF_BOUNDS`
-
-### Downstream Consumers
-- **S6-T2.1** (Alert Manager) — queries `measurement_scheduler_is_actuation_allowed()` to gate siren/buzzer
-- **S6-T3.1** (App State Machine) — queries battery tier to adjust lifecycle transitions
-- **S7-T2.3** (14-Day Zero-Sunlight Test) — validates Tier 3 survival autonomy
-
-### Hardware Constraints
-- LiFePO4 flat discharge plateau: 3.30 V → 3.20 V (80% → 20% SoC)
-- Discharge knee begins at 3.10 V (~15% SoC), steep drop below 2.90 V (~5% SoC)
-- STM32WLE5 brownout reset threshold (V_BOR0) = 2.55 V
-- LoRa HP PA (+22 dBm) peak current: 110 mA; LP PA (+14 dBm): 45 mA
-- Piezo buzzer: 35 mA; Siren relay coil: 60 mA; RS-485 transceiver: 40 mA
-- 100 mV hysteresis gaps prevent oscillation under fluctuating solar conditions
-
-### Existing Module State (from S6-T1.1)
-- Header includes `status.h` (aliased from `status_codes.h` in spec) and `rain_algo.h`
-- `scheduler_mode_t` currently has: NOMINAL, STORM_WATCH, ACTIVE_RAIN, OVERRIDE
-- `scheduler_decision_t` currently has: active_mode, target_interval_sec, computed_sleep_sec, mode_changed, hold_down_remaining_sec
-- `scheduler_config_t` currently has: nominal/storm/rain intervals, hold_down, CPI thresholds, pressure_drop
-- Static state: s_current_mode, s_hold_down_timer_sec, s_rain_calm_timer_sec, s_override_interval_sec, s_is_override_active, s_last_sleep_duration_sec, s_total_wakeups_nominal/storm/rain, s_is_initialized
+<!-- Notes will be populated when a feature is loaded -->
 
 ## History
 
@@ -80,3 +38,4 @@ In Progress
 - 2026-09-16: S5-T3.1 through S5-T3.4 — On-chip Flash circular ring-buffer logging & playback.
 - 2026-09-19: S5-T4.1 through S5-T4.4 — LoRaWAN Class A stack, regional ADR, and TX priority queue. Completed Sprint 5.
 - 2026-09-19: S6-T1.1 — Implemented Adaptive Measurement Scheduler core (15-min/5-min/2-min autonomous multi-rate state machine with 30-minute anti-chatter hysteresis, active-time RTC sleep compensation, and remote downlink override).
+- 2026-09-19: S6-T1.2 — Implemented Battery Preservation Throttling (3-tier battery preservation engine with 30-min Conservation and 60-min Critical interval extension, 100 mV anti-oscillation hysteresis with 2-consecutive reading recovery filter, peripheral actuation gating muting buzzer/siren, Modbus/SDI-12 bus isolation, and LoRa RF power capping to +14 dBm in Critical tier).
