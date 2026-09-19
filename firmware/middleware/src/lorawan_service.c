@@ -8,7 +8,7 @@
 #include "board_config.h"
 #include <string.h>
 
-#if defined(STM32WLE5xx) || defined(TARGET_MCU)
+#if defined(HAVE_STM32WLXX_HAL)
 #include "stm32wlxx_hal.h"
 #endif
 
@@ -39,8 +39,8 @@ static bool                  s_tx_confirmed = false;
 static uint8_t               s_tx_retry_count = 0U;
 static bool                  s_last_ack_received = false;
 
-/* Mock simulation variables for host test harness */
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+/* Mock simulation variables for host test harness & builds without vendor HAL */
+#if !defined(HAVE_STM32WLXX_HAL)
 static bool s_mock_join_accept_pending = false;
 static bool s_mock_ack_pending = false;
 #endif
@@ -57,9 +57,11 @@ static void lorawan_derive_factory_deveui(uint8_t *eui) {
         return;
     }
 
-#if defined(STM32WLE5xx) || defined(TARGET_MCU)
-    uint32_t uid0 = HAL_GetUIDw0();
-    uint32_t uid1 = HAL_GetUIDw1();
+#if defined(HAVE_STM32WLXX_HAL)
+    /* Read hardware 96-bit Unique Device ID registers (UID64 / UID_BASE @ 0x1FFF7590) */
+    const volatile uint32_t *p_uid = (const volatile uint32_t *)0x1FFF7590U;
+    uint32_t uid0 = p_uid[0];
+    uint32_t uid1 = p_uid[1];
     eui[0] = (uint8_t)(uid0 >> 24);
     eui[1] = (uint8_t)(uid0 >> 16);
     eui[2] = (uint8_t)(uid0 >> 8);
@@ -69,7 +71,7 @@ static void lorawan_derive_factory_deveui(uint8_t *eui) {
     eui[6] = (uint8_t)(uid1 >> 8);
     eui[7] = (uint8_t)(uid1);
 #else
-    /* Mock DevEUI for host unit testing */
+    /* Mock DevEUI for host unit testing & simulation without vendor HAL */
     const uint8_t mock_eui[8] = { 0x70U, 0xB3U, 0xD5U, 0x7EU, 0xD0U, 0x04U, 0x12U, 0x34U };
     (void)memcpy(eui, mock_eui, sizeof(mock_eui));
 #endif
@@ -82,32 +84,24 @@ static void lorawan_derive_factory_deveui(uint8_t *eui) {
 status_t lorawan_set_rf_switch(lorawan_rf_mode_t mode) {
     s_rf_mode = mode;
 
-#if defined(STM32WLE5xx) || defined(TARGET_MCU)
+    board_rf_mode_t bsp_mode;
     switch (mode) {
         case LORAWAN_RF_MODE_RX:
-            HAL_GPIO_WritePin(PIN_FE_CTRL1_PORT, PIN_FE_CTRL1_PIN, GPIO_PIN_SET);   /* FE_CTRL1 = HIGH */
-            HAL_GPIO_WritePin(PIN_FE_CTRL2_PORT, PIN_FE_CTRL2_PIN, GPIO_PIN_RESET); /* FE_CTRL2 = LOW  */
-            HAL_GPIO_WritePin(PIN_FE_CTRL3_PORT, PIN_FE_CTRL3_PIN, GPIO_PIN_RESET); /* FE_CTRL3 = LOW  */
+            bsp_mode = RF_SWITCH_RX;
             break;
         case LORAWAN_RF_MODE_TX_HP:
-            HAL_GPIO_WritePin(PIN_FE_CTRL1_PORT, PIN_FE_CTRL1_PIN, GPIO_PIN_RESET); /* FE_CTRL1 = LOW  */
-            HAL_GPIO_WritePin(PIN_FE_CTRL2_PORT, PIN_FE_CTRL2_PIN, GPIO_PIN_SET);   /* FE_CTRL2 = HIGH */
-            HAL_GPIO_WritePin(PIN_FE_CTRL3_PORT, PIN_FE_CTRL3_PIN, GPIO_PIN_RESET); /* FE_CTRL3 = LOW  */
+            bsp_mode = RF_SWITCH_TX_HP;
             break;
         case LORAWAN_RF_MODE_TX_LP:
-            HAL_GPIO_WritePin(PIN_FE_CTRL1_PORT, PIN_FE_CTRL1_PIN, GPIO_PIN_RESET); /* FE_CTRL1 = LOW  */
-            HAL_GPIO_WritePin(PIN_FE_CTRL2_PORT, PIN_FE_CTRL2_PIN, GPIO_PIN_RESET); /* FE_CTRL2 = LOW  */
-            HAL_GPIO_WritePin(PIN_FE_CTRL3_PORT, PIN_FE_CTRL3_PIN, GPIO_PIN_SET);   /* FE_CTRL3 = HIGH */
+            bsp_mode = RF_SWITCH_TX_LP;
             break;
         case LORAWAN_RF_MODE_SHUTDOWN:
         default:
-            HAL_GPIO_WritePin(PIN_FE_CTRL1_PORT, PIN_FE_CTRL1_PIN, GPIO_PIN_RESET);
-            HAL_GPIO_WritePin(PIN_FE_CTRL2_PORT, PIN_FE_CTRL2_PIN, GPIO_PIN_RESET);
-            HAL_GPIO_WritePin(PIN_FE_CTRL3_PORT, PIN_FE_CTRL3_PIN, GPIO_PIN_RESET);
+            bsp_mode = RF_SWITCH_SHUTDOWN;
             break;
     }
-#endif
 
+    board_rf_switch_set(bsp_mode);
     return STATUS_OK;
 }
 
@@ -141,7 +135,7 @@ status_t lorawan_service_init(const lorawan_credentials_t *credentials) {
     s_tx_retry_count    = 0U;
     s_last_ack_received = false;
 
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
     s_mock_join_accept_pending = false;
     s_mock_ack_pending         = false;
 #endif
@@ -171,7 +165,7 @@ status_t lorawan_join_otaa(void) {
     s_status.state = LORAWAN_STATE_JOINING;
     (void)lorawan_set_rf_switch(LORAWAN_RF_MODE_TX_HP);
 
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
     /* Host simulation: arm automatic join accept */
     s_mock_join_accept_pending = true;
 #endif
@@ -236,7 +230,7 @@ status_t lorawan_send_confirmed(uint8_t fport, const uint8_t *payload, uint8_t l
     s_status.state = LORAWAN_STATE_TX_UPLINK;
     (void)lorawan_set_rf_switch(LORAWAN_RF_MODE_TX_HP);
 
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
     s_mock_ack_pending = true;
 #endif
 
@@ -250,7 +244,7 @@ status_t lorawan_service_process_step(void) {
 
     switch (s_status.state) {
         case LORAWAN_STATE_JOINING:
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
             if (s_mock_join_accept_pending) {
                 s_status.is_joined         = true;
                 s_status.state             = LORAWAN_STATE_JOINED;
@@ -274,7 +268,7 @@ status_t lorawan_service_process_step(void) {
             break;
 
         case LORAWAN_STATE_WAIT_RX2:
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
             if (s_tx_confirmed && s_mock_ack_pending) {
                 s_mock_ack_pending  = false;
                 s_last_ack_received = true;
@@ -341,7 +335,7 @@ status_t lorawan_inject_downlink(const lorawan_rx_packet_t *packet) {
 
     if (packet->is_ack) {
         s_last_ack_received = true;
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
         s_mock_ack_pending = false;
 #endif
     }
@@ -370,7 +364,7 @@ status_t lorawan_reset(void) {
     s_tx_retry_count    = 0U;
     s_last_ack_received = false;
 
-#if !defined(STM32WLE5xx) && !defined(TARGET_MCU)
+#if !defined(HAVE_STM32WLXX_HAL)
     s_mock_join_accept_pending = false;
     s_mock_ack_pending         = false;
 #endif
