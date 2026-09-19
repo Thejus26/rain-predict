@@ -1,16 +1,62 @@
-# Current Feature
+# Current Feature: S5-T4.1 - STM32WL Sub-GHz LoRaWAN Network Service (lorawan_service)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Add measurable criteria and deliverables for the feature -->
+- [x] Implement `firmware/middleware/inc/lorawan_service.h` providing full API definitions, state machine enums (`lorawan_state_t`), RF modes (`lorawan_rf_mode_t`), credentials structure (`lorawan_credentials_t`), downlink packet structure (`lorawan_rx_packet_t`), and diagnostic status structure (`lorawan_status_t`).
+- [x] Implement `firmware/middleware/src/lorawan_service.c` providing:
+  - Stack initialization (`lorawan_service_init`) with factory DevEUI fallback (UID64) or custom OTAA credentials.
+  - Sub-GHz 3-way RF switch routing (`lorawan_set_rf_switch`) for `PC3`, `PC4`, and `PC5` (SHUTDOWN, RX, TX_HP +22dBm, TX_LP +14dBm).
+  - Over-The-Air Activation (`lorawan_join_otaa`) with simulated/hardware Join-Request and state transitions.
+  - Unconfirmed uplink transmission (`lorawan_send_unconfirmed`) on application ports (1..223) up to 242 bytes.
+  - Confirmed uplink transmission (`lorawan_send_confirmed`) requiring gateway ACK with retry tracking.
+  - Non-blocking state processing step (`lorawan_service_process_step`) managing TX -> WAIT_RX1 -> WAIT_RX2 -> JOINED transitions.
+  - Downlink packet reception callback registration (`lorawan_register_rx_callback`) and dispatching for FPort 10 / ACK flags.
+  - Stack reset (`lorawan_reset`) and diagnostic status query (`lorawan_get_status`).
+- [x] Ensure 100% MISRA C / C99 compliance and zero dynamic memory allocation (`malloc`/`free` strictly prohibited).
+- [x] Configure `firmware/middleware/CMakeLists.txt` to include `lorawan_service.c`.
+- [x] Implement comprehensive ThrowTheSwitch Unity test suite in `tests/unit/test_lorawan_service.c` covering the 10-point test matrix (TC-LORA-01 through TC-LORA-10):
+  - TC-LORA-01: Unjoined Initial State verification
+  - TC-LORA-02: OTAA Join-Request Transition & RF switch TX_HP setting
+  - TC-LORA-03: Join-Accept Processing & DevAddr / FCntUp initialization
+  - TC-LORA-04: Unconfirmed Uplink Transmission & state progression
+  - TC-LORA-05: RX1/RX2 Sequence & Frame Counter (`fcnt_up`) increment
+  - TC-LORA-06: Confirmed Uplink & ACK Reception handling
+  - TC-LORA-07: Unjoined Transmission Rejection (`STATUS_ERROR_NOT_INITIALIZED`)
+  - TC-LORA-08: Port and Payload Boundary Clamping (`STATUS_ERROR_OUT_OF_BOUNDS`)
+  - TC-LORA-09: Downlink Dispatch Callback execution with payload/RSSI/SNR
+  - TC-LORA-10: Stack Reset & Re-join Safeguards
+- [x] Register test suite in `tests/CMakeLists.txt`.
 
 ## Notes
 
-<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
+- **Target Microcontroller**: STMicroelectronics STM32WLE5CC (ARM Cortex-M4 @ 48 MHz).
+- **Sub-GHz Transceiver**: Monolithic Semtech SX126x-derivative radio via internal `SUBGHZSPI` / `SUBGHZ` peripheral.
+- **RF Power & Switch Truth Table**:
+  - `PC4` (`FE_CTRL1`), `PC5` (`FE_CTRL2`), `PC3` (`FE_CTRL3`):
+    - `RF_SHUTDOWN`: `PC4=0, PC5=0, PC3=0` (Radio asleep, leakage < 50 nA)
+    - `RF_RX`: `PC4=1, PC5=0, PC3=0` (ANT -> RFI)
+    - `RF_TX_HP`: `PC4=0, PC5=1, PC3=0` (RFO_HP -> ANT, up to +22 dBm)
+    - `RF_TX_LP`: `PC4=0, PC5=0, PC3=1` (RFO_LP -> ANT, up to +14 dBm)
+- **Clock Reference**: 32 MHz TCXO RF oscillator regulated via `SUBGHZ_TCXO_TRIM` (1.7V, 5ms stabilization delay).
+- **LoRaWAN Application Port Allocation**:
+  - `FPort 1`: Periodic environmental telemetry (12 bytes; `telemetry_codec`)
+  - `FPort 2`: Urgent convective storm alert (4 bytes; `alert_manager`)
+  - `FPort 3`: Flash historical backlog playback batches (`flash_playback`)
+  - `FPort 10`: Downlink remote configuration commands
+- **Security & Session Invariants**:
+  - OTAA root keys: DevEUI (8B), JoinEUI/AppEUI (8B), AppKey (16B AES-128).
+  - Session state: DevAddr (32-bit), NwkSKey (16B), AppSKey (16B), FCntUp (32-bit monotonic), FCntDown (32-bit monotonic).
+- **Discovered Codebase Dependencies** (via graphify knowledge graph):
+  - `firmware/core/inc/status.h`: System status codes (`STATUS_OK`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_OUT_OF_BOUNDS`, `STATUS_ERROR_BUSY`, `STATUS_ERROR_NOT_INITIALIZED`, `STATUS_ERROR_HARDWARE`).
+  - `firmware/core/inc/board_config.h`: GPIO pin allocations for RF switch control (`PC3`, `PC4`, `PC5`).
+  - `firmware/core/inc/system_clock.h`: 32 MHz TCXO RF clocking management.
+  - `firmware/middleware/inc/telemetry_codec.h`: Binary serialization schemas for FPort 1 and FPort 2.
+  - `firmware/middleware/inc/flash_playback.h`: Backlog queue transmission integration (FPort 3).
+- **Memory & Execution Constraints**: Zero dynamic memory allocation (`malloc`/`free` prohibited); static buffers bounded to `LORAWAN_MAX_PAYLOAD_SIZE` (242 bytes). Non-blocking state processing.
 
 ## History
 
