@@ -1,37 +1,16 @@
-# Current Feature: LoRaWAN Reconnect Historical Playback & Re-transmission Queue Manager (S5-T3.3)
+# Current Feature
 
 ## Status
 
-Complete
+Not Started
 
 ## Goals
 
-- Implement LoRaWAN FPort 3 batch protocol constants and configuration in `firmware/middleware/inc/flash_playback.h`: `FLASH_PLAYBACK_FPORT 3U`, `FLASH_PLAYBACK_MAX_RECORDS_PER_BATCH 16U`, `FLASH_PLAYBACK_HEADER_SIZE 3U`, `FLASH_PLAYBACK_MAX_FRAME_SIZE 195U`, `FLASH_PLAYBACK_MAX_RETRIES 3U`, control flags (`0x80` More Pending, `0x0F` Record Count K).
-- Define state machine enumeration `flash_playback_state_t`: `IDLE`, `ARMED`, `FETCH_BATCH`, `WAIT_ACK`, `ACKNOWLEDGED`, `NACK_RETRY`, `DUTY_WAIT`, `PREEMPTED`, `COMPLETED`, `ABORTED`.
-- Define batch data structures: `flash_playback_batch_t`, `flash_playback_config_t`, and `flash_playback_status_t`.
-- Implement dynamic batch sizing algorithm `flash_playback_calc_max_k()` in `firmware/middleware/src/flash_playback.c`: dynamically scales $K \in [1, 16]$ based on active LoRaWAN Data Rate MTU (DR0..DR2: 4 records / 51B; DR3: 9 records / 111B; DR4..DR5: 16 records / 195B).
-- Implement non-blocking state machine APIs: `flash_playback_init()`, `flash_playback_trigger()`, `flash_playback_build_next_batch()`, `flash_playback_on_tx_result()`, and `flash_playback_process_step()`.
-- Implement priority preemption and resumption: `flash_playback_preempt()` and `flash_playback_resume()` to immediately yield RF radio to high-priority live acquisition (FPort 1) and urgent convective storm alerts (FPort 2).
-- Implement diagnostic accessors and session management: `flash_playback_get_status()` and `flash_playback_reset()`.
-- Ensure zero data loss: in-place Flash record invalidation (`flash_ring_mark_transmitted(K)`) only executes upon confirmed transmission ACK (`on_tx_result(true)`). Records remain preserved across NACK retries.
-- Implement Category C unit test suite in `tests/unit/test_flash_storage.c` covering TC-PLAY-01 through TC-PLAY-10 (or TC-PLAY-01 through TC-PLAY-06 per test matrix).
-- Ensure strict C99 compliance (`-Wall -Wextra -Werror`), zero dynamic memory allocation (`malloc`/`free` prohibited), and defensive status code propagation (`status_t`).
+<!-- Add measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Hardware & Protocol Constraints**:
-  - MCU: STM32WLE5CCU6 (256 KB Flash, 64 KB SRAM)
-  - LoRaWAN FPort 3: Dedicated Historical Telemetry Batch Port
-  - Regional Duty Cycle: 1% maximum Sub-GHz band limit ($T_{\text{off}} = 99 \times T_{\text{on}}$); 28.0s inter-batch gap enforced in `DUTY_WAIT`
-  - Max Frame Size: 195 bytes (3-byte header + $16 \times 12$-byte records)
-  - Outage Drain Capacity: 72 hours ($288\text{ records}$) drained in 18 batches ($< 8.5\text{ minutes}$) under DR5/SF7
-  - Zero heap allocation: All batch buffers statically allocated
-- **Discovered Module Dependencies (via Knowledge Graph)**:
-  - Target header: [`firmware/middleware/inc/flash_playback.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_playback.h)
-  - Target source: [`firmware/middleware/src/flash_playback.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/flash_playback.c)
-  - Ring buffer manager: [`firmware/middleware/inc/flash_storage.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_storage.h) (`flash_ring_peek()`, `flash_ring_mark_transmitted()`, `flash_ring_get_count()`)
-  - Status codes: [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h) (`STATUS_OK`, `STATUS_ERROR_EMPTY`, `STATUS_ERROR_NULL_POINTER`, `STATUS_ERROR_NOT_INITIALIZED`)
-  - Downstream consumers: `S5-T3.4` (Flash Storage Test Suite), `S5-T4.3` (LoRaWAN Uplink Transmission Queue), `S6-T3.1` (Main App State Machine Integration)
+<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -119,4 +98,5 @@ Complete
 - 2026-09-15: S5-T2.3 - Implemented Automated JavaScript Gateway Decoder Test Suite (tools/decoders/test_decoders.js) covering 23 verification tests across FPort 1 periodic environmental telemetry (nominal daytime, sub-zero mountain frost with two's-complement temperature sign preservation, and active rain with diagnostic fault flags), FPort 2 urgent storm alert telemetry (severe storm warning, barometric plunge squall with signed pressure drop rate, and first rain tip pulse trigger), FPort 10 bidirectional downlink command encoding/decoding (sampling interval, station elevation, CPI alert thresholds, and reboot/rejoin system actions), defensive truncation/invalid-port error handling, ChirpStack v3 legacy API compatibility (Decode/Encode), zero external npm dependencies, Makefile decoders target, and CMake js_decoders CTest registration. Completed S5-T2.3 and Sprint Task S5-T2 (JavaScript Gateway Payload Decoders).
 - 2026-09-16: S5-T3.1 - Implemented STM32WLE5 Flash Page Erase, 64-Bit Double-Word Programming & Sector Partition Manager (firmware/middleware/inc/flash_storage.h, firmware/middleware/src/flash_storage.c, firmware/middleware/CMakeLists.txt, tests/unit/test_flash_storage.c, tests/CMakeLists.txt) covering dedicated NVM partition protection (Pages 120-127, 16 KB total), write-protection for application firmware (Pages 0-119), 2 KB page erase and full partition erase with 50 ms bounded timeout guards, 64-bit double-word programming with strict 8-byte alignment verification, arbitrary byte buffer programming with read-modify-write preservation of unaligned double-words, memory-mapped direct reads, erased-page validation, host RAM mock emulation with 1->0 physical bitwise AND transitions, target STM32CubeWL HAL peripheral integration, STATUS_ERROR_OUT_OF_BOUNDS status alias, and ThrowTheSwitch Unity unit test suite. Completed S5-T3.1.
 - 2026-09-19: S5-T3.2 - Implemented STM32WLE5 On-Chip Flash Wear-Leveling Circular Ring Buffer (firmware/middleware/inc/flash_storage.h, firmware/middleware/src/flash_storage.c, firmware/core/inc/status.h, tests/unit/test_flash_storage.c) covering dedicated 14 KB NVM partition (Pages 120-126, 896 record slots, Page 127 metadata isolation), 16-byte double-word aligned record layout, O(N) fast boot recovery scanner, two 64-bit dword writes per push, automatic page rollover erase, FIFO pop, non-destructive peek, in-place 0x0000 transmitted bit invalidation, and ThrowTheSwitch Unity unit test suite (TC-RING-01 through TC-RING-10). Completed S5-T3.2.
+- 2026-09-19: S5-T3.3 - Implemented LoRaWAN Reconnect Historical Playback & Re-transmission Queue Manager (firmware/middleware/inc/flash_playback.h, firmware/middleware/src/flash_playback.c, firmware/core/inc/status.h, tests/unit/test_flash_storage.c) covering LoRaWAN FPort 3 multi-record batch protocol (3B header + up to 16 records, 195B max payload), dynamic MTU batch sizing by Data Rate (DR0..DR2: 4 records / 51B, DR3: 9 records / 111B, DR4..DR5: 16 records / 195B), non-blocking state machine (ARMED, FETCH_BATCH, WAIT_ACK, ACKNOWLEDGED, NACK_RETRY, DUTY_WAIT, PREEMPTED, COMPLETED, ABORTED), priority preemption/resumption for live acquisition and storm alerts, confirmed ACK Flash tail advancement, 3-attempt NACK retry abort with zero data loss, 1% duty-cycle compliance (72h backlog drained in < 8.5 minutes @ DR5), and Category C ThrowTheSwitch Unity unit test suite (TC-PLAY-01 through TC-PLAY-10). Completed S5-T3.3.
 
