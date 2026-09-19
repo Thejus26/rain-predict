@@ -11,6 +11,7 @@ add_library(firmware_middleware STATIC
     src/telemetry_codec.c
     src/flash_storage.c
     src/flash_playback.c
+    src/lorawan_service.c
 )
 
 target_include_directories(firmware_middleware PUBLIC

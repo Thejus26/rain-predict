@@ -301,6 +301,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_flash_storage.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_lorawan_service.c")
+    add_firmware_test(lorawan_service
+        SOURCES unit/test_lorawan_service.c
+        LIBRARIES firmware_middleware firmware_core
+    )
+endif()
+
 # -----------------------------------------------------------------------------
 # 10. JavaScript Gateway Payload Decoder Tests
 # -----------------------------------------------------------------------------

@@ -50,6 +50,8 @@ typedef enum {
 #define STATUS_ERROR_OUT_OF_BOUNDS      STATUS_ERR_OUT_OF_RANGE
 #define STATUS_ERROR_EMPTY              STATUS_ERR_UNDERFLOW
 #define STATUS_ERROR_NOT_INITIALIZED    STATUS_ERR_NOT_INITIALIZED
+#define STATUS_ERROR_BUSY               STATUS_ERR_BUSY
+#define STATUS_ERROR_IDLE               STATUS_OK
 
 #ifdef __cplusplus
 }
