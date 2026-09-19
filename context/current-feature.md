@@ -1,42 +1,16 @@
-# Current Feature: S6-T2.2 Audible Buzzer Burst & Estate Siren Relay Trigger
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement audible piezo buzzer burst and estate siren relay actuation in `alert_manager.h` and `alert_manager.c`.
-- Implement 5-state buzzer pattern generator:
-  - `ALERT_BUZZER_PATTERN_OFF`: Silent / 0V (Normal weather, pre-sleep, or low-battery conservation/critical).
-  - `ALERT_BUZZER_PATTERN_SHORT_CHIRP`: Single 50ms chirp (Watch state entry or command ACK).
-  - `ALERT_BUZZER_PATTERN_DOUBLE_CHIRP`: Double chirp (100ms ON / 100ms OFF / 100ms ON, warning state entry).
-  - `ALERT_BUZZER_PATTERN_STORM_BURST`: Continuous 200ms ON / 200ms OFF toggle burst during active display window.
-  - `ALERT_BUZZER_PATTERN_FAULT_BEEP`: Periodic long tone (500ms ON / 1500ms OFF) for hardware sensor faults.
-- Implement estate siren relay trigger (`alert_manager_trigger_siren(duration_ms)`) with:
-  - Strict 10-second maximum hardware/software auto-cutoff (`ALERT_SIREN_MAX_DURATION_MS = 10000ms`).
-  - 30-minute anti-chatter cooldown hysteresis window (`ALERT_SIREN_COOLDOWN_SEC = 1800s`) preventing repeated blasts during sustained storms.
-  - Nighttime quiet hours enforcement (configurable window e.g., 20:00 to 06:00 via `rtc_hour_0_to_23`) suppressing external sirens while maintaining visual strobe.
-- Implement battery preservation throttling interlocks: strictly mute buzzer and siren when `battery_tier` is Conservation (Tier 2) or Critical (Tier 3).
-- Provide manual buzzer override (`alert_manager_set_buzzer_pattern()`), siren status inspection (`alert_manager_is_siren_active()`, `alert_manager_get_siren_cooldown_remaining_sec()`), and unified emergency cutoff (`alert_manager_force_all_off()`).
-- Update diagnostic status telemetry (`alert_manager_status_t`) to report real-time buzzer and siren states, pulse counters, and cooldown timers.
+<!-- Goals will be populated when a feature is loaded -->
 
 ## Notes
 
-- Hardware Constraints:
-  - On-board 90 dB @ 10cm piezo sounder on `PB2` (`PIN_BUZZER_PIN`), driven via N-MOSFET gate (2N7002).
-  - External estate siren SPDT relay on `PB4` (`PIN_RELAY_PIN`), driven via PC817 optocoupler.
-  - Siren coil draws ~60 mA from board and switches external 12V/24V high-power horns (2-5A external draw).
-- Power & Safety Constraints:
-  - Maximum siren pulse strictly clamped to 10,000 ms (10.0 s).
-  - Anti-chatter cooldown window: 1800 s (30 min).
-  - Strictly muted if Vbat < 3.10 V (`BATTERY_TIER_CONSERVATION` or `BATTERY_TIER_CRITICAL`).
-  - Zero busy-waits, non-blocking tick stepping, zero dynamic heap allocations.
-- Discovered Module Dependencies:
-  - `firmware/drivers/inc/bsp_indicators.h`: Low-level control (`bsp_buzzer_set`, `bsp_relay_set`, `bsp_relay_trigger_timed`, `bsp_indicators_all_off`).
-  - `firmware/app/inc/rain_algo.h`: Rain alert states (`rain_alert_state_t`).
-  - `firmware/app/inc/measurement_scheduler.h`: Battery preservation tiers (`battery_throttle_tier_t`).
-  - `firmware/core/inc/status.h`: System return codes (`STATUS_OK`, `STATUS_ERR_BUSY`, `STATUS_ERR_INVALID_PARAM`).
+<!-- Notes will be populated when a feature is loaded -->
 
 ## History
 
@@ -66,3 +40,4 @@ In Progress
 - 2026-09-19: S6-T1.1 — Implemented Adaptive Measurement Scheduler core (15-min/5-min/2-min autonomous multi-rate state machine with 30-minute anti-chatter hysteresis, active-time RTC sleep compensation, and remote downlink override).
 - 2026-09-19: S6-T1.2 — Implemented Battery Preservation Throttling (3-tier battery preservation engine with 30-min Conservation and 60-min Critical interval extension, 100 mV anti-oscillation hysteresis with 2-consecutive reading recovery filter, peripheral actuation gating muting buzzer/siren, Modbus/SDI-12 bus isolation, and LoRa RF power capping to +14 dBm in Critical tier).
 - 2026-09-19: S6-T2.1 — Implemented Status LED Flash Patterns & Visual Alert Engine (8-state optical matrix including 5% Green healthy pulse, 50% Amber watch blink, 50% Red warning blink, 10 Hz Red rapid strobe, Red double-flash for active rain, and alternating Green/Red fault beacon; non-blocking millisecond tick animation; strict priority cascade with battery preservation throttling down to 8 uA in Tier 2 and 0 uA shutdown in Tier 3/sleep).
+- 2026-09-19: S6-T2.2 — Implemented Audible Buzzer Burst & Estate Siren Relay Trigger (5-state acoustic cadence including single watch chirp, double warning chirp, 200ms storm burst, and periodic fault tone; 10s auto-cutoff relay pulse; 30-minute anti-chatter cooldown hysteresis; nighttime quiet hours muting; battery preservation interlocks muting buzzers/siren in Conservation and Critical tiers).
