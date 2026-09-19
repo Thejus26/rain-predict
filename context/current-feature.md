@@ -1,70 +1,16 @@
-# Current Feature: S5-T3.4 - Flash Storage & Playback Queue Unit Test Suite
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement and verify host-executable ThrowTheSwitch Unity test suite in `tests/unit/test_flash_storage.c` covering the complete STM32WLE5 Flash NVM subsystem (low-level HAL driver, wear-leveling circular ring buffer, and LoRaWAN reconnect historical playback manager).
-- Implement Category A: Low-Level Flash HAL Driver Tests (TC-FLASH-01 through TC-FLASH-08):
-  - `test_flash_page_erase_and_check`: 2 KB physical page erase (all bits to `0xFF`) and `flash_storage_is_page_erased()`.
-  - `test_flash_write_dword_success`: 64-bit double-word programming and byte readback verification.
-  - `test_flash_bitwise_and_programming`: Physical $1 \rightarrow 0$ bit transition validation without erasing.
-  - `test_flash_out_of_bounds_guards`: Partition bounds validation (rejecting Pages < 120 and > 127, addresses outside `0x0803C000` - `0x0803FFFF`).
-  - `test_flash_unaligned_write_rejection`: Enforce 64-bit double-word address alignment ($addr \pmod 8 == 0$).
-  - `test_flash_write_bytes_arbitrary_length`: Arbitrary-length byte buffer writes across double-word boundaries with readback checks.
-  - `test_flash_erase_all_nvm_pages`: Bulk erase of all 8 NVM partition pages (120–127).
-  - `test_flash_null_pointer_guards`: Defensive validation for NULL buffer pointers and zero-length writes.
-- Implement Category B: Circular Ring Buffer & Wear-Leveling Tests (TC-RING-01 through TC-RING-10):
-  - `test_ring_fresh_init`: State verification on clean partition (`valid_count == 0`, `head == 0`, `tail == 0`, `is_empty == true`).
-  - `test_ring_single_push`: Push single record and verify count and head advancement.
-  - `test_ring_peek_and_pop_fifo`: Non-destructive `peek()` and FIFO `pop()` sequence ordering.
-  - `test_ring_mark_transmitted`: In-place invalidation transition (`0xAA55` Valid $\rightarrow$ `0x0000` Transmitted) and tail advancement.
-  - `test_ring_page_boundary_rollover`: Boundary crossing from Page 120 to Page 121 (slot 128) with automatic page pre-erase.
-  - `test_ring_full_capacity_overwrite`: 896-record full capacity wrap-around with oldest record drop and tail advancement.
-  - `test_ring_power_loss_recovery`: Fast $O(N)$ boot recovery reconstruction of head, tail, valid count, and next sequence ID.
-  - `test_ring_corrupted_slot_recovery`: Detection and skipping of corrupted magic status (`0x5A5A`) maintaining valid pointers.
-  - `test_ring_clear_resets_all`: Full ring buffer clear erasing all 7 data pages and resetting state.
-  - `test_ring_parameter_guards`: Defensive NULL pointer and out-of-bounds offset error handling.
-- Implement Category C: Historical Playback & LoRaWAN Reconnect Tests (TC-PLAY-01 through TC-PLAY-06):
-  - `test_playback_trigger_empty_buffer`: Guard against playback triggering when backlog is empty (`STATUS_ERROR_EMPTY`).
-  - `test_playback_batch_sizing_dr5_and_dr0`: Dynamic MTU batch sizing under DR5 (16 records / 195B) and DR0 (4 records / 51B).
-  - `test_playback_confirmed_ack_tail_advance`: Gateway confirmed ACK advancing Flash ring tail and updating sent/remaining counters.
-  - `test_playback_nack_retry_and_abort`: NACK retry tracking with abort after 3 consecutive failures preserving Flash records intact.
-  - `test_playback_preempt_and_resume`: High-priority live telemetry or storm alert preemption and non-destructive session resumption.
-  - `test_playback_72hour_backlog_drain`: Automated end-to-end drain of full 72-hour outage backlog (288 records across 18 batches).
-- Maintain 100% C99 and MISRA C compliance with zero dynamic memory allocation (`malloc`/`free` strictly prohibited).
+<!-- Add measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Target File**: `tests/unit/test_flash_storage.c`
-- **Module Dependencies** (discovered via `graphify` and architectural specification):
-  - `firmware/middleware/inc/flash_storage.h` / `firmware/middleware/src/flash_storage.c` (Low-Level Driver & Ring Buffer)
-  - `firmware/middleware/inc/flash_playback.h` / `firmware/middleware/src/flash_playback.c` (Historical Playback Manager)
-  - `firmware/middleware/inc/telemetry_codec.h` (LoRaWAN binary telemetry definitions)
-  - `firmware/core/inc/status.h` (Standard system status codes)
-  - `tests/unity/unity.h` (ThrowTheSwitch Unity test framework)
-- **Flash Memory Architecture & Hardware Constraints**:
-  - STM32WLE5CCU6 on-chip NOR Flash: 256 KB total organized in 128 pages of 2 KB (2,048 bytes) each.
-  - Dedicated NVM Partition: Pages 120–127 (`0x0803C000` to `0x0803FFFF`, 16 KB total).
-  - Data Ring Buffer Pages: Pages 120–126 (`0x0803C000` to `0x0803F7FF`, 14 KB, 896 record slots).
-  - Page 127 (`0x0803F800` to `0x0803FFFF`, 2 KB) reserved for configuration and metadata.
-  - Record Slot Size: 16 bytes (aligned to 64-bit double-word boundary; 2 dwords per record).
-  - Double-word Programming: 64-bit writes (`uint64_t`), address must be 8-byte aligned ($addr \pmod 8 == 0$).
-  - Physical Flash Bit Transition: NOR Flash bits can only transition $1 \rightarrow 0$ during programming. Transitioning $0 \rightarrow 1$ requires a page erase (all bytes reset to `0xFF`).
-  - Erase Page Time: 20–40 ms per page (guarded with 50 ms bounded timeout).
-- **LoRaWAN Playback Protocol Constraints**:
-  - LoRaWAN FPort: 3 (Dedicated Historical Playback Port).
-  - Frame Format: 3-byte header (`[flags_count][seq_hi][seq_lo]`) + $N \times 12\text{-byte}$ periodic telemetry payload.
-  - Regional MTU Clamping:
-    - DR0..DR2 (SF12..SF10): Max 51 bytes payload $\implies$ 4 records ($3 + 48 = 51\text{ bytes}$).
-    - DR3 (SF9): Max 115 bytes payload $\implies$ 9 records ($3 + 108 = 111\text{ bytes}$).
-    - DR4..DR5 (SF8..SF7): Max 222 bytes payload $\implies$ 16 records ($3 + 192 = 195\text{ bytes}$).
-  - Retry Policy: Max 3 consecutive NACKs before aborting session, retaining all untransmitted records in Flash.
-- **Test Harness Emulation Details**:
-  - Host desktop testing emulates target Flash via 16 KB static RAM buffer `s_mock_flash_nvm[]`.
-  - Emulation faithfully enforces 2 KB page erases (`0xFF`), double-word alignment, boundary checking, and bitwise AND programming logic.
+<!-- Add hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -153,4 +99,5 @@ In Progress
 - 2026-09-16: S5-T3.1 - Implemented STM32WLE5 Flash Page Erase, 64-Bit Double-Word Programming & Sector Partition Manager (firmware/middleware/inc/flash_storage.h, firmware/middleware/src/flash_storage.c, firmware/middleware/CMakeLists.txt, tests/unit/test_flash_storage.c, tests/CMakeLists.txt) covering dedicated NVM partition protection (Pages 120-127, 16 KB total), write-protection for application firmware (Pages 0-119), 2 KB page erase and full partition erase with 50 ms bounded timeout guards, 64-bit double-word programming with strict 8-byte alignment verification, arbitrary byte buffer programming with read-modify-write preservation of unaligned double-words, memory-mapped direct reads, erased-page validation, host RAM mock emulation with 1->0 physical bitwise AND transitions, target STM32CubeWL HAL peripheral integration, STATUS_ERROR_OUT_OF_BOUNDS status alias, and ThrowTheSwitch Unity unit test suite. Completed S5-T3.1.
 - 2026-09-19: S5-T3.2 - Implemented STM32WLE5 On-Chip Flash Wear-Leveling Circular Ring Buffer (firmware/middleware/inc/flash_storage.h, firmware/middleware/src/flash_storage.c, firmware/core/inc/status.h, tests/unit/test_flash_storage.c) covering dedicated 14 KB NVM partition (Pages 120-126, 896 record slots, Page 127 metadata isolation), 16-byte double-word aligned record layout, O(N) fast boot recovery scanner, two 64-bit dword writes per push, automatic page rollover erase, FIFO pop, non-destructive peek, in-place 0x0000 transmitted bit invalidation, and ThrowTheSwitch Unity unit test suite (TC-RING-01 through TC-RING-10). Completed S5-T3.2.
 - 2026-09-19: S5-T3.3 - Implemented LoRaWAN Reconnect Historical Playback & Re-transmission Queue Manager (firmware/middleware/inc/flash_playback.h, firmware/middleware/src/flash_playback.c, firmware/core/inc/status.h, tests/unit/test_flash_storage.c) covering LoRaWAN FPort 3 multi-record batch protocol (3B header + up to 16 records, 195B max payload), dynamic MTU batch sizing by Data Rate (DR0..DR2: 4 records / 51B, DR3: 9 records / 111B, DR4..DR5: 16 records / 195B), non-blocking state machine (ARMED, FETCH_BATCH, WAIT_ACK, ACKNOWLEDGED, NACK_RETRY, DUTY_WAIT, PREEMPTED, COMPLETED, ABORTED), priority preemption/resumption for live acquisition and storm alerts, confirmed ACK Flash tail advancement, 3-attempt NACK retry abort with zero data loss, 1% duty-cycle compliance (72h backlog drained in < 8.5 minutes @ DR5), and Category C ThrowTheSwitch Unity unit test suite (TC-PLAY-01 through TC-PLAY-10). Completed S5-T3.3.
+- 2026-09-19: S5-T3.4 - Implemented and verified comprehensive ThrowTheSwitch Unity Unit Test Suite for STM32WLE5 Flash Storage & LoRaWAN Playback Queue (tests/unit/test_flash_storage.c) covering 27 unit tests across Category A Flash HAL Driver (2 KB page erase, 64-bit double-word programming, physical 1->0 bitwise AND transitions and 0->1 blocking without erase, partition bounds [Pages 120-127], 8-byte alignment, arbitrary byte writes with read-modify-write preservation, bulk erase of all 8 pages, and NULL guards), Category B Wear-Leveling Circular Ring Buffer (clean init, single push, non-destructive peek, FIFO pop, in-place 0x0000 transmitted bit invalidation, page rollover auto-erase, 896-capacity wrap-around overwrite with oldest record drop, fast O(N) boot recovery, corrupted magic isolation, and clear reset), and Category C Reconnect Playback Manager (empty trigger guard, multi-rate dynamic MTU batch sizing [DR5: 16 records / 195B, DR3: 9 records / 111B, DR0: 4 records / 51B], confirmed ACK tail advance, NACK retry counter and 3-attempt abort policy, high-priority preemption/resumption, full 72-hour backlog drain loop [288 records across 18 batches], and NULL pointer safety). Completed S5-T3 (On-Chip Flash Circular Ring-Buffer Logging & Playback).
 
