@@ -56,7 +56,63 @@ extern "C" {
 #define FLASH_STORAGE_ERASED_DWORD          0xFFFFFFFFFFFFFFFFULL
 
 /* ========================================================================== */
-/* Function Prototypes                                                        */
+/* Circular Ring Buffer Geometry & Magic Headers                              */
+/* ========================================================================== */
+
+/** @brief Number of data pages dedicated to circular telemetry records (Pages 120..126) */
+#define FLASH_RING_DATA_PAGES               7U
+
+/** @brief Page index reserved for Station Configuration and Metadata Header (Page 127) */
+#define FLASH_RING_METADATA_PAGE            127U
+
+/** @brief Size of an individual offline telemetry record slot in bytes (2 double-words) */
+#define FLASH_RING_RECORD_SIZE              16U
+
+/** @brief Number of 16-byte records per 2 KB page (2048 / 16 = 128) */
+#define FLASH_RING_RECORDS_PER_PAGE         128U
+
+/** @brief Total record capacity across all 7 data pages (7 * 128 = 896 records) */
+#define FLASH_RING_TOTAL_CAPACITY           (FLASH_RING_DATA_PAGES * FLASH_RING_RECORDS_PER_PAGE)
+
+/** @brief 16-bit Magic Status: Unwritten / Erased slot */
+#define FLASH_RING_MAGIC_ERASED             0xFFFFU
+
+/** @brief 16-bit Magic Status: Valid pending telemetry record */
+#define FLASH_RING_MAGIC_VALID              0xAA55U
+
+/** @brief 16-bit Magic Status: Transmitted / Acknowledged record (invalidated in-place) */
+#define FLASH_RING_MAGIC_TRANSMITTED        0x0000U
+
+/** @brief Packed periodic telemetry payload length in bytes */
+#define FLASH_RING_TELEMETRY_PAYLOAD_SIZE   12U
+
+/* ========================================================================== */
+/* Type Definitions & Structures                                              */
+/* ========================================================================== */
+
+/**
+ * @brief  Structure representing a single 16-byte offline telemetry record.
+ */
+typedef struct {
+    uint16_t magic_status;                                /**< Slot status: 0xAA55 (Valid), 0x0000 (Transmitted), 0xFFFF (Erased) */
+    uint16_t sequence_id;                                 /**< Monotonically incrementing measurement sequence counter */
+    uint8_t  payload[FLASH_RING_TELEMETRY_PAYLOAD_SIZE]; /**< 12-byte packed binary telemetry frame */
+} flash_record_t;
+
+/**
+ * @brief  Live runtime status of the Flash wear-leveling ring buffer.
+ */
+typedef struct {
+    uint32_t head_index;        /**< Index of next slot to write (0..895) */
+    uint32_t tail_index;        /**< Index of oldest un-transmitted record (0..895) */
+    uint32_t valid_count;       /**< Total number of pending valid records (0..896) */
+    uint16_t next_seq_id;       /**< Next sequence ID to assign */
+    bool     is_full;           /**< True if buffer is at maximum capacity (896 records) */
+    bool     is_empty;          /**< True if buffer has zero pending valid records */
+} flash_ring_state_t;
+
+/* ========================================================================== */
+/* Low-Level Flash HAL Driver Prototypes (S5-T3.1)                             */
 /* ========================================================================== */
 
 /**
@@ -126,6 +182,106 @@ status_t flash_storage_read_bytes(uint32_t address, uint8_t *buffer, size_t leng
  * @return true if page is completely erased (all 0xFF), false otherwise.
  */
 bool flash_storage_is_page_erased(uint32_t page_num);
+
+/* ========================================================================== */
+/* Wear-Leveling Circular Ring Buffer Prototypes (S5-T3.2)                     */
+/* ========================================================================== */
+
+/**
+ * @brief  Initializes the Flash wear-leveling circular ring buffer.
+ * @details Performs a fast boot-time scan across Pages 120..126 to reconstruct head,
+ *          tail, record count, and sequence ID pointers without writing to Flash.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t flash_ring_init(void);
+
+/**
+ * @brief  Pushes a 12-byte packed telemetry payload into the Flash ring buffer.
+ * @details Constructs a 16-byte record (0xAA55 magic + sequence_id + payload) and
+ *          programs it using two 64-bit double-word writes. Automatically erases new
+ *          pages on boundary crossing. If buffer is full, overwrites oldest record.
+ * @param[in] payload Pointer to 12-byte packed telemetry buffer.
+ * @param[in] seq_id  Monotonic sequence counter for this record.
+ * @return STATUS_OK on success, STATUS_ERROR_NULL_POINTER if payload is NULL,
+ *         or hardware write error.
+ */
+status_t flash_ring_push(const uint8_t *payload, uint16_t seq_id);
+
+/**
+ * @brief  Pops (reads and invalidates) the oldest pending telemetry record.
+ * @details Reads the record at tail_index, marks its magic word as 0x0000 in Flash,
+ *          advances tail_index, and decrements valid_count.
+ * @param[out] out_record Pointer to destination flash_record_t structure.
+ * @return STATUS_OK on success, STATUS_ERROR_NULL_POINTER if out_record is NULL,
+ *         or STATUS_ERROR_EMPTY if no valid records exist.
+ */
+status_t flash_ring_pop(flash_record_t *out_record);
+
+/**
+ * @brief  Peeks at a pending record at a given offset from the tail without popping.
+ * @param[in]  offset_from_tail 0 for oldest record, 1 for second oldest, etc.
+ * @param[out] out_record       Pointer to destination flash_record_t structure.
+ * @return STATUS_OK on success, STATUS_ERROR_NULL_POINTER if out_record is NULL,
+ *         or STATUS_ERROR_OUT_OF_BOUNDS if offset >= valid_count.
+ */
+status_t flash_ring_peek(uint32_t offset_from_tail, flash_record_t *out_record);
+
+/**
+ * @brief  Marks a specified number of oldest valid records as transmitted (0x0000).
+ * @param[in] count Number of records to invalidate from the current tail.
+ * @return STATUS_OK on success, STATUS_ERROR_INVALID_PARAM if count == 0,
+ *         or STATUS_ERROR_OUT_OF_BOUNDS if count > valid_count.
+ */
+status_t flash_ring_mark_transmitted(uint32_t count);
+
+/**
+ * @brief  Returns the current number of valid pending offline records.
+ * @return Total un-transmitted records (0 to 896).
+ */
+uint32_t flash_ring_get_count(void);
+
+/**
+ * @brief  Returns the maximum record capacity of the ring buffer.
+ * @return Fixed capacity (896 records).
+ */
+uint32_t flash_ring_get_capacity(void);
+
+/**
+ * @brief  Checks whether the ring buffer is completely full.
+ * @return true if valid_count == 896, false otherwise.
+ */
+bool flash_ring_is_full(void);
+
+/**
+ * @brief  Checks whether the ring buffer has zero valid pending records.
+ * @return true if valid_count == 0, false otherwise.
+ */
+bool flash_ring_is_empty(void);
+
+/**
+ * @brief  Retrieves a copy of the live ring buffer state structure.
+ * @param[out] out_state Pointer to destination flash_ring_state_t structure.
+ * @return STATUS_OK on success, or STATUS_ERROR_NULL_POINTER.
+ */
+status_t flash_ring_get_state(flash_ring_state_t *out_state);
+
+/**
+ * @brief  Returns the current head slot index (0..895).
+ * @return Next slot index to write.
+ */
+uint32_t flash_ring_get_head_index(void);
+
+/**
+ * @brief  Returns the current tail slot index (0..895).
+ * @return Oldest un-transmitted record slot index.
+ */
+uint32_t flash_ring_get_tail_index(void);
+
+/**
+ * @brief  Erases all 7 data pages (Pages 120..126) and resets ring buffer state to empty.
+ * @return STATUS_OK on success, or error status code.
+ */
+status_t flash_ring_clear(void);
 
 #ifdef __cplusplus
 }
