@@ -49,6 +49,7 @@ static bool           s_initialized         = false;
 static bool           s_boot_watchdog_reset = false;
 static uint32_t       s_watchdog_kick_count = 0U;
 static uint32_t       s_state_entry_tick_ms = 0U;
+static bool           s_waking_from_sleep   = false;
 static bme280_dev_t   s_bme280_dev;
 static opt3001_dev_t  s_opt3001_dev;
 
@@ -105,6 +106,12 @@ static void app_history_push(const env_sample_t *p_sample) {
 /* ========================================================================== */
 
 static status_t app_exec_wake(void) {
+    /* Re-baseline state entry timestamp when waking from Stop 2 deep sleep */
+    if (s_waking_from_sleep) {
+        s_state_entry_tick_ms = power_mgr_get_tick_ms();
+        s_waking_from_sleep   = false;
+    }
+
     /* Checkpoint 1: WAKE */
     app_watchdog_checkpoint(STATE_WAKE);
 
@@ -399,6 +406,7 @@ static status_t app_exec_sleep(void) {
 
     /* 6. Enter Stop 2 deep sleep (< 3.0 uA) */
     (void)power_mgr_enter_stop2(s_app_ctx.configured_sleep_sec);
+    s_waking_from_sleep   = true;
     s_state_entry_tick_ms = power_mgr_get_tick_ms();
     return STATUS_OK;
 }
@@ -420,6 +428,7 @@ status_t app_state_machine_init(void) {
     /* 3. Initialize metrics */
     s_watchdog_kick_count = 0U;
     s_state_entry_tick_ms = power_mgr_get_tick_ms();
+    s_waking_from_sleep   = false;
 
     s_app_ctx.current_state  = STATE_WAKE;
     s_app_ctx.previous_state = STATE_SLEEP;
@@ -514,7 +523,8 @@ void app_state_machine_reset(void) {
     s_boot_watchdog_reset = false;
     s_watchdog_kick_count = 0U;
     s_state_entry_tick_ms = 0U;
-    s_initialized = false;
+    s_waking_from_sleep   = false;
+    s_initialized         = false;
 }
 
 uint32_t app_state_machine_get_watchdog_kick_count(void) {

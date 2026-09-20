@@ -56,6 +56,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-046`** | 2026-09-20 13:42:00 | [`de11b39`](https://github.com/Thejus26/rain-predict/commit/de11b395c3abb351f222b47cd9d8c76085add16c) | Application State Machine (Watchdog Anti-Masking) | **Watchdog Hang Recovery Stall Check Bypassed in STATE_WAKE**: Checkpoint stall guard unconditionally bypassed for `STATE_WAKE`, causing failure in `test_wdg_10_simulated_hang_recovery`. | [ERR-046 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-046-2026-09-20-watchdog-hang-recovery-stall-bypassed-in-state-wake.md) |
 | **`ERR-047`** | 2026-09-20 17:47:51 | [`7ec1947`](https://github.com/Thejus26/rain-predict/commit/7ec194791e679433e60c0da107944aacb3525b1e) | Strict C99 Compiler Diagnostics (-Werror, unknown type name) | **Unknown Type Name 'bme280_t' in test_state_machine.c**: Mock BME280 stubs used non-existent `bme280_t` instead of `bme280_dev_t`, triggering compiler failure under `-Werror`. | [ERR-047 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-047-2026-09-20-unknown-type-name-bme280-t-in-test-state-machine.md) |
 | **`ERR-048`** | 2026-09-20 18:00:09 | [`db6ccad`](https://github.com/Thejus26/rain-predict/commit/db6ccad213981109435209f188b795afe32d12b7) | Strict C99 Compiler Diagnostics (-Werror, unknown type name) | **Unknown Type Name 'lorawan_config_t' in test_state_machine.c**: Mock LoRaWAN stub used non-existent `lorawan_config_t` instead of `lorawan_credentials_t`, triggering compiler failure under `-Werror`. | [ERR-048 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-048-2026-09-20-unknown-type-name-lorawan-config-t-in-test-state-machine.md) |
+| **`ERR-049`** | 2026-09-20 18:13:38 | [`e61344d`](https://github.com/Thejus26/rain-predict/commit/e61344d9acd1b1326c56287fddd4e651f2d2f0fa) | Testing & Driver Simulation (State Machine / Watchdog) | **Watchdog Refresh Suppressed in 24-Hour Mission Test**: Inter-cycle tick jump triggered false stall detection, suppressing all 768 watchdog kicks. | [ERR-049 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-049-2026-09-20-watchdog-refresh-suppressed-in-continuous-24hr-mission.md) |
 
 ---
 
@@ -63,7 +64,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Testing Macros & Mock Architectural Collisions" : 18
+    "Testing Macros & Mock Architectural Collisions" : 19
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 19
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3

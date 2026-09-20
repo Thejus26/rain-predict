@@ -732,8 +732,8 @@ static void test_integration_exti_rain_wake_handling(void) {
  */
 static void test_integration_continuous_24hour_mission(void) {
     for (int cycle = 0; cycle < 96; cycle++) {
-        s_mock.current_tick_ms += 900000U; /* 15 min */
         TEST_ASSERT_EQUAL_INT(STATUS_OK, app_state_machine_run_cycle());
+        s_mock.current_tick_ms += 900000U; /* 15 min */
     }
 
     const app_context_t *ctx = app_state_machine_get_context();
