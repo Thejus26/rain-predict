@@ -419,8 +419,8 @@ static void test_sim_04_convective_cloudburst_detection(void) {
     for (uint32_t e = 0; e < s_rain_event_count; e++) {
         if (s_rain_events[e].phase_id == 1U) {
             phase1_storm_count++;
-            TEST_ASSERT_TRUE_MESSAGE(s_rain_events[e].is_hit, "Phase 1 storm must be detected by nowcaster");
-            TEST_ASSERT_TRUE_MESSAGE(s_rain_events[e].lead_time_min >= 60.0f, "Convective storm lead time must be >= 60 minutes");
+            TEST_ASSERT_TRUE(s_rain_events[e].is_hit);
+            TEST_ASSERT_TRUE(s_rain_events[e].lead_time_min >= 60.0f);
         }
     }
     TEST_ASSERT_EQUAL_UINT32(4U, phase1_storm_count);
