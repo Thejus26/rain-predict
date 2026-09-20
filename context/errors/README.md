@@ -60,6 +60,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-050`** | 2026-09-20 18:58:00 | [`413b76d`](https://github.com/Thejus26/rain-predict/commit/413b76dc74785fc8d002dfdce93ae38afc7e8855) | Strict C99 & Unity Framework Diagnostics | **Undeclared STATUS_ERR_I2C_BUS & Non-Existent TEST_ASSERT_NOT_EQUAL**: Host CI build failed under `-Werror` due to non-canonical status enum identifier and missing Unity macro in `test_fault_injection.c`. | [ERR-050 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-050-2026-09-20-undeclared-status-err-i2c-bus-and-implicit-test-assert-not-equal.md) |
 | **`ERR-051`** | 2026-09-20 19:25:00 | [`fcb86d7`](https://github.com/Thejus26/rain-predict/commit/fcb86d707897999c1f1b0c32fad7364824444c40) | Testing & System Integration (Fault Injection / State Machine) | **Telemetry Byte 11 Bitmask Discrepancies and Stale Battery Tier Siren Actuation Leak**: Misaligned bitmasks for sensor fault and reset in `test_fault_injection.c`, and stale battery tier during alert phase causing siren trigger. | [ERR-051 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-051-2026-09-20-fault-injection-telemetry-bitmasks-and-siren-suppression-failures.md) |
 | **`ERR-052`** | 2026-09-20 20:35:00 | [`62983d2`](https://github.com/Thejus26/rain-predict/commit/62983d215e4b2a0314e6617fe7173a626cec5319) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_simulation_validation.c**: All 12 unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-052 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-052-2026-09-20-missing-static-qualifiers-in-test-simulation-validation.md) |
+| **`ERR-053`** | 2026-09-20 20:48:00 | [`313a5cc`](https://github.com/Thejus26/rain-predict/commit/313a5cc363994d532c20f0914385d16e4729a8de) | Testing Macros & Mock Architectural Collisions | **Non-Existent TEST_ASSERT_TRUE_MESSAGE in test_simulation_validation.c**: Undeclared Unity assertion macro triggered -Werror=implicit-function-declaration during host CI build. | [ERR-053 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-053-2026-09-20-non-existent-test-assert-true-message-in-test-simulation-validation.md) |
 
 ---
 
@@ -67,7 +68,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Testing Macros & Mock Architectural Collisions" : 20
+    "Testing Macros & Mock Architectural Collisions" : 21
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 21
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
