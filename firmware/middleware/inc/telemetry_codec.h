@@ -89,13 +89,13 @@ extern "C" {
 /* ========================================================================== */
 
 /**
- * @brief Nowcast rain alert operational state classification.
+ * @brief Nowcast rain alert operational state classification for over-the-air telemetry.
  */
 typedef enum {
-    RAIN_ALERT_UNLIKELY    = 0U,    /**< 00: Rain unlikely (CPI < 30%) */
-    RAIN_ALERT_POSSIBLE    = 1U,    /**< 01: Rain possible (30% <= CPI < 60%) */
-    RAIN_ALERT_IMMINENT    = 2U,    /**< 10: Rain imminent (CPI >= 60%) */
-    RAIN_ALERT_ACTIVE_RAIN = 3U     /**< 11: Physical rainfall in progress */
+    TELEMETRY_RAIN_STATE_UNLIKELY    = 0U,    /**< 00: Rain unlikely (CPI < 30%) */
+    TELEMETRY_RAIN_STATE_POSSIBLE    = 1U,    /**< 01: Rain possible (30% <= CPI < 60%) */
+    TELEMETRY_RAIN_STATE_IMMINENT    = 2U,    /**< 10: Rain imminent (CPI >= 60%) */
+    TELEMETRY_RAIN_STATE_ACTIVE_RAIN = 3U     /**< 11: Physical rainfall in progress */
 } telemetry_rain_state_t;
 
 /**
@@ -116,10 +116,10 @@ typedef enum {
  * @brief Rainfall rate intensity classification tier.
  */
 typedef enum {
-    RAIN_INTENSITY_NONE     = 0U,   /**< 00: No rain (0.0 mm/hr) */
-    RAIN_INTENSITY_LIGHT    = 1U,   /**< 01: Light rain (0.1 .. 2.5 mm/hr) */
-    RAIN_INTENSITY_MODERATE = 2U,   /**< 10: Moderate rain (2.5 .. 10.0 mm/hr) */
-    RAIN_INTENSITY_HEAVY    = 3U    /**< 11: Heavy / torrential rain (> 10.0 mm/hr) */
+    TELEMETRY_RAIN_INTENSITY_NONE     = 0U,   /**< 00: No rain (0.0 mm/hr) */
+    TELEMETRY_RAIN_INTENSITY_LIGHT    = 1U,   /**< 01: Light rain (0.1 .. 2.5 mm/hr) */
+    TELEMETRY_RAIN_INTENSITY_MODERATE = 2U,   /**< 10: Moderate rain (2.5 .. 10.0 mm/hr) */
+    TELEMETRY_RAIN_INTENSITY_HEAVY    = 3U    /**< 11: Heavy / torrential rain (> 10.0 mm/hr) */
 } telemetry_rain_intensity_t;
 
 /**
