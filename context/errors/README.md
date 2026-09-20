@@ -63,6 +63,8 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-053`** | 2026-09-20 20:48:00 | [`313a5cc`](https://github.com/Thejus26/rain-predict/commit/313a5cc363994d532c20f0914385d16e4729a8de) | Testing Macros & Mock Architectural Collisions | **Non-Existent TEST_ASSERT_TRUE_MESSAGE in test_simulation_validation.c**: Undeclared Unity assertion macro triggered -Werror=implicit-function-declaration during host CI build. | [ERR-053 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-053-2026-09-20-non-existent-test-assert-true-message-in-test-simulation-validation.md) |
 | **`ERR-054`** | 2026-09-20 21:03:00 | [`159fbc1`](https://github.com/Thejus26/rain-predict/commit/159fbc1e5da6237caba9940a7f7baa7196ddaa79) | Algorithm Numerical Precision & Physical Vectors | **Unreduced Station Pressure in test_simulation_validation.c**: Raw station pressure assigned to `p0_hpa` caused diurnal thermal drift distortion, failing valley fog rejection and fair-weather Zambretti ridge index in CI. | [ERR-054 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-054-2026-09-20-unreduced-station-pressure-fog-cpi-and-zambretti-distortion.md) |
 
+| **`ERR-055`** | 2026-09-20 21:29:00 | [`acc7fed`](https://github.com/Thejus26/rain-predict/commit/acc7fed) | Algorithm Numerical Precision & Physical Vectors | **15-Minute Sample Stride Mismatch – Phase-Transition Zambretti Artifact and Incorrect Z-Index Assert**: Phase2→3 history buffer contamination drove false +21 hPa delta_p_3h spike in fog window; z_index <= 4U assertion physically unreachable with month=6 offset. | [ERR-055 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-055-2026-09-20-simulation-15min-stride-zambretti-artifact-and-wrong-z-assert.md) |
+
 ---
 
 ## Error Classification by Category
@@ -73,7 +75,7 @@ pie title Error Distribution by Subsystem
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 21
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
-    "Algorithm Numerical Precision & Physical Vectors" : 4
+    "Algorithm Numerical Precision & Physical Vectors" : 5
     "Architecture Headers & Cross-Compilation Fallbacks" : 1
 ```
 
