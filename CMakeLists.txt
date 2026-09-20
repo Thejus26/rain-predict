@@ -92,9 +92,6 @@ if(BUILD_TARGET_FIRMWARE)
         target_link_options(${PROJECT_NAME}.elf PRIVATE
             -T${LINKER_SCRIPT}
             -Wl,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map
-            -Wl,--gc-sections
-            --specs=nano.specs
-            --specs=nosys.specs
         )
 
         # Generate .hex, .bin, and print memory footprint
