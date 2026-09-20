@@ -1,44 +1,16 @@
-# Current Feature: Watchdog Checkpoint Servicing & Reset Diagnostics (S6-T3.3)
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Establish 8 dedicated watchdog refresh checkpoints (`app_watchdog_checkpoint`) at state entry for all operational states (`STATE_WAKE` through `STATE_SLEEP`) in `app_state_machine.c`.
-- Implement anti-masking safety guards:
-  - Enforce state validity (`state < STATE_MAX`).
-  - Enforce maximum single-state execution duration guard (`elapsed < 200 ms` or `state == STATE_WAKE`).
-  - Strictly prohibit watchdog refreshing from ISR contexts (SysTick, EXTI, radio IRQs).
-- Integrate boot reset cause detection in `app_state_machine_init()` using `watchdog_was_reset_by_watchdog()`.
-- Clear reset flags post-evaluation via `watchdog_clear_reset_flags()`.
-- Wire the detected watchdog reset flag to the periodic telemetry encoder (`unexpected_reset` / Byte 11 bit 6, `0x40`).
-- Maintain internal runtime diagnostic metrics: cumulative kick counter (`s_watchdog_kick_count`), state entry timestamp (`s_state_entry_tick_ms`), and boot reset flag (`s_boot_watchdog_reset`).
-- Verify hardware counter freeze behavior during Stop 2 deep sleep mode via `DBGMCU_APB1FZR1_DBG_IWDG_STOP`.
-- Provide or expand unit/integration test coverage verifying the 10 watchdog supervision test scenarios (`UT_WDG_01` to `CP_WDG_10`).
+<!-- Goals will be populated when a feature is loaded -->
 
 ## Notes
 
-- **Specification Source**: [`context/specs/s6-t3.3-watchdog-kick-points.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t3.3-watchdog-kick-points.md)
-- **Target Files**:
-  - Header: [`firmware/app/inc/app_state_machine.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/app_state_machine.h)
-  - Implementation: [`firmware/app/src/app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_state_machine.c)
-  - Core Watchdog Header: [`firmware/core/inc/watchdog.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/watchdog.h)
-  - Core Watchdog Driver: [`firmware/core/src/watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/watchdog.c)
-  - Unit Tests: [`tests/unit/test_watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_watchdog.c) / [`tests/unit/test_app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_app_state_machine.c)
-- **Discovered Graphify Dependencies**:
-  - `watchdog_init()`, `watchdog_refresh()`, `watchdog_was_reset_by_watchdog()`, `watchdog_clear_reset_flags()` in `firmware/core/src/watchdog.c`
-  - `power_mgr_get_tick_ms()`, `power_mgr_wake_restore()`, `power_mgr_enter_stop2()` in `firmware/core/src/power_mgr.c`
-  - `telemetry_encode_periodic()` with `unexpected_reset` field in `firmware/app/src/telemetry_codec.c`
-  - `app_fault_handler` diagnostic status and reporting hooks in `firmware/app/src/app_fault_handler.c`
-- **Hardware & Timing Constraints**:
-  - Dedicated hardware IWDG clocked by 32 kHz LSI oscillator (independent of MSI/HSE system clocks).
-  - Prescaler divider 64 (500 Hz clock -> 2.0 ms tick duration).
-  - 12-bit downcounter reload = 4000, yielding exactly 8.00-second timeout window.
-  - Active execution window across all states is typically < 150 ms (far below 8.0s timeout).
-  - Anti-masking guard suppresses refresh if a state hangs > 200 ms, allowing clean hardware reset after 8.0s timeout.
-  - Automatic counter freeze during Stop 2 sleep (120s - 3600s) configured via `DBGMCU_APB1FZR1_DBG_IWDG_STOP`.
+<!-- Notes will be populated when a feature is loaded -->
 
 ## History
 
@@ -72,3 +44,4 @@ In Progress
 - 2026-09-19: S6-T2.3 — Implemented Alert Manager Unit Test Suite (24 Unity test cases across Categories A..D validating initialization defaults, LED waveforms, buzzer chirps, 10s auto-cutoff siren pulses, 30-min anti-chatter cooldown, night quiet hours, battery preservation throttling, and sensor fault overrides).
 - 2026-09-20: S6-T3.1 — Implemented 8-State Application State Machine & Lifecycle Flow (STATE_WAKE -> STATE_POWER_ON -> STATE_SAMPLE -> STATE_FILTER -> STATE_PREDICT -> STATE_TRANSMIT -> STATE_ALERT -> STATE_SLEEP deterministic cycle, master app_context_t, non-blocking single-step runner, 20ms switched sensor rail RC stabilization guard, BME280/OPT3001/rain gauge/battery ADC sampling, psychrometric dew point math, Zambretti & CPI forecasting, 12-byte periodic telemetry bit-packing, Flash ring buffer logging, LoRaWAN Class A transmission, local alert manager dispatch, active execution time sleep compensation, GPIO low-leakage Stop 2 deep sleep, and main dispatcher loop in main.c).
 - 2026-09-20: S6-T3.2 — Implemented Graceful Degradation & Fault Tolerance Paths (Centralized app_fault_handler engine with 10 subsystem fault bitmasks and diagnostic status tracking; 3-cycle auto-clearing self-healing mechanism; autonomous 2-tier I2C bus recovery via 9-clock SCL cycling and switched P-MOSFET sensor rail power toggle; BME280 fallback holding last valid barometric pressure for up to 3 cycles before neutral baseline fallback; OPT3001 solar fallback with daytime 25,000 Lux and nighttime 0 Lux heuristics; rain gauge contact chatter clamping to 40 tips/interval; state machine integration across sampling, transmission, and alerts with bounded execution (< 150 ms) and guaranteed Stop 2 deep sleep entry (< 3.0 uA); Unity unit test suite with 7 test cases covering recovery, fallbacks, and self-healing).
+- 2026-09-20: S6-T3.3 — Implemented Watchdog Kick Points at State Execution Checkpoints & Boot Reset Diagnostics (Integrated 8 dedicated safe watchdog refresh checkpoints into top-level state machine sequence STATE_WAKE through STATE_SLEEP; enforced strict anti-masking invariants verifying state bounds, single-state execution duration < 200 ms, and zero ISR refreshes; integrated boot reset cause diagnostics via watchdog_was_reset_by_watchdog() and mapped unexpected reboot flag to Byte 11 bit 6 in periodic LoRaWAN telemetry; maintained runtime diagnostic counters; verified DBGMCU Stop 2 deep sleep counter freeze; created comprehensive Unity test suite test_app_state_machine.c validating all 10 verification criteria UT_WDG_01 through CP_WDG_10).
