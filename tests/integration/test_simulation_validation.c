@@ -316,10 +316,19 @@ static void sim_run_firmware_nowcasting(void) {
     uint32_t history_count = 0U;
 
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
+        float p0_sea = 0.0f;
+        status_t rc_p0 = dew_point_calc_sea_level_pressure(s_climate_data[i].pressure_hpa,
+                                                            s_climate_data[i].temp_c,
+                                                            SIM_ELEVATION_M,
+                                                            &p0_sea);
+        if (rc_p0 != STATUS_OK) {
+            p0_sea = s_climate_data[i].pressure_hpa;
+        }
+
         env_sample_t new_sample;
         new_sample.temp_c      = s_climate_data[i].temp_c;
         new_sample.rh_pct      = s_climate_data[i].humidity_pct;
-        new_sample.p0_hpa      = s_climate_data[i].pressure_hpa;
+        new_sample.p0_hpa      = p0_sea;
         new_sample.lux         = s_climate_data[i].solar_lux;
         new_sample.timestamp_s = i * 900U;
 
@@ -336,7 +345,7 @@ static void sim_run_firmware_nowcasting(void) {
         (void)trend_detector_compute_gradients(history, history_count, &s_gradients[i]);
         (void)rain_algo_evaluate(history,
                                  history_count,
-                                 SIM_ELEVATION_M,
+                                 0.0f,
                                  6U,
                                  WIND_DIR_CALM,
                                  0.0f,
