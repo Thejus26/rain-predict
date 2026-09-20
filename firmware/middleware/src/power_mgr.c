@@ -174,6 +174,16 @@ void power_mgr_reset_total_sleep_time(void) {
     s_cumulative_sleep_sec = 0;
 }
 
+uint32_t power_mgr_get_tick_ms(void) {
+    return HAL_GetTick();
+}
+
+uint8_t power_mgr_get_rtc_hour(void) {
+    RTC_TimeTypeDef sTime = {0};
+    (void)HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+    return sTime.Hours;
+}
+
 status_t power_mgr_enter_standby(void) {
     (void)power_mgr_gpio_sleep_prepare();
     HAL_PWR_EnterSTANDBYMode();
@@ -335,6 +345,8 @@ static uint32_t            s_sim_cumulative_sleep_sec = 0;
 static uint32_t            s_sim_rtc_interval_sec     = 0;
 static bool                s_sim_rtc_armed            = false;
 static uint32_t            s_sim_sleep_cycles         = 0;
+static uint32_t            s_sim_tick_ms              = 0;
+static uint8_t             s_sim_rtc_hour             = 14U;
 
 void power_mgr_test_reset(void) {
     s_sim_power_state          = POWER_STATE_RUN;
@@ -344,6 +356,8 @@ void power_mgr_test_reset(void) {
     s_sim_rtc_interval_sec     = 0;
     s_sim_rtc_armed            = false;
     s_sim_sleep_cycles         = 0;
+    s_sim_tick_ms              = 0;
+    s_sim_rtc_hour             = 14U;
     s_battery_status           = s_battery_status_default;
     s_prev_vbat_mv             = 3300U;
 }
@@ -461,6 +475,22 @@ uint32_t power_mgr_get_total_sleep_time_sec(void) {
 
 void power_mgr_reset_total_sleep_time(void) {
     s_sim_cumulative_sleep_sec = 0;
+}
+
+uint32_t power_mgr_get_tick_ms(void) {
+    return s_sim_tick_ms;
+}
+
+uint8_t power_mgr_get_rtc_hour(void) {
+    return s_sim_rtc_hour;
+}
+
+void power_mgr_test_set_tick_ms(uint32_t tick_ms) {
+    s_sim_tick_ms = tick_ms;
+}
+
+void power_mgr_test_set_rtc_hour(uint8_t hour) {
+    s_sim_rtc_hour = hour;
 }
 
 status_t power_mgr_enter_standby(void) {

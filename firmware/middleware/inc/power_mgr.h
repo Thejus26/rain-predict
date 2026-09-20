@@ -156,6 +156,18 @@ uint32_t power_mgr_get_total_sleep_time_sec(void);
 void power_mgr_reset_total_sleep_time(void);
 
 /**
+ * @brief  Returns the current system uptime tick in milliseconds.
+ * @return uint32_t System tick in ms.
+ */
+uint32_t power_mgr_get_tick_ms(void);
+
+/**
+ * @brief  Returns the current RTC calendar hour (0 to 23).
+ * @return uint8_t Hour of day (0..23).
+ */
+uint8_t power_mgr_get_rtc_hour(void);
+
+/**
  * @brief  Enters ultra-low-leakage Standby mode (< 0.8 uA) for long-term shelf storage.
  * @details Tri-states all GPIOs and shuts down core/SRAM retention. Requires NRST pin reset to wake.
  * @return status_t Does not return on embedded target if successful; STATUS_OK on simulation.
@@ -305,6 +317,18 @@ bool power_mgr_test_is_rtc_wakeup_armed(void);
  * @return uint32_t Sleep cycle count.
  */
 uint32_t power_mgr_test_get_sleep_cycle_count(void);
+
+/**
+ * @brief Sets simulated tick in milliseconds for test harness.
+ * @param[in] tick_ms Tick value in ms.
+ */
+void power_mgr_test_set_tick_ms(uint32_t tick_ms);
+
+/**
+ * @brief Sets simulated RTC hour (0..23) for test harness.
+ * @param[in] hour Hour of day.
+ */
+void power_mgr_test_set_rtc_hour(uint8_t hour);
 
 #endif /* Host Simulation API */
 
