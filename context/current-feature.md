@@ -1,16 +1,51 @@
-# Current Feature
+# Current Feature: S6-T3.2 - Graceful Degradation & Fault Tolerance Paths
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be populated when a feature is loaded -->
+- Implement `firmware/app/inc/app_fault_handler.h` header with fault bitmasks (`FAULT_MASK_BME280_COMM`, `FAULT_MASK_OPT3001_COMM`, `FAULT_MASK_I2C_BUS_LOCKUP`, `FAULT_MASK_RAIN_GAUGE_CHATTER`, `FAULT_MASK_MODBUS_COMM`, `FAULT_MASK_SDI12_COMM`, `FAULT_MASK_FLASH_WRITE`, `FAULT_MASK_LORA_TX_TIMEOUT`, `FAULT_MASK_BATTERY_LOW`, `FAULT_MASK_BATTERY_CRITICAL`), configuration constants (`FAULT_MAX_CONSECUTIVE_HEAL`, `FAULT_MAX_PRESSURE_STALE_CYCLES`), and `fault_handler_status_t` diagnostic structure.
+- Define public API prototypes in `app_fault_handler.h`: `app_fault_handler_init()`, `app_fault_handler_report()`, `app_fault_handler_recover_i2c_bus()`, `app_fault_handler_get_bme280_fallback()`, `app_fault_handler_get_opt3001_fallback()`, `app_fault_handler_is_system_fault_active()`, and `app_fault_handler_get_status()`.
+- Implement `firmware/app/src/app_fault_handler.c` with internal static status context, fault reporting & bitmask tracking, lifetime failure counters, and 3-cycle auto-clearing self-healing mechanism.
+- Implement autonomous 2-tier I2C bus recovery in `app_fault_handler_recover_i2c_bus()`: primary 9-clock bus cycling (`i2c_bus_recover()`), followed by sensor rail power cycle fallback (`bsp_power_rail_enable(BSP_POWER_RAIL_SENSORS, false/true)` with `bsp_power_rail_stabilize()`).
+- Implement sensor fallback strategies in `app_fault_handler.c`:
+  - BME280: Hold last valid barometric pressure, temperature, and humidity for up to 3 cycles; fallback to neutral baseline ($20.0^\circ\text{C}$, $70.0\%$, $950.0\text{ hPa}$) if persistent outage.
+  - OPT3001: Daytime RTC estimate ($25,000\text{ Lux}$ between 06:00 and 18:00, $0\text{ Lux}$ at night) using `power_mgr_get_rtc_hour()`.
+- Integrate graceful degradation hooks into `firmware/app/src/app_state_machine.c`:
+  - In `app_exec_sample()`: wrap BME280 and OPT3001 reads with fault reporting and fallback value injection; trigger I2C bus recovery on BME280 read failure; propagate `app_fault_handler_is_system_fault_active()` to `s_app_ctx.sensor_fault`.
+  - In `app_exec_transmit()`: assert telemetry byte 11 bit 5 (`TELEMETRY_STATUS_SYS_ERROR_MASK`) when sensor fault is active; handle LoRa TX timeout or Flash push failures gracefully without stalling state transitions.
+  - In `app_exec_alert()`: display `ALERT_LED_PATTERN_SYSTEM_FAULT` when system fault is active.
+- Verify zero-stall mandate: ensure all sensor reads, peripheral transactions, and state transitions complete within bounded timeouts ($< 150\text{ ms}$) and maintain guaranteed entry into low-power Stop 2 deep sleep ($< 3.0\,\mu\text{A}$).
+- Implement unit tests in `tests/unit/test_app_fault_handler.c` validating fault bitmask latching, self-healing auto-clearing, I2C recovery sequence, and fallback calculations.
 
 ## Notes
 
-<!-- Notes will be populated when a feature is loaded -->
+- **Specification**: [`context/specs/s6-t3.2-graceful-degradation.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t3.2-graceful-degradation.md)
+- **Target Files**:
+  - [`firmware/app/inc/app_fault_handler.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/app_fault_handler.h)
+  - [`firmware/app/src/app_fault_handler.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_fault_handler.c)
+  - [`firmware/app/src/app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_state_machine.c)
+- **Discovered Module Dependencies (via Knowledge Graph)**:
+  - [`firmware/core/inc/status.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/status.h) (`status_t`, `STATUS_OK`, `STATUS_ERR_*`)
+  - [`firmware/drivers/inc/i2c_bus.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/i2c_bus.h) (`i2c_bus_recover()`)
+  - [`firmware/drivers/inc/bsp_power_rails.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bsp_power_rails.h) (`bsp_power_rail_enable()`, `bsp_power_rail_stabilize()`, `BSP_POWER_RAIL_SENSORS`)
+  - [`firmware/drivers/inc/bme280.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bme280.h) (`bme280_read_forced_burst()`, `bme280_data_t`)
+  - [`firmware/drivers/inc/opt3001.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/opt3001.h) (`opt3001_read_lux_single_shot()`)
+  - [`firmware/middleware/inc/power_mgr.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/power_mgr.h) (`power_mgr_get_rtc_hour()`)
+  - [`firmware/middleware/inc/alert_manager.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/alert_manager.h) (`ALERT_LED_PATTERN_SYSTEM_FAULT`, `ALERT_ACOUSTIC_FAULT_TONE`)
+  - [`firmware/middleware/inc/telemetry_protocol.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/telemetry_protocol.h) (`TELEMETRY_STATUS_SYS_ERROR_MASK`)
+- **Hardware & Timing Constraints**:
+  - Target MCU: STM32WLE5 SoC (ARM Cortex-M4 @ 48 MHz).
+  - Switched Sensor Rail (`PA4` / `BSP_POWER_RAIL_SENSORS`): High-side P-MOSFET requires $20\text{ ms}$ RC stabilization delay after energizing.
+  - I2C Bus Recovery: Primary 9-clock toggle sequence. If stuck, toggle sensor rail (`PA4`) with stabilization guard.
+  - Stale Pressure Hold: Up to 3 cycles (`FAULT_MAX_PRESSURE_STALE_CYCLES = 3`) before substituting neutral defaults ($20.0^\circ\text{C}, 70.0\%, 950.0\text{ hPa}$).
+  - Solar Fallback: Neutral $25,000\text{ Lux}$ during daylight (06:00 to 18:00), $0\text{ Lux}$ at night. Clamps solar drop rate to prevent false optical storm alarms.
+  - Rain Gauge EXTI Clamp: Max 40 tips/sec ($8.0\text{ mm/hr}$) to prevent runaway CPI score calculation.
+  - Self-Healing Auto-Clear: 3 consecutive successful cycles (`FAULT_MAX_CONSECUTIVE_HEAL = 3`) automatically clear active fault bits.
+  - Telemetry Error Flag: Master error mapped to LoRaWAN packet Byte 11 bit 5 (0x20) and optical fault beacon.
+  - Stop 2 Deep Sleep: Guaranteed entry with current drain $< 3.0\,\mu\text{A}$ even during complete peripheral failure.
 
 ## History
 
