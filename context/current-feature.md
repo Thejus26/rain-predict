@@ -1,16 +1,40 @@
-# Current Feature
+# Current Feature: S7-T1.1 - 30-Day Multi-Scenario Synthetic Climate Simulation & Firmware Algorithm Validation
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be populated when a feature is loaded -->
+- Implement 30-day continuous synthetic climate generation (2,880 discrete 15-min cycles) in `tools/simulation/simulate_plantation_weather.py` covering 4 distinct microclimate regimes (Pre-Monsoon Convective Squalls, Sustained Orographic Monsoon Waves, Morning Valley Fog & Cloud Shadow Perturbations, Fair Weather Anticyclonic Ridge).
+- Implement ground-truth rain event classifier (`extract_ground_truth_events`) adhering to WMO/IMD criteria (>= 0.4 mm threshold, 60-min dry boundary) and export dataset to `data/synthetic_30day_estate_climate.csv` and `data/ground_truth_rain_events.json`.
+- Develop automated validation runner `tools/simulation/validate_nowcaster.py` connecting the continuous climate time series to firmware nowcaster algorithms and tracking contingency metrics, confusion matrices, and lead times.
+- Implement comprehensive C integration test suite `tests/integration/test_simulation_validation.c` under Unity test framework verifying all 12 simulation invariants (TC-SIM-01 through TC-SIM-12) across 2,880 steps.
+- Validate precursor convective warning lead time >= 60 minutes, zero false positives during radiation fog and cloud shadows, and zero false clears during sustained monsoon lulls.
+- Register `test_simulation_validation` in `tests/CMakeLists.txt` for remote GitHub Actions CI execution.
 
 ## Notes
 
-<!-- Notes will be populated when a feature is loaded -->
+- **Parent Task & Roadmap**: Sprint 7 Task `S7-T1.1` under `S7-T1: Multi-Day Synthetic Climate Validation & Metric Verification`.
+- **Target Files**:
+  - `tools/simulation/simulate_plantation_weather.py`
+  - `tools/simulation/validate_nowcaster.py`
+  - `tests/integration/test_simulation_validation.c`
+  - `data/synthetic_30day_estate_climate.csv`
+  - `tests/CMakeLists.txt`
+- **Discovered Module Dependencies (via Knowledge Graph)**:
+  - `firmware/app/inc/rain_algo.h` & `firmware/app/src/rain_algo.c`: `rain_algo_evaluate()`, `rain_algo_score_zambretti()`, `rain_algo_result_t`, `rain_alert_state_t`.
+  - `firmware/app/inc/zambretti.h` & `firmware/app/src/zambretti.c`: `zambretti_calculate()`, `zambretti_calculate_weighted()`, `zambretti_classify_trend()`, `zambretti_map_to_state()`.
+  - `firmware/app/inc/trend_detector.h` & `firmware/app/src/trend_detector.c`: `trend_detector_compute_gradients()`, `trend_detector_classify_pressure()`, `trend_detector_classify_solar()`, `trend_detector_score_pressure()`, `trend_detector_score_solar()`.
+  - `firmware/middleware/inc/dew_point.h` & `firmware/middleware/src/dew_point.c`: `dew_point_calc()`, Magnus-Tetens formula.
+  - `firmware/drivers/inc/rain_gauge_driver.h`: `rain_gauge_classify_intensity()`, `rain_rate_metrics_t`.
+- **Simulation Parameters & Constraints**:
+  - Continuous timeline: 30 days = 720 hours = 2,880 steps at 15-minute intervals ($\Delta t = 0.25\text{ h}$).
+  - Elevation baseline: $1,500\text{ m}$ AMSL (barometric reduction via hypsometric formula).
+  - Ground-truth rain event threshold: $\ge 0.4\text{ mm}$ ($2\text{ tips}$) within sliding $30\text{ min}$, terminated by $60\text{ min}$ continuous zero rain.
+  - Advance warning requirement: $\ge 60\text{ minutes}$ lead time for convective storms ($CPI \ge 80\%$).
+  - False alarm rejection: $0$ siren pulses and $CPI < 40\%$ during Phase 3 radiation fog and cloud shadows.
+  - Execution constraint: Full 2,880-step simulation runs in $< 3.0\text{ s}$ on host with zero dynamic heap allocation in C integration harness.
 
 ## History
 

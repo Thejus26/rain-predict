@@ -449,4 +449,41 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_fault_injection.c")
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 13. 30-Day Multi-Scenario Climate Simulation Validation (S7-T1.1)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_simulation_validation.c")
+    add_executable(test_simulation_validation
+        integration/test_simulation_validation.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/rain_algo.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/zambretti.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/trend_detector.c
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/src/dew_point.c
+        ${UNITY_DIR}/unity.c
+    )
+
+    target_include_directories(test_simulation_validation PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
+
+    target_compile_definitions(test_simulation_validation PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
+
+    target_link_libraries(test_simulation_validation PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME SimulationValidationTest COMMAND test_simulation_validation)
+    set_tests_properties(SimulationValidationTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()
+
 
