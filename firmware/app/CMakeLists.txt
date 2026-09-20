@@ -9,6 +9,7 @@ add_library(firmware_app STATIC
     src/rain_algo.c
     src/measurement_scheduler.c
     src/alert_manager.c
+    src/app_state_machine.c
 )
 
 target_include_directories(firmware_app PUBLIC
