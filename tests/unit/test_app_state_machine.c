@@ -106,8 +106,8 @@ static void test_wdg_03_boot_reset_cause_detection(void) {
     memset(&record, 0, sizeof(record));
     TEST_ASSERT_EQUAL_INT(STATUS_OK, flash_ring_peek(0, &record));
 
-    /* Byte 11, bit 6 is Unexpected Reset flag */
-    bool telem_unexpected_reset = (record.payload[11] & 0x40U) != 0U;
+    /* Byte 11, bit 7 is Unexpected Reset flag */
+    bool telem_unexpected_reset = (record.payload[11] & 0x80U) != 0U;
     TEST_ASSERT_TRUE(telem_unexpected_reset);
 }
 

@@ -528,8 +528,8 @@ static void test_fi_bme280_disconnect_and_stale_hold(void) {
         TEST_ASSERT_FLOAT_WITHIN(0.1f, 952.0f, ctx->pressure_hpa);
         TEST_ASSERT_FLOAT_WITHIN(0.1f, 24.5f, ctx->temperature_c);
         TEST_ASSERT_FLOAT_WITHIN(0.1f, 65.0f, ctx->humidity_pct);
-        /* Telemetry Byte 11 bit 5 (0x20) indicates sensor fault */
-        TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x20) != 0U);
+        /* Telemetry Byte 11 bit 6 (0x40) indicates sensor fault */
+        TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x40) != 0U);
         TEST_ASSERT_TRUE(s_mock.in_stop2_sleep);
     }
 
@@ -579,7 +579,7 @@ static void test_fi_opt3001_dead_solar_heuristic(void) {
     TEST_ASSERT_FLOAT_WITHIN(1.0f, FAULT_LUX_DAYTIME_ESTIMATE, ctx->solar_lux);
     /* Rain alert must not false-trigger into IMMINENT due to optical loss */
     TEST_ASSERT_TRUE(ctx->rain_state != RAIN_ALERT_IMMINENT);
-    TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x20) != 0U);
+    TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x40) != 0U);
     TEST_ASSERT_TRUE(s_mock.in_stop2_sleep);
 }
 
@@ -591,7 +591,7 @@ static void test_fi_self_healing_sensor_restoration(void) {
     s_mock.inject_bme280_nack = true;
     TEST_ASSERT_EQUAL_INT(STATUS_OK, app_state_machine_run_cycle());
     TEST_ASSERT_TRUE(app_fault_handler_is_system_fault_active());
-    TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x20) != 0U);
+    TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x40) != 0U);
 
     /* 2. Sensor recovers: clean read cycle 1 */
     s_mock.inject_bme280_nack = false;
@@ -612,7 +612,7 @@ static void test_fi_self_healing_sensor_restoration(void) {
     const app_context_t *ctx = app_state_machine_get_context();
     TEST_ASSERT_FALSE(ctx->sensor_fault);
     /* Telemetry Byte 11 fault bit cleared */
-    TEST_ASSERT_EQUAL_UINT8(0U, s_mock.last_lora_payload[11] & 0x20);
+    TEST_ASSERT_EQUAL_UINT8(0U, s_mock.last_lora_payload[11] & 0x40);
 }
 
 /* ========================================================================== */
@@ -861,8 +861,8 @@ static void test_fi_watchdog_timeout_reboot_recovery(void) {
     /* Execute first cycle after watchdog reset */
     TEST_ASSERT_EQUAL_INT(STATUS_OK, app_state_machine_run_cycle());
 
-    /* Byte 11 bit 6 (unexpected reset) MUST be asserted (0x40) */
-    TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x40) != 0U);
+    /* Byte 11 bit 7 (unexpected reset) MUST be asserted (0x80) */
+    TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x80) != 0U);
     TEST_ASSERT_TRUE(s_mock.in_stop2_sleep);
 }
 
