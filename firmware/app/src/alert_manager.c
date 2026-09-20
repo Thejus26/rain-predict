@@ -93,6 +93,9 @@ static alert_led_pattern_t alert_mgr_resolve_led_pattern(const alert_input_t *p_
     if (p_in->sensor_fault) {
         return ALERT_LED_PATTERN_SYSTEM_FAULT;
     }
+    if (p_in->battery_tier == BATTERY_TIER_CONSERVATION) {
+        return ALERT_LED_PATTERN_CONSERVATION;
+    }
     if (p_in->rain_state == RAIN_ALERT_IMMINENT || p_in->cpi_pct >= 80.0f) {
         return ALERT_LED_PATTERN_IMMINENT_STROBE;
     }
@@ -104,9 +107,6 @@ static alert_led_pattern_t alert_mgr_resolve_led_pattern(const alert_input_t *p_
     }
     if (p_in->rain_state == RAIN_ALERT_POSSIBLE || p_in->cpi_pct >= 30.0f) {
         return ALERT_LED_PATTERN_WATCH_AMBER;
-    }
-    if (p_in->battery_tier == BATTERY_TIER_CONSERVATION) {
-        return ALERT_LED_PATTERN_CONSERVATION;
     }
     return ALERT_LED_PATTERN_HEALTHY_PULSE;
 }
