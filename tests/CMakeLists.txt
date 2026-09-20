@@ -194,6 +194,13 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_app_fault_handler.c")
     )
 endif()
 
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_app_state_machine.c")
+    add_firmware_test(app_state_machine
+        SOURCES unit/test_app_state_machine.c
+        LIBRARIES firmware_app firmware_drivers firmware_middleware firmware_core
+    )
+endif()
+
 # -----------------------------------------------------------------------------
 # 7. Core MCU Architecture & BSP Tests
 # -----------------------------------------------------------------------------
