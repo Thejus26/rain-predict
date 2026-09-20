@@ -1,16 +1,56 @@
-# Current Feature
+# Current Feature: S6-T4.2 - System Fault Injection & Resilience Integration Tests
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be populated when a feature is loaded -->
+- Develop host-executable integration test suite in [`tests/integration/test_fault_injection.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/integration/test_fault_injection.c) using the ThrowTheSwitch Unity framework.
+- Implement comprehensive 16-point fault injection test matrix across 4 major failure categories:
+  - **Category A (Sensor & I2C Bus Faults)**:
+    - `FI-SM-01`: BME280 disconnect and stale pressure holding for 3 cycles before neutral baseline fallback.
+    - `FI-SM-02`: Autonomous I2C bus lockup recovery via 9 SCL clock pulses and power rail cycling.
+    - `FI-SM-03`: OPT3001 dead sensor solar heuristic substitution (RTC daytime 25,000 Lux / night 0 Lux) preventing false storm overrides.
+    - `FI-SM-04`: Self-healing 3-consecutive clean read automatic fault flag clearing.
+  - **Category B (Battery Depletion & Brownout Throttling)**:
+    - `FI-SM-05`: Battery Tier 2 Conservation entry at 3.05V (< 3.10V) with 30-min cadence extension and acoustic muting.
+    - `FI-SM-06`: Battery Tier 3 Critical entry at 2.85V (< 2.90V) with 60-min cadence extension, LED shutdown, and RF power capping (+14 dBm).
+    - `FI-SM-07`: Battery hysteresis recovery restoring Tier 1 Normal cadence when voltage recovers to 3.22V (> 3.20V).
+    - `FI-SM-08`: Siren relay blast suppression during severe storm event ($CPI \ge 80\%$) under low battery to conserve uplink capacity.
+  - **Category C (LoRa Radio & Gateway Blackouts)**:
+    - `FI-SM-09`: LoRa radio TX timeout (150 ms) non-blocking recovery with packet fallback buffered in Flash storage.
+    - `FI-SM-10`: 72-hour LoRa gateway blackout logging 288 consecutive periodic records safely to Flash circular buffer.
+    - `FI-SM-11`: Gateway reconnect historical backlog playback draining via FPort 3 confirmed batches.
+    - `FI-SM-12`: High-priority storm alert packet preemption on FPort 2 over background backlog playback.
+  - **Category D (Flash, Mechanical & Compound Outages)**:
+    - `FI-SM-13`: Flash write failure bypass ensuring telemetry continues over LoRa uplink without crashing.
+    - `FI-SM-14`: Rain gauge contact chatter clamping to 40 tips/cycle (500 mm/hr physical ceiling).
+    - `FI-SM-15`: Watchdog timeout reboot recovery asserting Byte 11 bit 6 (`0x40`) unexpected reboot telemetry flag.
+    - `FI-SM-16`: Total compound multi-fault survival (I2C lockup + OPT3001 failure + LoRa timeout + Flash error + low battery) executing in < 1.2s and safely entering Stop 2 sleep (< 3.0 µA).
+- Register `test_fault_injection` executable in [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt) and verify zero compilation warnings.
 
 ## Notes
 
-<!-- Notes will be populated when a feature is loaded -->
+- **Hardware Constraints & Fallback Limits**:
+  - Switched P-MOSFET sensor rail (`PA4`) with $20\text{ms}$ RC stabilization delay.
+  - Autonomous 2-tier I2C bus recovery: 9 SCL clock pulses followed by switched sensor rail toggle.
+  - BME280 stale pressure holding limit: strictly 3 cycles before neutral baseline fallback ($S_P = 50, S_{RH} = 50$).
+  - OPT3001 solar fallback heuristics: 25,000 Lux (06:00-18:00) and 0 Lux (nighttime), clamping $S_{sol} = 0$.
+  - Rain gauge contact chatter debounce: clamped to 40 pulses/cycle ($8.0\text{mm}$ / $500\text{mm/hr}$).
+  - Low-power Stop 2 deep sleep entry ($< 3.0\,\mu\text{A}$) with all unused pins set to analog mode.
+  - Battery preservation thresholds: Tier 2 Conservation ($< 3.10\text{V}$, $1800\text{s}$ interval), Tier 3 Critical ($< 2.90\text{V}$, $3600\text{s}$ interval, LEDs disabled, LoRa RF capped to $+14\text{dBm}$), $100\text{mV}$ hysteresis recovery ($3.20\text{V}$).
+  - Watchdog supervision: $8.0\text{s}$ window, reset cause latch via `RCC_CSR_IWDGRSTF` / `watchdog_was_reset_by_watchdog()` mapped to Byte 11 bit 6 (`0x40`).
+- **Discovered Module Dependencies**:
+  - Application Layer: `app_state_machine.h` / `app_state_machine.c`, `app_fault_handler.h` / `app_fault_handler.c`, `measurement_scheduler.h` / `measurement_scheduler.c`, `alert_manager.h` / `alert_manager.c`, `rain_algo.h` / `rain_algo.c`.
+  - Algorithm Layer: `zambretti.h` / `zambretti.c`, `trend_detector.h` / `trend_detector.c`, `dew_point.h` / `dew_point.c`, `moving_avg_filter.h` / `moving_avg_filter.c`.
+  - Middleware & Drivers: `telemetry_codec.h` / `telemetry_codec.c`, `status_codes.h` / `status.h`, `power_mgr.h`, `bsp_power_rails.h`, `bsp_indicators.h`, `bsp_adc.h`, `bme280.h`, `opt3001.h`, `rain_gauge.h`, `flash_storage.h`, `lorawan_service.h`, `watchdog.h`.
+  - Test Target: `tests/integration/test_fault_injection.c`, `tests/CMakeLists.txt`.
+- **Execution & Timing Budget**:
+  - Total active CPU execution per cycle $< 1.2\text{ seconds}$ ($< 1200\text{ ms}$) across all nominal and catastrophic fault states.
+  - Sub-GHz LoRa radio TX timeout bounded to $150\text{ ms}$.
+- **Graphify & Build Policy**:
+  - CMake builds and tests run in GitHub Actions CI (`.github/workflows/ci.yml`). Do not execute local CMake builds.
 
 ## History
 
