@@ -375,8 +375,8 @@ status_t flash_ring_push(const uint8_t *payload, uint16_t seq_id) {
 
 /* --- LoRaWAN Network Service Stubs --- */
 
-status_t lorawan_service_init(const lorawan_config_t *config) {
-    (void)config;
+status_t lorawan_service_init(const lorawan_credentials_t *credentials) {
+    (void)credentials;
     s_mock.lora_tx_count = 0U;
     return STATUS_OK;
 }
