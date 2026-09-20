@@ -244,19 +244,19 @@ status_t bsp_adc_read_vbat_mv(uint16_t *p_vbat_mv) {
 
 /* --- Environmental & Optical Sensor Stubs --- */
 
-status_t bme280_init(bme280_t *dev, uint8_t dev_addr) {
+status_t bme280_init(bme280_dev_t *dev, uint8_t dev_addr) {
     (void)dev;
     (void)dev_addr;
     return STATUS_OK;
 }
 
-status_t bme280_configure(bme280_t *dev, const bme280_config_t *cfg) {
+status_t bme280_configure(bme280_dev_t *dev, const bme280_config_t *cfg) {
     (void)dev;
     (void)cfg;
     return STATUS_OK;
 }
 
-status_t bme280_read_data(bme280_t *dev, bme280_data_t *p_data) {
+status_t bme280_read_data(bme280_dev_t *dev, bme280_data_t *p_data) {
     (void)dev;
     if (p_data == NULL) {
         return STATUS_ERR_NULL_PTR;
