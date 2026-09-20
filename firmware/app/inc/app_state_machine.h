@@ -121,6 +121,24 @@ const char *app_state_machine_get_state_name(app_state_t state);
  */
 void app_state_machine_reset(void);
 
+/**
+ * @brief  Retrieves cumulative watchdog kicks executed across state checkpoints.
+ * @return uint32_t Total watchdog kick count.
+ */
+uint32_t app_state_machine_get_watchdog_kick_count(void);
+
+/**
+ * @brief  Checks whether the active boot was flagged as a watchdog timeout reset.
+ * @return bool True if boot was caused by watchdog timeout.
+ */
+bool app_state_machine_was_boot_watchdog_reset(void);
+
+/**
+ * @brief  Retrieves timestamp (in ms) when the current operational state was entered.
+ * @return uint32_t System tick in ms.
+ */
+uint32_t app_state_machine_get_state_entry_tick_ms(void);
+
 #ifdef __cplusplus
 }
 #endif
