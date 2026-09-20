@@ -240,6 +240,18 @@ static status_t app_exec_predict(void) {
 }
 
 static status_t app_exec_transmit(void) {
+    /* Map internal rain alert and physical gauge state to over-the-air telemetry state */
+    telemetry_rain_state_t telem_rain;
+    if (s_app_ctx.rain_pulses_cycle > 0U || rain_gauge_is_rain_active()) {
+        telem_rain = TELEMETRY_RAIN_STATE_ACTIVE_RAIN;
+    } else if (s_app_ctx.rain_state >= RAIN_ALERT_LIKELY || s_app_ctx.cpi_pct >= 60.0f) {
+        telem_rain = TELEMETRY_RAIN_STATE_IMMINENT;
+    } else if (s_app_ctx.rain_state == RAIN_ALERT_POSSIBLE || s_app_ctx.cpi_pct >= 30.0f) {
+        telem_rain = TELEMETRY_RAIN_STATE_POSSIBLE;
+    } else {
+        telem_rain = TELEMETRY_RAIN_STATE_UNLIKELY;
+    }
+
     /* 1. Serialize periodic telemetry packet */
     telemetry_periodic_data_t telem = {
         .temperature_c          = s_app_ctx.temperature_c,
@@ -247,7 +259,7 @@ static status_t app_exec_transmit(void) {
         .pressure_hpa           = s_app_ctx.pressure_hpa,
         .ambient_lux            = s_app_ctx.solar_lux,
         .rain_interval_mm       = (float)s_app_ctx.rain_pulses_cycle * RAIN_GAUGE_CALIB_MM_PER_TIP,
-        .forecast_state         = (telemetry_rain_state_t)s_app_ctx.rain_state,
+        .forecast_state         = telem_rain,
         .zambretti_index        = s_app_ctx.zambretti_code,
         .cpi_prob_pct           = (uint8_t)s_app_ctx.cpi_pct,
         .solar_cloud_drop_alarm = (s_app_ctx.solar_lux < 3000.0f && s_app_ctx.solar_lux > 50.0f),

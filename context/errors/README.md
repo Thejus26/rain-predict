@@ -50,6 +50,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-040`** | 2026-09-19 16:45:00 | [`a1e1447`](https://github.com/Thejus26/rain-predict/commit/a1e144787ab78af7911ad30f3a700f071c4b2dc0) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_lorawan_tx_queue.c**: All 12 unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-040 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-040-2026-09-19-missing-static-prototypes-in-test-lorawan-tx-queue.md) |
 | **`ERR-041`** | 2026-09-19 22:06:00 | [`982698c`](https://github.com/Thejus26/rain-predict/commit/982698c22b24fd5ad8245218c74d63ac9f1e1e2e) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_alert_manager.c**: Unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-041 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-041-2026-09-19-missing-static-prototypes-in-test-alert-manager.md) |
 | **`ERR-042`** | 2026-09-20 11:20:00 | [`63eb0e7`](https://github.com/Thejus26/rain-predict/commit/63eb0e7473c40cec1df4bebe7138108391abf4cf) | Application & Middleware (Alert Manager) | **Battery Conservation Tier 2 LED Pattern Overridden by Storm Strobe**: Weather alert pattern priority superseded battery preservation micro-pulse in `test_alert_battery_conservation_tier2`. | [ERR-042 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-042-2026-09-20-battery-conservation-tier2-led-strobe-override.md) |
+| **`ERR-043`** | 2026-09-20 12:10:00 | [`c314546`](https://github.com/Thejus26/rain-predict/commit/c31454635f37237d9ac30b5f454ca71fb4b7ff47) | Strict C99 Compiler Diagnostics (-Werror, enumerator redeclaration) | **Enumerator Redeclaration in Telemetry Codec**: Global C99 enum namespace collision on `RAIN_ALERT_UNLIKELY` between `rain_algo.h` and `telemetry_codec.h`. | [ERR-043 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-043-2026-09-20-redeclaration-of-enumerator-rain-alert-unlikely-in-telemetry-codec.md) |
 
 ---
 
@@ -58,7 +59,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Testing Macros & Mock Architectural Collisions" : 17
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 16
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 17
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
     "Build System & Linker Configuration (CMake, libm)" : 2

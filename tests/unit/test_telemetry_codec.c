@@ -73,7 +73,7 @@ static void test_periodic_encode_nominal_daytime_hex_match(void) {
         .pressure_hpa           = 945.50f,
         .ambient_lux            = 45000.0f,
         .rain_interval_mm       = 0.0f,
-        .forecast_state         = RAIN_ALERT_POSSIBLE,
+        .forecast_state         = TELEMETRY_RAIN_STATE_POSSIBLE,
         .zambretti_index        = 14U,
         .cpi_prob_pct           = 45U,
         .solar_cloud_drop_alarm = false,
@@ -105,7 +105,7 @@ static void test_periodic_encode_subzero_temperature(void) {
         .pressure_hpa           = 810.20f,
         .ambient_lux            = 0.0f,
         .rain_interval_mm       = 2.4f,
-        .forecast_state         = RAIN_ALERT_IMMINENT,
+        .forecast_state         = TELEMETRY_RAIN_STATE_IMMINENT,
         .zambretti_index        = 22U,
         .cpi_prob_pct           = 78U,
         .solar_cloud_drop_alarm = false,
@@ -145,7 +145,7 @@ static void test_periodic_encode_bitfield_masks(void) {
         .pressure_hpa           = 1000.00f,
         .ambient_lux            = 1000.0f,
         .rain_interval_mm       = 1.0f,
-        .forecast_state         = RAIN_ALERT_ACTIVE_RAIN, /* 3 (bits 7:6 = 11) */
+        .forecast_state         = TELEMETRY_RAIN_STATE_ACTIVE_RAIN, /* 3 (bits 7:6 = 11) */
         .zambretti_index        = 26U,                    /* 26 (bits 5:0 = 0x1A) -> 0xDA */
         .cpi_prob_pct           = 100U,                   /* 100 (bits 6:0 = 0x64) */
         .solar_cloud_drop_alarm = true,                   /* true (bit 7 = 1) -> 0xE4 */
@@ -167,7 +167,7 @@ static void test_periodic_encode_bitfield_masks(void) {
     telemetry_periodic_data_t decoded;
     status = telemetry_decode_periodic(buffer, sizeof(buffer), &decoded);
     TEST_ASSERT_EQUAL(STATUS_OK, status);
-    TEST_ASSERT_EQUAL(RAIN_ALERT_ACTIVE_RAIN, decoded.forecast_state);
+    TEST_ASSERT_EQUAL(TELEMETRY_RAIN_STATE_ACTIVE_RAIN, decoded.forecast_state);
     TEST_ASSERT_EQUAL_UINT8(26U, decoded.zambretti_index);
     TEST_ASSERT_EQUAL_UINT8(100U, decoded.cpi_prob_pct);
     TEST_ASSERT_TRUE(decoded.solar_cloud_drop_alarm);
@@ -186,7 +186,7 @@ static void test_periodic_encode_upper_boundary_clamping(void) {
         .pressure_hpa           = 1300.0f,   /* Exceeds 1100.0 hPa */
         .ambient_lux            = 200000.0f, /* Exceeds 83,000 Lux */
         .rain_interval_mm       = 100.0f,    /* Exceeds 51.0 mm */
-        .forecast_state         = RAIN_ALERT_ACTIVE_RAIN,
+        .forecast_state         = TELEMETRY_RAIN_STATE_ACTIVE_RAIN,
         .zambretti_index        = 30U,       /* Exceeds 26 */
         .cpi_prob_pct           = 150U,      /* Exceeds 100% */
         .solar_cloud_drop_alarm = true,
@@ -225,7 +225,7 @@ static void test_periodic_encode_lower_boundary_clamping(void) {
         .pressure_hpa           = 100.0f,   /* Below 300.0 hPa */
         .ambient_lux            = -50.0f,   /* Below 0.0 Lux */
         .rain_interval_mm       = -5.0f,    /* Below 0.0 mm */
-        .forecast_state         = RAIN_ALERT_UNLIKELY,
+        .forecast_state         = TELEMETRY_RAIN_STATE_UNLIKELY,
         .zambretti_index        = 0U,       /* Below 1 */
         .cpi_prob_pct           = 0U,
         .solar_cloud_drop_alarm = false,
@@ -270,7 +270,7 @@ static void test_periodic_roundtrip_lossless_fidelity(void) {
                     .pressure_hpa           = test_pressures[p],
                     .ambient_lux            = 32000.0f,
                     .rain_interval_mm       = 4.6f,
-                    .forecast_state         = RAIN_ALERT_POSSIBLE,
+                    .forecast_state         = TELEMETRY_RAIN_STATE_POSSIBLE,
                     .zambretti_index        = 12U,
                     .cpi_prob_pct           = 55U,
                     .solar_cloud_drop_alarm = false,
@@ -343,13 +343,13 @@ static void test_alert_codec_buffer_underflow(void) {
  */
 static void test_alert_encode_severe_storm_hex_match(void) {
     telemetry_alert_data_t data = {
-        .alert_state            = RAIN_ALERT_IMMINENT,
+        .alert_state            = TELEMETRY_RAIN_STATE_IMMINENT,
         .trigger_cause          = ALERT_TRIGGER_CPI_THRESHOLD,
         .alert_sequence_id      = 3U,
         .cpi_prob_pct           = 88U,
         .solar_cloud_drop_alarm = true,
         .pressure_rate_hpa_per_h= -3.50f,
-        .rain_intensity         = RAIN_INTENSITY_LIGHT,
+        .rain_intensity         = TELEMETRY_RAIN_INTENSITY_LIGHT,
         .sensor_fault           = false,
         .battery_voltage_v      = 3.30f
     };
@@ -372,13 +372,13 @@ static void test_alert_encode_severe_storm_hex_match(void) {
  */
 static void test_alert_encode_signed_pressure_rate(void) {
     telemetry_alert_data_t data = {
-        .alert_state            = RAIN_ALERT_IMMINENT,
+        .alert_state            = TELEMETRY_RAIN_STATE_IMMINENT,
         .trigger_cause          = ALERT_TRIGGER_PRESSURE_PLUNGE,
         .alert_sequence_id      = 5U,
         .cpi_prob_pct           = 92U,
         .solar_cloud_drop_alarm = false,
         .pressure_rate_hpa_per_h= -5.20f, /* raw -104 = 0x98 */
-        .rain_intensity         = RAIN_INTENSITY_NONE,
+        .rain_intensity         = TELEMETRY_RAIN_INTENSITY_NONE,
         .sensor_fault           = false,
         .battery_voltage_v      = 3.26f   /* raw 19 = 0x13 */
     };
