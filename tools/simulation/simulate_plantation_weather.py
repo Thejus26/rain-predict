@@ -408,6 +408,41 @@ class StormEventCoordinator:
     ) -> Tuple[float, float, float, float, float, float, int, float, int, float]:
         """Routes time step to the appropriate scenario disturbance model."""
         target_scenario = scenario
+        if scenario == "multi_scenario_30day":
+            cal_day = day_index + 1
+            if cal_day <= 7:
+                if cal_day in [2, 3, 5, 7]:
+                    return self.apply_convective_storm(
+                        step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base, dt_hours
+                    )
+                return self.apply_fair_weather(
+                    step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+                )
+            elif cal_day <= 15:
+                return self.apply_monsoon_sustained(
+                    step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base, dt_hours
+                )
+            elif cal_day <= 22:
+                if cal_day in [16, 17, 19]:
+                    return self.apply_orographic_fog_false_alarm(
+                        step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+                    )
+                elif cal_day in [18, 20, 21]:
+                    return self.apply_cloud_shadow_false_alarm(
+                        step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+                    )
+                return self.apply_fair_weather(
+                    step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+                )
+            else:
+                if cal_day in [29, 30]:
+                    return self.apply_convective_storm(
+                        step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base, dt_hours
+                    )
+                return self.apply_fair_weather(
+                    step_time_hours, temp_base, rh_base, p_base, p0_base, lux_base
+                )
+
         if scenario == "multi_day_storm_cycle":
             cycle = [
                 "fair_weather",
@@ -828,6 +863,7 @@ def parse_args() -> argparse.Namespace:
             "false_alarm_cloud_shadow",
             "false_alarm_orographic_fog",
             "multi_day_storm_cycle",
+            "multi_scenario_30day",
         ],
         help="Weather simulation scenario profile",
     )
