@@ -23,6 +23,7 @@
 #include "flash_storage.h"
 #include "lorawan_service.h"
 #include "watchdog.h"
+#include "app_fault_handler.h"
 
 /* ========================================================================== */
 /* Forward Declarations of Static Functions                                   */
@@ -122,9 +123,7 @@ static status_t app_exec_power_on(void) {
 }
 
 static status_t app_exec_sample(void) {
-    s_app_ctx.sensor_fault = false;
-
-    /* 1. Read BME280 forced mode burst */
+    /* 1. Read BME280 forced mode burst with autonomous recovery & fallback */
     bme280_data_t bme_data;
     memset(&bme_data, 0, sizeof(bme_data));
     status_t rc_bme = bme280_read_data(&s_bme280_dev, &bme_data);
@@ -132,22 +131,41 @@ static status_t app_exec_sample(void) {
         s_app_ctx.temperature_c = bme_data.temperature_c;
         s_app_ctx.humidity_pct  = bme_data.humidity_percent;
         s_app_ctx.pressure_hpa  = bme_data.pressure_hpa;
+        app_fault_handler_set_last_valid_bme280(bme_data.temperature_c,
+                                                bme_data.humidity_percent,
+                                                bme_data.pressure_hpa);
+        app_fault_handler_report(FAULT_MASK_BME280_COMM, true);
     } else {
-        s_app_ctx.sensor_fault = true;
+        /* Attempt autonomous I2C bus recovery */
+        (void)app_fault_handler_recover_i2c_bus();
+        app_fault_handler_report(FAULT_MASK_BME280_COMM, false);
+        (void)app_fault_handler_get_bme280_fallback(&s_app_ctx.temperature_c,
+                                                   &s_app_ctx.humidity_pct,
+                                                   &s_app_ctx.pressure_hpa);
     }
 
-    /* 2. Read OPT3001 single-shot illuminance */
+    /* 2. Read OPT3001 single-shot illuminance with solar fallback */
     opt3001_reading_t opt_reading;
     memset(&opt_reading, 0, sizeof(opt_reading));
     status_t rc_opt = opt3001_read_lux(&s_opt3001_dev, &opt_reading);
     if ((rc_opt == STATUS_OK) && opt_reading.is_valid) {
         s_app_ctx.solar_lux = opt_reading.lux;
+        app_fault_handler_report(FAULT_MASK_OPT3001_COMM, true);
     } else {
-        s_app_ctx.sensor_fault = true;
+        app_fault_handler_report(FAULT_MASK_OPT3001_COMM, false);
+        app_fault_handler_get_opt3001_fallback(power_mgr_get_rtc_hour(), &s_app_ctx.solar_lux);
     }
 
-    /* 3. Read and clear tipping-bucket rain gauge pulses */
-    s_app_ctx.rain_pulses_cycle = (uint32_t)rain_gauge_read_and_clear_interval(NULL);
+    /* 3. Read and clear tipping-bucket rain gauge pulses (clamped against contact chatter) */
+    uint32_t raw_pulses = (uint32_t)rain_gauge_read_and_clear_interval(NULL);
+    if (raw_pulses > 40U) {
+        /* Clamp to maximum physical rate (40 tips/interval) and report chatter */
+        s_app_ctx.rain_pulses_cycle = 40U;
+        app_fault_handler_report(FAULT_MASK_RAIN_GAUGE_CHATTER, false);
+    } else {
+        s_app_ctx.rain_pulses_cycle = raw_pulses;
+        app_fault_handler_report(FAULT_MASK_RAIN_GAUGE_CHATTER, true);
+    }
 
     /* 4. Read battery voltage from ADC */
     uint16_t vbat_mv = 0;
@@ -156,14 +174,26 @@ static status_t app_exec_sample(void) {
         s_app_ctx.battery_volts = (float)vbat_mv / 1000.0f;
         (void)measurement_scheduler_set_battery_voltage(s_app_ctx.battery_volts);
         (void)power_mgr_battery_update((uint16_t)s_app_ctx.solar_lux);
-    } else {
-        s_app_ctx.sensor_fault = true;
+
+        if (s_app_ctx.battery_volts < 2.90f) {
+            app_fault_handler_report(FAULT_MASK_BATTERY_CRITICAL, false);
+            app_fault_handler_report(FAULT_MASK_BATTERY_LOW, false);
+        } else if (s_app_ctx.battery_volts < 3.10f) {
+            app_fault_handler_report(FAULT_MASK_BATTERY_LOW, false);
+            app_fault_handler_report(FAULT_MASK_BATTERY_CRITICAL, true);
+        } else {
+            app_fault_handler_report(FAULT_MASK_BATTERY_LOW, true);
+            app_fault_handler_report(FAULT_MASK_BATTERY_CRITICAL, true);
+        }
     }
 
-    /* 5. Reload watchdog timer */
+    /* 5. Update master system sensor fault status */
+    s_app_ctx.sensor_fault = app_fault_handler_is_system_fault_active();
+
+    /* 6. Reload watchdog timer */
     watchdog_refresh();
 
-    /* Transition to STATE_FILTER */
+    /* Transition to STATE_FILTER without stalling */
     s_app_ctx.previous_state = STATE_SAMPLE;
     s_app_ctx.current_state  = STATE_FILTER;
     return STATUS_OK;
@@ -274,11 +304,13 @@ static status_t app_exec_transmit(void) {
     (void)telemetry_encode_periodic(&telem, payload, sizeof(payload), &encoded_len);
 
     /* 2. Log to on-chip Flash ring buffer */
-    (void)flash_ring_push(payload, (uint16_t)s_app_ctx.cycle_count);
+    status_t rc_flash = flash_ring_push(payload, (uint16_t)s_app_ctx.cycle_count);
+    app_fault_handler_report(FAULT_MASK_FLASH_WRITE, (rc_flash == STATUS_OK));
 
     /* 3. Dispatch unconfirmed uplink via LoRaWAN Class A stack */
-    (void)lorawan_send_unconfirmed(LORAWAN_FPORT_PERIODIC, payload, (uint8_t)sizeof(payload));
+    status_t rc_lora = lorawan_send_unconfirmed(LORAWAN_FPORT_PERIODIC, payload, (uint8_t)sizeof(payload));
     (void)lorawan_service_process_step();
+    app_fault_handler_report(FAULT_MASK_LORA_TX_TIMEOUT, (rc_lora == STATUS_OK));
 
     /* 4. Reload watchdog timer */
     watchdog_refresh();
@@ -366,6 +398,7 @@ status_t app_state_machine_init(void) {
     rc |= power_mgr_init();
     rc |= alert_manager_init(NULL);
     rc |= measurement_scheduler_init(NULL);
+    rc |= app_fault_handler_init();
     rc |= flash_storage_init();
     rc |= flash_ring_init();
     rc |= lorawan_service_init(NULL);
@@ -443,5 +476,6 @@ void app_state_machine_reset(void) {
     s_app_ctx.previous_state = STATE_SLEEP;
     s_history_count = 0;
     memset(s_history_samples, 0, sizeof(s_history_samples));
+    app_fault_handler_reset();
     s_initialized = false;
 }
