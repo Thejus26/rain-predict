@@ -204,6 +204,13 @@ static status_t app_exec_sample(void) {
         (void)measurement_scheduler_set_battery_voltage(s_app_ctx.battery_volts);
         (void)power_mgr_battery_update((uint16_t)s_app_ctx.solar_lux);
 
+        scheduler_status_t sched_stat;
+        memset(&sched_stat, 0, sizeof(sched_stat));
+        if (measurement_scheduler_get_status(&sched_stat) == STATUS_OK) {
+            s_app_ctx.sched_decision.battery_tier      = sched_stat.battery_tier;
+            s_app_ctx.sched_decision.actuation_allowed = sched_stat.actuation_allowed;
+        }
+
         if (s_app_ctx.battery_volts < 2.90f) {
             app_fault_handler_report(FAULT_MASK_BATTERY_CRITICAL, false);
             app_fault_handler_report(FAULT_MASK_BATTERY_LOW, false);
