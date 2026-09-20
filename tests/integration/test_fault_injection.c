@@ -270,7 +270,7 @@ status_t bsp_adc_read_vbat_mv(uint16_t *p_vbat_mv) {
 status_t i2c_bus_recover(void) {
     s_mock.i2c_recovery_calls++;
     if (s_mock.inject_i2c_lockup) {
-        return STATUS_ERR_I2C_BUS;
+        return STATUS_ERR_I2C;
     }
     return STATUS_OK;
 }
@@ -293,7 +293,7 @@ status_t bme280_read_data(bme280_dev_t *dev, bme280_data_t *p_data) {
         return STATUS_ERR_NULL_PTR;
     }
     if (s_mock.inject_bme280_nack || s_mock.inject_i2c_lockup) {
-        return STATUS_ERR_I2C_BUS;
+        return STATUS_ERR_I2C;
     }
     p_data->temperature_c    = s_mock.mock_temp_c;
     p_data->humidity_percent = s_mock.mock_rh_pct;
@@ -314,7 +314,7 @@ status_t opt3001_read_lux(opt3001_dev_t *dev, opt3001_reading_t *p_reading) {
         return STATUS_ERR_NULL_PTR;
     }
     if (s_mock.inject_opt3001_dead || s_mock.inject_i2c_lockup) {
-        return STATUS_ERR_I2C_BUS;
+        return STATUS_ERR_I2C;
     }
     p_reading->lux             = s_mock.mock_lux;
     p_reading->irradiance_w_m2 = s_mock.mock_lux / 120.0f;
@@ -578,7 +578,7 @@ static void test_fi_opt3001_dead_solar_heuristic(void) {
     /* Daytime solar heuristic estimate applied (25000 Lux) */
     TEST_ASSERT_FLOAT_WITHIN(1.0f, FAULT_LUX_DAYTIME_ESTIMATE, ctx->solar_lux);
     /* Rain alert must not false-trigger into IMMINENT due to optical loss */
-    TEST_ASSERT_NOT_EQUAL(RAIN_ALERT_IMMINENT, ctx->rain_state);
+    TEST_ASSERT_TRUE(ctx->rain_state != RAIN_ALERT_IMMINENT);
     TEST_ASSERT_TRUE((s_mock.last_lora_payload[11] & 0x20) != 0U);
     TEST_ASSERT_TRUE(s_mock.in_stop2_sleep);
 }
