@@ -43,7 +43,7 @@ void tearDown(void) {
 /* Category A: Initialization & Lifecycle Tests                               */
 /* ========================================================================== */
 
-void test_alert_init_defaults(void) {
+static void test_alert_init_defaults(void) {
     alert_manager_status_t status;
     TEST_ASSERT_EQUAL_INT(STATUS_OK, alert_manager_get_status(&status));
 
@@ -60,7 +60,7 @@ void test_alert_init_defaults(void) {
     TEST_ASSERT_FALSE(bsp_relay_get());
 }
 
-void test_alert_init_custom_config(void) {
+static void test_alert_init_custom_config(void) {
     alert_manager_config_t cfg = {
         .enable_visual_leds         = false,
         .enable_audible_buzzer      = false,
@@ -81,7 +81,7 @@ void test_alert_init_custom_config(void) {
     TEST_ASSERT_FALSE(bsp_led_get(BSP_LED_GREEN));
 }
 
-void test_alert_force_all_off(void) {
+static void test_alert_force_all_off(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_OK, alert_manager_set_led_pattern(ALERT_LED_PATTERN_WATCH_AMBER));
     alert_manager_process_step(10U);
     TEST_ASSERT_TRUE(bsp_led_get(BSP_LED_GREEN));
@@ -94,7 +94,7 @@ void test_alert_force_all_off(void) {
     TEST_ASSERT_FALSE(bsp_relay_get());
 }
 
-void test_alert_manual_led_override(void) {
+static void test_alert_manual_led_override(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_OK, alert_manager_set_led_pattern(ALERT_LED_PATTERN_WARNING_RED));
     TEST_ASSERT_EQUAL_INT(ALERT_LED_PATTERN_WARNING_RED, alert_manager_get_active_led_pattern());
 
@@ -105,7 +105,7 @@ void test_alert_manual_led_override(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, alert_manager_set_led_pattern(ALERT_LED_PATTERN_MAX));
 }
 
-void test_alert_manual_buzzer_override(void) {
+static void test_alert_manual_buzzer_override(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_OK, alert_manager_set_buzzer_pattern(ALERT_BUZZER_PATTERN_DOUBLE_CHIRP));
     TEST_ASSERT_EQUAL_INT(ALERT_BUZZER_PATTERN_DOUBLE_CHIRP, alert_manager_get_active_buzzer_pattern());
 
@@ -115,7 +115,7 @@ void test_alert_manual_buzzer_override(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_INVALID_PARAM, alert_manager_set_buzzer_pattern(ALERT_BUZZER_PATTERN_MAX));
 }
 
-void test_alert_pattern_name_lookup(void) {
+static void test_alert_pattern_name_lookup(void) {
     TEST_ASSERT_EQUAL_STRING("OFF", alert_manager_get_pattern_name(ALERT_LED_PATTERN_OFF));
     TEST_ASSERT_EQUAL_STRING("HEALTHY_GREEN_PULSE", alert_manager_get_pattern_name(ALERT_LED_PATTERN_HEALTHY_PULSE));
     TEST_ASSERT_EQUAL_STRING("WATCH_AMBER_BLINK", alert_manager_get_pattern_name(ALERT_LED_PATTERN_WATCH_AMBER));
@@ -128,7 +128,7 @@ void test_alert_pattern_name_lookup(void) {
 /* Category B: Visual Status LED Waveform & Timing Tests                      */
 /* ========================================================================== */
 
-void test_alert_led_healthy_pulse_timing(void) {
+static void test_alert_led_healthy_pulse_timing(void) {
     alert_input_t in = {
         .rain_state   = RAIN_ALERT_UNLIKELY,
         .cpi_pct      = 15.0f,
@@ -155,7 +155,7 @@ void test_alert_led_healthy_pulse_timing(void) {
     TEST_ASSERT_TRUE(bsp_led_get(BSP_LED_GREEN));
 }
 
-void test_alert_led_watch_amber_timing(void) {
+static void test_alert_led_watch_amber_timing(void) {
     alert_input_t in = {
         .rain_state   = RAIN_ALERT_POSSIBLE,
         .cpi_pct      = 45.0f,
@@ -185,7 +185,7 @@ void test_alert_led_watch_amber_timing(void) {
     TEST_ASSERT_TRUE(bsp_led_get(BSP_LED_RED));
 }
 
-void test_alert_led_warning_red_timing(void) {
+static void test_alert_led_warning_red_timing(void) {
     alert_input_t in = {
         .rain_state   = RAIN_ALERT_LIKELY,
         .cpi_pct      = 72.0f,
@@ -209,7 +209,7 @@ void test_alert_led_warning_red_timing(void) {
     TEST_ASSERT_TRUE(bsp_led_get(BSP_LED_RED));
 }
 
-void test_alert_led_imminent_strobe_timing(void) {
+static void test_alert_led_imminent_strobe_timing(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 85.0f,
@@ -231,7 +231,7 @@ void test_alert_led_imminent_strobe_timing(void) {
     TEST_ASSERT_TRUE(bsp_led_get(BSP_LED_RED));
 }
 
-void test_alert_led_active_rain_double_flash(void) {
+static void test_alert_led_active_rain_double_flash(void) {
     alert_input_t in = {
         .rain_state         = RAIN_ALERT_POSSIBLE,
         .cpi_pct            = 40.0f,
@@ -258,7 +258,7 @@ void test_alert_led_active_rain_double_flash(void) {
     TEST_ASSERT_FALSE(bsp_led_get(BSP_LED_RED));
 }
 
-void test_alert_led_system_fault_beacon(void) {
+static void test_alert_led_system_fault_beacon(void) {
     alert_input_t in = {
         .sensor_fault = true,
         .battery_tier = BATTERY_TIER_NORMAL
@@ -286,7 +286,7 @@ void test_alert_led_system_fault_beacon(void) {
 /* Category C: Acoustic & Siren Actuation Tests                               */
 /* ========================================================================== */
 
-void test_alert_buzzer_watch_single_chirp(void) {
+static void test_alert_buzzer_watch_single_chirp(void) {
     alert_input_t in = {
         .rain_state   = RAIN_ALERT_POSSIBLE,
         .cpi_pct      = 35.0f,
@@ -304,7 +304,7 @@ void test_alert_buzzer_watch_single_chirp(void) {
     TEST_ASSERT_FALSE(bsp_buzzer_get());
 }
 
-void test_alert_buzzer_warning_double_chirp(void) {
+static void test_alert_buzzer_warning_double_chirp(void) {
     alert_input_t in = {
         .rain_state   = RAIN_ALERT_LIKELY,
         .cpi_pct      = 65.0f,
@@ -330,7 +330,7 @@ void test_alert_buzzer_warning_double_chirp(void) {
     TEST_ASSERT_FALSE(bsp_buzzer_get());
 }
 
-void test_alert_storm_siren_auto_trigger(void) {
+static void test_alert_storm_siren_auto_trigger(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 88.0f,
@@ -345,7 +345,7 @@ void test_alert_storm_siren_auto_trigger(void) {
     TEST_ASSERT_EQUAL_UINT32(1800U, alert_manager_get_siren_cooldown_remaining_sec());
 }
 
-void test_alert_siren_10s_auto_cutoff(void) {
+static void test_alert_siren_10s_auto_cutoff(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 88.0f,
@@ -361,7 +361,7 @@ void test_alert_siren_10s_auto_cutoff(void) {
     TEST_ASSERT_FALSE(bsp_relay_get());
 }
 
-void test_alert_siren_30min_cooldown(void) {
+static void test_alert_siren_30min_cooldown(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 88.0f,
@@ -384,7 +384,7 @@ void test_alert_siren_30min_cooldown(void) {
     TEST_ASSERT_TRUE(alert_manager_get_siren_cooldown_remaining_sec() > 0U);
 }
 
-void test_alert_night_quiet_hours_mute(void) {
+static void test_alert_night_quiet_hours_mute(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 92.0f,
@@ -408,7 +408,7 @@ void test_alert_night_quiet_hours_mute(void) {
 /* Category D: Priority Resolution & Battery Interlocks                       */
 /* ========================================================================== */
 
-void test_alert_battery_conservation_tier2(void) {
+static void test_alert_battery_conservation_tier2(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 85.0f,
@@ -433,7 +433,7 @@ void test_alert_battery_conservation_tier2(void) {
     TEST_ASSERT_FALSE(bsp_led_get(BSP_LED_GREEN));
 }
 
-void test_alert_battery_critical_tier3(void) {
+static void test_alert_battery_critical_tier3(void) {
     alert_input_t in = {
         .rain_state       = RAIN_ALERT_IMMINENT,
         .cpi_pct          = 99.0f,
@@ -453,7 +453,7 @@ void test_alert_battery_critical_tier3(void) {
     TEST_ASSERT_FALSE(bsp_relay_get());
 }
 
-void test_alert_sensor_fault_preemption(void) {
+static void test_alert_sensor_fault_preemption(void) {
     alert_input_t in = {
         .rain_state   = RAIN_ALERT_IMMINENT,
         .cpi_pct      = 95.0f,
@@ -467,7 +467,7 @@ void test_alert_sensor_fault_preemption(void) {
     TEST_ASSERT_EQUAL_INT(ALERT_BUZZER_PATTERN_FAULT_BEEP, alert_manager_get_active_buzzer_pattern());
 }
 
-void test_alert_active_rain_preemption(void) {
+static void test_alert_active_rain_preemption(void) {
     alert_input_t in = {
         .rain_state         = RAIN_ALERT_POSSIBLE,
         .cpi_pct            = 40.0f,
@@ -480,7 +480,7 @@ void test_alert_active_rain_preemption(void) {
     TEST_ASSERT_EQUAL_INT(ALERT_LED_PATTERN_ACTIVE_RAIN, alert_manager_get_active_led_pattern());
 }
 
-void test_alert_full_storm_lifecycle_sim(void) {
+static void test_alert_full_storm_lifecycle_sim(void) {
     alert_input_t in = { .battery_tier = BATTERY_TIER_NORMAL, .rtc_hour_0_to_23 = 14U };
 
     /* Step 1: Quiescent Fair Weather */
@@ -510,7 +510,7 @@ void test_alert_full_storm_lifecycle_sim(void) {
     TEST_ASSERT_EQUAL_INT(ALERT_LED_PATTERN_IMMINENT_STROBE, alert_manager_get_active_led_pattern());
 }
 
-void test_alert_defensive_null_and_guards(void) {
+static void test_alert_defensive_null_and_guards(void) {
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, alert_manager_update(NULL));
     TEST_ASSERT_EQUAL_INT(STATUS_ERR_NULL_PTR, alert_manager_get_status(NULL));
 }
