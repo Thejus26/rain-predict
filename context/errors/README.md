@@ -53,6 +53,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-043`** | 2026-09-20 12:10:00 | [`c314546`](https://github.com/Thejus26/rain-predict/commit/c31454635f37237d9ac30b5f454ca71fb4b7ff47) | Strict C99 Compiler Diagnostics (-Werror, enumerator redeclaration) | **Enumerator Redeclaration in Telemetry Codec**: Global C99 enum namespace collision on `RAIN_ALERT_UNLIKELY` between `rain_algo.h` and `telemetry_codec.h`. | [ERR-043 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-043-2026-09-20-redeclaration-of-enumerator-rain-alert-unlikely-in-telemetry-codec.md) |
 | **`ERR-044`** | 2026-09-20 12:26:00 | [`99828d8`](https://github.com/Thejus26/rain-predict/commit/99828d8134b27fded94425ea4963edfed43c79a0) | Build System & Linker Configuration (CMake, nano.specs) | **Duplicate nano.specs Linker Flags**: GCC fatal error due to duplicate `--specs=nano.specs` in toolchain and target link options. | [ERR-044 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-044-2026-09-20-duplicate-nano-specs-linker-spec-rename-collision.md) |
 | **`ERR-045`** | 2026-09-20 12:36:00 | [`a36943b`](https://github.com/Thejus26/rain-predict/commit/a36943bb16b6561e3880a1dc9fd82605fa82bed2) | Build System & Linker Configuration (Linker Script / Memory Layout) | **Missing Linker Script STM32WLE5XX_FLASH.ld**: Target executable link failed because target memory map script file was missing from repository. | [ERR-045 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-045-2026-09-20-missing-linker-script-stm32wle5xx-flash-ld.md) |
+| **`ERR-046`** | 2026-09-20 13:42:00 | [`de11b39`](https://github.com/Thejus26/rain-predict/commit/de11b395c3abb351f222b47cd9d8c76085add16c) | Application State Machine (Watchdog Anti-Masking) | **Watchdog Hang Recovery Stall Check Bypassed in STATE_WAKE**: Checkpoint stall guard unconditionally bypassed for `STATE_WAKE`, causing failure in `test_wdg_10_simulated_hang_recovery`. | [ERR-046 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-046-2026-09-20-watchdog-hang-recovery-stall-bypassed-in-state-wake.md) |
 
 ---
 
@@ -60,7 +61,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Testing Macros & Mock Architectural Collisions" : 17
+    "Testing Macros & Mock Architectural Collisions" : 18
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 17
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3

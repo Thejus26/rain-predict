@@ -77,7 +77,7 @@ static void app_watchdog_checkpoint(app_state_t state) {
         uint32_t elapsed      = current_tick - s_state_entry_tick_ms;
 
         /* Maximum permissible single-state duration before considering it a stall */
-        if (elapsed < 200U || state == STATE_WAKE) {
+        if (elapsed < 200U) {
             watchdog_refresh();
             s_watchdog_kick_count++;
             s_state_entry_tick_ms = current_tick;
@@ -399,6 +399,7 @@ static status_t app_exec_sleep(void) {
 
     /* 6. Enter Stop 2 deep sleep (< 3.0 uA) */
     (void)power_mgr_enter_stop2(s_app_ctx.configured_sleep_sec);
+    s_state_entry_tick_ms = power_mgr_get_tick_ms();
     return STATUS_OK;
 }
 
