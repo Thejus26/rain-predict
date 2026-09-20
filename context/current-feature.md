@@ -1,56 +1,16 @@
-# Current Feature: S6-T3.1 8-State Application State Machine & Lifecycle Flow
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement 8-state deterministic lifecycle coordinator (`STATE_WAKE`, `STATE_POWER_ON`, `STATE_SAMPLE`, `STATE_FILTER`, `STATE_PREDICT`, `STATE_TRANSMIT`, `STATE_ALERT`, `STATE_SLEEP`) in `firmware/app/inc/app_state_machine.h` and `firmware/app/src/app_state_machine.c`.
-- Implement master operational context structure `app_context_t` tracking operational state, cycle count, active cycle timestamps, raw sensor acquisitions, thermodynamic metrics, nowcast classification, and scheduler/power decisions.
-- Implement non-blocking single-step dispatcher (`app_state_machine_step`) and complete cycle execution runner (`app_state_machine_run_cycle`).
-- Enforce 20ms switched sensor rail RC stabilization guard delay in `STATE_POWER_ON` before any I2C bus transactions.
-- Implement environmental sensor sampling in `STATE_SAMPLE` (BME280 forced burst, OPT3001 ambient lux, Rain Gauge pulse tips, and ADC battery potential).
-- Implement thermodynamic psychrometrics (Magnus-Tetens dew point, depression) and multi-variable gradient differential tracking in `STATE_FILTER`.
-- Evaluate Zambretti 26-rule heuristic forecast and Composite Precipitation Index ($CPI$) scoring with critical safety overrides in `STATE_PREDICT`.
-- Bit-pack 12-byte periodic telemetry payload, persist to Flash ring buffer NVM, and dispatch unconfirmed uplink via LoRaWAN Class A stack in `STATE_TRANSMIT`.
-- Actuate visual LED patterns, acoustic buzzer bursts, and estate siren relay triggers via alert manager in `STATE_ALERT`.
-- Compute active execution time compensation ($T_{\text{sleep}} = \max(1, T_{\text{target}} - \lceil T_{\text{active}}/1000 \rceil)$), isolate GPIOs, power down sensor rails, arm RTC wakeup timer, and enter Stop 2 deep sleep in `STATE_SLEEP`.
-- Implement system reset entry point and primary application dispatcher loop in `firmware/core/src/main.c`.
-- Adhere to MISRA-C guidelines, zero dynamic memory allocation (`malloc`/`free`), and strict $< 1.2\text{s}$ active processing budget ensuring $> 99.8\%$ deep sleep ratio.
+<!-- Goals will be populated when a feature is loaded -->
 
 ## Notes
 
-- Target Hardware: STMicroelectronics STM32WLE5 SoC (ARM Cortex-M4 @ 48 MHz).
-- Energy & Power Constraints:
-  - Active execution window: $< 1.2\text{ s}$ per cycle ($< 1200\text{ ms}$).
-  - Stop 2 deep sleep quiescent current: $< 3.0\ \mu\text{A}$ with full SRAM1/SRAM2 retention.
-  - Duty cycle in 15-minute nominal mode: $> 99.8\%$ in Stop 2.
-- Hardware Pins & Power Rails:
-  - Switched sensor power rail: PA4 (`VSENS_SW` / `BSP_POWER_RAIL_SENSORS`) with 20 ms RC stabilization guard.
-  - Tipping bucket rain gauge: PA0 (EXTI0 interrupt line).
-  - Battery voltage divider: PB0 (ADC_IN1) / PB1 (`VBAT_DIV_EN`).
-  - Status indicators: PA1 (Green LED), PB4 (Red LED), PB15 (Buzzer), PA5 (Siren Relay).
-  - LoRa RF switches: PC3, PC4, PC5.
-- Discovered Module Dependencies:
-  - `firmware/core/inc/status.h`: System error and return codes.
-  - `firmware/core/inc/board_config.h`: GPIO pin allocations and peripherals.
-  - `firmware/drivers/inc/bsp_power_rails.h`: Switched sensor rails and RC stabilization delay.
-  - `firmware/drivers/inc/bsp_indicators.h`: Board LEDs, piezo buzzer, and estate siren relay.
-  - `firmware/drivers/inc/bsp_adc.h`: Battery voltage and VREFINT conversion.
-  - `firmware/drivers/inc/bme280_driver.h`: Ambient temperature, relative humidity, and barometric pressure.
-  - `firmware/drivers/inc/opt3001_driver.h`: Ambient illuminance and solar cloud drop detection.
-  - `firmware/drivers/inc/rain_gauge_driver.h`: Tipping-bucket pulse accumulation and rain rate math.
-  - `firmware/middleware/inc/power_mgr.h`: Stop 2 sleep manager, RTC wakeup timer, and clock restoration.
-  - `firmware/middleware/inc/dew_point.h`: Magnus-Tetens dew point and dew point depression calculation.
-  - `firmware/middleware/inc/flash_storage.h`: On-chip Flash circular ring buffer telemetry logging.
-  - `firmware/middleware/inc/lorawan_service.h`: LoRaWAN Class A stack and Sub-GHz RF uplink dispatch.
-  - `firmware/middleware/inc/telemetry_codec.h`: 12-byte periodic and 4-byte alert telemetry bit-packing.
-  - `firmware/app/inc/measurement_scheduler.h`: Adaptive multi-rate interval and battery preservation engine.
-  - `firmware/app/inc/alert_manager.h`: Status LED patterns, audible buzzer chirps, and siren triggers.
-  - `firmware/app/inc/rain_algo.h`: 5-variable CPI scoring and 4-tier rain alert classification.
-  - `firmware/app/inc/trend_detector.h`: Multi-variable gradient differentials ($dP/dt$, $dRH/dt$, $dLux/dt$).
-  - `firmware/app/inc/zambretti.h`: 26-state empirical barometric forecasting heuristic.
+<!-- Notes will be populated when a feature is loaded -->
 
 ## History
 
@@ -82,3 +42,4 @@ In Progress
 - 2026-09-19: S6-T2.1 — Implemented Status LED Flash Patterns & Visual Alert Engine (8-state optical matrix including 5% Green healthy pulse, 50% Amber watch blink, 50% Red warning blink, 10 Hz Red rapid strobe, Red double-flash for active rain, and alternating Green/Red fault beacon; non-blocking millisecond tick animation; strict priority cascade with battery preservation throttling down to 8 uA in Tier 2 and 0 uA shutdown in Tier 3/sleep).
 - 2026-09-19: S6-T2.2 — Implemented Audible Buzzer Burst & Estate Siren Relay Trigger (5-state acoustic cadence including single watch chirp, double warning chirp, 200ms storm burst, and periodic fault tone; 10s auto-cutoff relay pulse; 30-minute anti-chatter cooldown hysteresis; nighttime quiet hours muting; battery preservation interlocks muting buzzers/siren in Conservation and Critical tiers).
 - 2026-09-19: S6-T2.3 — Implemented Alert Manager Unit Test Suite (24 Unity test cases across Categories A..D validating initialization defaults, LED waveforms, buzzer chirps, 10s auto-cutoff siren pulses, 30-min anti-chatter cooldown, night quiet hours, battery preservation throttling, and sensor fault overrides).
+- 2026-09-20: S6-T3.1 — Implemented 8-State Application State Machine & Lifecycle Flow (STATE_WAKE -> STATE_POWER_ON -> STATE_SAMPLE -> STATE_FILTER -> STATE_PREDICT -> STATE_TRANSMIT -> STATE_ALERT -> STATE_SLEEP deterministic cycle, master app_context_t, non-blocking single-step runner, 20ms switched sensor rail RC stabilization guard, BME280/OPT3001/rain gauge/battery ADC sampling, psychrometric dew point math, Zambretti & CPI forecasting, 12-byte periodic telemetry bit-packing, Flash ring buffer logging, LoRaWAN Class A transmission, local alert manager dispatch, active execution time sleep compensation, GPIO low-leakage Stop 2 deep sleep, and main dispatcher loop in main.c).
