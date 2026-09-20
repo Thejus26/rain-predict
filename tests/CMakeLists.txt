@@ -406,4 +406,47 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_state_machine.c")
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 12. System Fault Injection & Resilience Integration Tests (S6-T4.2)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_fault_injection.c")
+    add_executable(test_fault_injection
+        integration/test_fault_injection.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/app_state_machine.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/app_fault_handler.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/measurement_scheduler.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/alert_manager.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/rain_algo.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/zambretti.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/trend_detector.c
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/src/dew_point.c
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/src/moving_avg_filter.c
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/src/telemetry_codec.c
+        ${UNITY_DIR}/unity.c
+    )
+
+    target_include_directories(test_fault_injection PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
+
+    target_compile_definitions(test_fault_injection PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
+
+    target_link_libraries(test_fault_injection PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME FaultInjectionTest COMMAND test_fault_injection)
+    set_tests_properties(FaultInjectionTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()
+
 
