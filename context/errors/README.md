@@ -59,6 +59,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-049`** | 2026-09-20 18:13:38 | [`e61344d`](https://github.com/Thejus26/rain-predict/commit/e61344d9acd1b1326c56287fddd4e651f2d2f0fa) | Testing & Driver Simulation (State Machine / Watchdog) | **Watchdog Refresh Suppressed in 24-Hour Mission Test**: Inter-cycle tick jump triggered false stall detection, suppressing all 768 watchdog kicks. | [ERR-049 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-049-2026-09-20-watchdog-refresh-suppressed-in-continuous-24hr-mission.md) |
 | **`ERR-050`** | 2026-09-20 18:58:00 | [`413b76d`](https://github.com/Thejus26/rain-predict/commit/413b76dc74785fc8d002dfdce93ae38afc7e8855) | Strict C99 & Unity Framework Diagnostics | **Undeclared STATUS_ERR_I2C_BUS & Non-Existent TEST_ASSERT_NOT_EQUAL**: Host CI build failed under `-Werror` due to non-canonical status enum identifier and missing Unity macro in `test_fault_injection.c`. | [ERR-050 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-050-2026-09-20-undeclared-status-err-i2c-bus-and-implicit-test-assert-not-equal.md) |
 | **`ERR-051`** | 2026-09-20 19:25:00 | [`fcb86d7`](https://github.com/Thejus26/rain-predict/commit/fcb86d707897999c1f1b0c32fad7364824444c40) | Testing & System Integration (Fault Injection / State Machine) | **Telemetry Byte 11 Bitmask Discrepancies and Stale Battery Tier Siren Actuation Leak**: Misaligned bitmasks for sensor fault and reset in `test_fault_injection.c`, and stale battery tier during alert phase causing siren trigger. | [ERR-051 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-051-2026-09-20-fault-injection-telemetry-bitmasks-and-siren-suppression-failures.md) |
+| **`ERR-052`** | 2026-09-20 20:35:00 | [`62983d2`](https://github.com/Thejus26/rain-predict/commit/62983d215e4b2a0314e6617fe7173a626cec5319) | Strict C99 Compiler Diagnostics (-Wmissing-prototypes, -Werror) | **Missing static Function Prototypes in test_simulation_validation.c**: All 12 unit test functions lacked static qualifiers, triggering -Werror=missing-prototypes during host CI build. | [ERR-052 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-052-2026-09-20-missing-static-qualifiers-in-test-simulation-validation.md) |
 
 ---
 
@@ -67,7 +68,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Testing Macros & Mock Architectural Collisions" : 20
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 20
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 21
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 3
