@@ -383,7 +383,7 @@ void tearDown(void) {
 /* 12 Simulation Invariant Test Cases (TC-SIM-01 .. TC-SIM-12)               */
 /* ========================================================================== */
 
-void test_sim_01_continuous_30day_stepping(void) {
+static void test_sim_01_continuous_30day_stepping(void) {
     TEST_ASSERT_EQUAL_UINT32(2880U, SIM_TOTAL_STEPS);
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         TEST_ASSERT_FALSE(isnan(s_climate_data[i].temp_c));
@@ -394,7 +394,7 @@ void test_sim_01_continuous_30day_stepping(void) {
     }
 }
 
-void test_sim_02_physical_boundary_invariants(void) {
+static void test_sim_02_physical_boundary_invariants(void) {
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         TEST_ASSERT_TRUE(s_climate_data[i].temp_c >= 10.0f && s_climate_data[i].temp_c <= 36.0f);
         TEST_ASSERT_TRUE(s_climate_data[i].humidity_pct >= 35.0f && s_climate_data[i].humidity_pct <= 100.0f);
@@ -403,7 +403,7 @@ void test_sim_02_physical_boundary_invariants(void) {
     }
 }
 
-void test_sim_03_dew_point_mathematical_bounds(void) {
+static void test_sim_03_dew_point_mathematical_bounds(void) {
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         float tdew = 0.0f;
         float dpd  = 0.0f;
@@ -414,7 +414,7 @@ void test_sim_03_dew_point_mathematical_bounds(void) {
     }
 }
 
-void test_sim_04_convective_cloudburst_detection(void) {
+static void test_sim_04_convective_cloudburst_detection(void) {
     uint32_t phase1_storm_count = 0U;
     for (uint32_t e = 0; e < s_rain_event_count; e++) {
         if (s_rain_events[e].phase_id == 1U) {
@@ -426,7 +426,7 @@ void test_sim_04_convective_cloudburst_detection(void) {
     TEST_ASSERT_EQUAL_UINT32(4U, phase1_storm_count);
 }
 
-void test_sim_05_precursor_optical_attenuation(void) {
+static void test_sim_05_precursor_optical_attenuation(void) {
     uint32_t blackout_drop_count = 0U;
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         float hour = fmodf(s_climate_data[i].timestamp_hour, 24.0f);
@@ -440,7 +440,7 @@ void test_sim_05_precursor_optical_attenuation(void) {
     TEST_ASSERT_TRUE(blackout_drop_count > 0U);
 }
 
-void test_sim_06_severe_barometric_override(void) {
+static void test_sim_06_severe_barometric_override(void) {
     uint32_t override_count = 0U;
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         if (s_gradients[i].delta_p_1h_hpa <= CRITICAL_DROP_1H_HPA &&
@@ -452,7 +452,7 @@ void test_sim_06_severe_barometric_override(void) {
     TEST_ASSERT_TRUE(override_count > 0U);
 }
 
-void test_sim_07_sustained_monsoon_tracking(void) {
+static void test_sim_07_sustained_monsoon_tracking(void) {
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         if (s_climate_data[i].phase_id == 2U) {
             /* Must never false-clear down to UNLIKELY during sustained monsoon */
@@ -461,7 +461,7 @@ void test_sim_07_sustained_monsoon_tracking(void) {
     }
 }
 
-void test_sim_08_morning_valley_fog_rejection(void) {
+static void test_sim_08_morning_valley_fog_rejection(void) {
     uint32_t fog_step_count = 0U;
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         uint32_t day = s_climate_data[i].day_index;
@@ -475,7 +475,7 @@ void test_sim_08_morning_valley_fog_rejection(void) {
     TEST_ASSERT_TRUE(fog_step_count > 0U);
 }
 
-void test_sim_09_passing_cloud_shadow_rejection(void) {
+static void test_sim_09_passing_cloud_shadow_rejection(void) {
     uint32_t shadow_step_count = 0U;
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         uint32_t day = s_climate_data[i].day_index;
@@ -489,7 +489,7 @@ void test_sim_09_passing_cloud_shadow_rejection(void) {
     TEST_ASSERT_TRUE(shadow_step_count > 0U);
 }
 
-void test_sim_10_fair_weather_quiescent_stability(void) {
+static void test_sim_10_fair_weather_quiescent_stability(void) {
     uint32_t ridge_step_count = 0U;
     for (uint32_t i = 0; i < SIM_TOTAL_STEPS; i++) {
         if (s_climate_data[i].day_index >= 23U && s_climate_data[i].day_index <= 27U) {
@@ -502,7 +502,7 @@ void test_sim_10_fair_weather_quiescent_stability(void) {
     TEST_ASSERT_EQUAL_UINT32(480U, ridge_step_count);
 }
 
-void test_sim_11_deterministic_seed_repeatability(void) {
+static void test_sim_11_deterministic_seed_repeatability(void) {
     /* Store first cycle snapshot */
     float first_cpi_day2_storm = s_forecasts[150].cpi_score_pct;
 
@@ -513,7 +513,7 @@ void test_sim_11_deterministic_seed_repeatability(void) {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, first_cpi_day2_storm, s_forecasts[150].cpi_score_pct);
 }
 
-void test_sim_12_host_execution_performance(void) {
+static void test_sim_12_host_execution_performance(void) {
     clock_t start = clock();
 
     /* Benchmark full 2,880-step generation, gradient math, and algorithm evaluation */
