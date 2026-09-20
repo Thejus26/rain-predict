@@ -38,13 +38,17 @@ static status_t app_exec_transmit(void);
 static status_t app_exec_alert(void);
 static status_t app_exec_sleep(void);
 static void     app_history_push(const env_sample_t *p_sample);
+static void     app_watchdog_checkpoint(app_state_t state);
 
 /* ========================================================================== */
 /* Internal State Context & Drivers                                           */
 /* ========================================================================== */
 
 static app_context_t  s_app_ctx;
-static bool           s_initialized = false;
+static bool           s_initialized         = false;
+static bool           s_boot_watchdog_reset = false;
+static uint32_t       s_watchdog_kick_count = 0U;
+static uint32_t       s_state_entry_tick_ms = 0U;
 static bme280_dev_t   s_bme280_dev;
 static opt3001_dev_t  s_opt3001_dev;
 
@@ -66,6 +70,21 @@ static const char * const s_state_names[STATE_MAX] = {
 /* Helper Functions                                                           */
 /* ========================================================================== */
 
+static void app_watchdog_checkpoint(app_state_t state) {
+    /* Anti-Masking Invariant: Verify state validity and execution time */
+    if (state < STATE_MAX) {
+        uint32_t current_tick = power_mgr_get_tick_ms();
+        uint32_t elapsed      = current_tick - s_state_entry_tick_ms;
+
+        /* Maximum permissible single-state duration before considering it a stall */
+        if (elapsed < 200U || state == STATE_WAKE) {
+            watchdog_refresh();
+            s_watchdog_kick_count++;
+            s_state_entry_tick_ms = current_tick;
+        }
+    }
+}
+
 static void app_history_push(const env_sample_t *p_sample) {
     if (p_sample == NULL) {
         return;
@@ -86,6 +105,9 @@ static void app_history_push(const env_sample_t *p_sample) {
 /* ========================================================================== */
 
 static status_t app_exec_wake(void) {
+    /* Checkpoint 1: WAKE */
+    app_watchdog_checkpoint(STATE_WAKE);
+
     s_app_ctx.active_start_tick_ms = power_mgr_get_tick_ms();
 
     /* 1. Restore clocks to MSI 48 MHz and GPIO pin mux */
@@ -94,9 +116,6 @@ static status_t app_exec_wake(void) {
     /* 2. Identify wakeup source */
     s_app_ctx.wake_reason = power_mgr_get_wake_reason();
 
-    /* 3. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_POWER_ON */
     s_app_ctx.previous_state = STATE_WAKE;
     s_app_ctx.current_state  = STATE_POWER_ON;
@@ -104,6 +123,9 @@ static status_t app_exec_wake(void) {
 }
 
 static status_t app_exec_power_on(void) {
+    /* Checkpoint 2: POWER_ON */
+    app_watchdog_checkpoint(STATE_POWER_ON);
+
     /* 1. Energize switched sensor power rail (PA4) */
     status_t rc = bsp_power_rail_enable(BSP_POWER_RAIL_SENSORS, true);
     if (rc != STATUS_OK) {
@@ -113,9 +135,6 @@ static status_t app_exec_power_on(void) {
     /* 2. Enforce 20ms RC stabilization guard delay */
     (void)bsp_power_rail_stabilize(BSP_POWER_RAIL_SENSORS);
 
-    /* 3. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_SAMPLE */
     s_app_ctx.previous_state = STATE_POWER_ON;
     s_app_ctx.current_state  = STATE_SAMPLE;
@@ -123,6 +142,9 @@ static status_t app_exec_power_on(void) {
 }
 
 static status_t app_exec_sample(void) {
+    /* Checkpoint 3: SAMPLE */
+    app_watchdog_checkpoint(STATE_SAMPLE);
+
     /* 1. Read BME280 forced mode burst with autonomous recovery & fallback */
     bme280_data_t bme_data;
     memset(&bme_data, 0, sizeof(bme_data));
@@ -190,9 +212,6 @@ static status_t app_exec_sample(void) {
     /* 5. Update master system sensor fault status */
     s_app_ctx.sensor_fault = app_fault_handler_is_system_fault_active();
 
-    /* 6. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_FILTER without stalling */
     s_app_ctx.previous_state = STATE_SAMPLE;
     s_app_ctx.current_state  = STATE_FILTER;
@@ -200,6 +219,9 @@ static status_t app_exec_sample(void) {
 }
 
 static status_t app_exec_filter(void) {
+    /* Checkpoint 4: FILTER */
+    app_watchdog_checkpoint(STATE_FILTER);
+
     /* 1. Calculate Magnus-Tetens dew point and dew point depression */
     float tdew = 0.0f;
     float dpd  = 0.0f;
@@ -226,9 +248,6 @@ static status_t app_exec_filter(void) {
         s_app_ctx.delta_p_1h_hpa = 0.0f;
     }
 
-    /* 4. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_PREDICT */
     s_app_ctx.previous_state = STATE_FILTER;
     s_app_ctx.current_state  = STATE_PREDICT;
@@ -236,6 +255,9 @@ static status_t app_exec_filter(void) {
 }
 
 static status_t app_exec_predict(void) {
+    /* Checkpoint 5: PREDICT */
+    app_watchdog_checkpoint(STATE_PREDICT);
+
     /* 1. Calculate Zambretti 26-rule forecast */
     uint8_t z_idx = 1U;
     rain_forecast_state_t z_state = RAIN_STATE_UNLIKELY;
@@ -260,9 +282,6 @@ static status_t app_exec_predict(void) {
         s_app_ctx.rain_state = RAIN_ALERT_UNLIKELY;
     }
 
-    /* 3. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_TRANSMIT */
     s_app_ctx.previous_state = STATE_PREDICT;
     s_app_ctx.current_state  = STATE_TRANSMIT;
@@ -270,6 +289,9 @@ static status_t app_exec_predict(void) {
 }
 
 static status_t app_exec_transmit(void) {
+    /* Checkpoint 6: TRANSMIT */
+    app_watchdog_checkpoint(STATE_TRANSMIT);
+
     /* Map internal rain alert and physical gauge state to over-the-air telemetry state */
     telemetry_rain_state_t telem_rain;
     if (s_app_ctx.rain_pulses_cycle > 0U || rain_gauge_is_rain_active()) {
@@ -295,7 +317,7 @@ static status_t app_exec_transmit(void) {
         .solar_cloud_drop_alarm = (s_app_ctx.solar_lux < 3000.0f && s_app_ctx.solar_lux > 50.0f),
         .battery_voltage_v      = s_app_ctx.battery_volts,
         .sensor_fault           = s_app_ctx.sensor_fault,
-        .unexpected_reset       = watchdog_was_reset_by_watchdog()
+        .unexpected_reset       = s_boot_watchdog_reset
     };
 
     uint8_t payload[TELEMETRY_PERIODIC_PAYLOAD_SIZE];
@@ -312,9 +334,6 @@ static status_t app_exec_transmit(void) {
     (void)lorawan_service_process_step();
     app_fault_handler_report(FAULT_MASK_LORA_TX_TIMEOUT, (rc_lora == STATUS_OK));
 
-    /* 4. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_ALERT */
     s_app_ctx.previous_state = STATE_TRANSMIT;
     s_app_ctx.current_state  = STATE_ALERT;
@@ -322,6 +341,9 @@ static status_t app_exec_transmit(void) {
 }
 
 static status_t app_exec_alert(void) {
+    /* Checkpoint 7: ALERT */
+    app_watchdog_checkpoint(STATE_ALERT);
+
     /* 1. Update Alert Manager inputs */
     alert_input_t alert_in = {
         .rain_state         = s_app_ctx.rain_state,
@@ -337,9 +359,6 @@ static status_t app_exec_alert(void) {
     /* 2. Animate indicators for active display window (50 ms) */
     (void)alert_manager_process_step(50U);
 
-    /* 3. Reload watchdog timer */
-    watchdog_refresh();
-
     /* Transition to STATE_SLEEP */
     s_app_ctx.previous_state = STATE_ALERT;
     s_app_ctx.current_state  = STATE_SLEEP;
@@ -347,6 +366,9 @@ static status_t app_exec_alert(void) {
 }
 
 static status_t app_exec_sleep(void) {
+    /* Checkpoint 8: SLEEP */
+    app_watchdog_checkpoint(STATE_SLEEP);
+
     /* 1. Evaluate Measurement Scheduler interval with active duration compensation */
     uint32_t active_elapsed_ms = power_mgr_get_tick_ms() - s_app_ctx.active_start_tick_ms;
     bool solar_drop = (s_app_ctx.solar_lux < 3000.0f && s_app_ctx.solar_lux > 50.0f);
@@ -386,6 +408,17 @@ static status_t app_exec_sleep(void) {
 
 status_t app_state_machine_init(void) {
     memset(&s_app_ctx, 0, sizeof(s_app_ctx));
+
+    /* 1. Evaluate Boot Reset Reason */
+    s_boot_watchdog_reset = watchdog_was_reset_by_watchdog();
+    watchdog_clear_reset_flags();
+
+    /* 2. Initialize Watchdog with 8.0s timeout */
+    (void)watchdog_init(WATCHDOG_TIMEOUT_MS_DEFAULT);
+
+    /* 3. Initialize metrics */
+    s_watchdog_kick_count = 0U;
+    s_state_entry_tick_ms = power_mgr_get_tick_ms();
 
     s_app_ctx.current_state  = STATE_WAKE;
     s_app_ctx.previous_state = STATE_SLEEP;
@@ -477,5 +510,20 @@ void app_state_machine_reset(void) {
     s_history_count = 0;
     memset(s_history_samples, 0, sizeof(s_history_samples));
     app_fault_handler_reset();
+    s_boot_watchdog_reset = false;
+    s_watchdog_kick_count = 0U;
+    s_state_entry_tick_ms = 0U;
     s_initialized = false;
+}
+
+uint32_t app_state_machine_get_watchdog_kick_count(void) {
+    return s_watchdog_kick_count;
+}
+
+bool app_state_machine_was_boot_watchdog_reset(void) {
+    return s_boot_watchdog_reset;
+}
+
+uint32_t app_state_machine_get_state_entry_tick_ms(void) {
+    return s_state_entry_tick_ms;
 }

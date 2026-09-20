@@ -1,16 +1,44 @@
-# Current Feature
+# Current Feature: Watchdog Checkpoint Servicing & Reset Diagnostics (S6-T3.3)
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Goals will be populated when a feature is loaded -->
+- Establish 8 dedicated watchdog refresh checkpoints (`app_watchdog_checkpoint`) at state entry for all operational states (`STATE_WAKE` through `STATE_SLEEP`) in `app_state_machine.c`.
+- Implement anti-masking safety guards:
+  - Enforce state validity (`state < STATE_MAX`).
+  - Enforce maximum single-state execution duration guard (`elapsed < 200 ms` or `state == STATE_WAKE`).
+  - Strictly prohibit watchdog refreshing from ISR contexts (SysTick, EXTI, radio IRQs).
+- Integrate boot reset cause detection in `app_state_machine_init()` using `watchdog_was_reset_by_watchdog()`.
+- Clear reset flags post-evaluation via `watchdog_clear_reset_flags()`.
+- Wire the detected watchdog reset flag to the periodic telemetry encoder (`unexpected_reset` / Byte 11 bit 6, `0x40`).
+- Maintain internal runtime diagnostic metrics: cumulative kick counter (`s_watchdog_kick_count`), state entry timestamp (`s_state_entry_tick_ms`), and boot reset flag (`s_boot_watchdog_reset`).
+- Verify hardware counter freeze behavior during Stop 2 deep sleep mode via `DBGMCU_APB1FZR1_DBG_IWDG_STOP`.
+- Provide or expand unit/integration test coverage verifying the 10 watchdog supervision test scenarios (`UT_WDG_01` to `CP_WDG_10`).
 
 ## Notes
 
-<!-- Notes will be populated when a feature is loaded -->
+- **Specification Source**: [`context/specs/s6-t3.3-watchdog-kick-points.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t3.3-watchdog-kick-points.md)
+- **Target Files**:
+  - Header: [`firmware/app/inc/app_state_machine.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/app_state_machine.h)
+  - Implementation: [`firmware/app/src/app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_state_machine.c)
+  - Core Watchdog Header: [`firmware/core/inc/watchdog.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/inc/watchdog.h)
+  - Core Watchdog Driver: [`firmware/core/src/watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/watchdog.c)
+  - Unit Tests: [`tests/unit/test_watchdog.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_watchdog.c) / [`tests/unit/test_app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_app_state_machine.c)
+- **Discovered Graphify Dependencies**:
+  - `watchdog_init()`, `watchdog_refresh()`, `watchdog_was_reset_by_watchdog()`, `watchdog_clear_reset_flags()` in `firmware/core/src/watchdog.c`
+  - `power_mgr_get_tick_ms()`, `power_mgr_wake_restore()`, `power_mgr_enter_stop2()` in `firmware/core/src/power_mgr.c`
+  - `telemetry_encode_periodic()` with `unexpected_reset` field in `firmware/app/src/telemetry_codec.c`
+  - `app_fault_handler` diagnostic status and reporting hooks in `firmware/app/src/app_fault_handler.c`
+- **Hardware & Timing Constraints**:
+  - Dedicated hardware IWDG clocked by 32 kHz LSI oscillator (independent of MSI/HSE system clocks).
+  - Prescaler divider 64 (500 Hz clock -> 2.0 ms tick duration).
+  - 12-bit downcounter reload = 4000, yielding exactly 8.00-second timeout window.
+  - Active execution window across all states is typically < 150 ms (far below 8.0s timeout).
+  - Anti-masking guard suppresses refresh if a state hangs > 200 ms, allowing clean hardware reset after 8.0s timeout.
+  - Automatic counter freeze during Stop 2 sleep (120s - 3600s) configured via `DBGMCU_APB1FZR1_DBG_IWDG_STOP`.
 
 ## History
 
