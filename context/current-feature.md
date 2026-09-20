@@ -1,43 +1,18 @@
-# Current Feature: S7-T1.1 - 30-Day Multi-Scenario Synthetic Climate Simulation & Firmware Algorithm Validation
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- Implement 30-day continuous synthetic climate generation (2,880 discrete 15-min cycles) in `tools/simulation/simulate_plantation_weather.py` covering 4 distinct microclimate regimes (Pre-Monsoon Convective Squalls, Sustained Orographic Monsoon Waves, Morning Valley Fog & Cloud Shadow Perturbations, Fair Weather Anticyclonic Ridge).
-- Implement ground-truth rain event classifier (`extract_ground_truth_events`) adhering to WMO/IMD criteria (>= 0.4 mm threshold, 60-min dry boundary) and export dataset to `data/synthetic_30day_estate_climate.csv` and `data/ground_truth_rain_events.json`.
-- Develop automated validation runner `tools/simulation/validate_nowcaster.py` connecting the continuous climate time series to firmware nowcaster algorithms and tracking contingency metrics, confusion matrices, and lead times.
-- Implement comprehensive C integration test suite `tests/integration/test_simulation_validation.c` under Unity test framework verifying all 12 simulation invariants (TC-SIM-01 through TC-SIM-12) across 2,880 steps.
-- Validate precursor convective warning lead time >= 60 minutes, zero false positives during radiation fog and cloud shadows, and zero false clears during sustained monsoon lulls.
-- Register `test_simulation_validation` in `tests/CMakeLists.txt` for remote GitHub Actions CI execution.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Parent Task & Roadmap**: Sprint 7 Task `S7-T1.1` under `S7-T1: Multi-Day Synthetic Climate Validation & Metric Verification`.
-- **Target Files**:
-  - `tools/simulation/simulate_plantation_weather.py`
-  - `tools/simulation/validate_nowcaster.py`
-  - `tests/integration/test_simulation_validation.c`
-  - `data/synthetic_30day_estate_climate.csv`
-  - `tests/CMakeLists.txt`
-- **Discovered Module Dependencies (via Knowledge Graph)**:
-  - `firmware/app/inc/rain_algo.h` & `firmware/app/src/rain_algo.c`: `rain_algo_evaluate()`, `rain_algo_score_zambretti()`, `rain_algo_result_t`, `rain_alert_state_t`.
-  - `firmware/app/inc/zambretti.h` & `firmware/app/src/zambretti.c`: `zambretti_calculate()`, `zambretti_calculate_weighted()`, `zambretti_classify_trend()`, `zambretti_map_to_state()`.
-  - `firmware/app/inc/trend_detector.h` & `firmware/app/src/trend_detector.c`: `trend_detector_compute_gradients()`, `trend_detector_classify_pressure()`, `trend_detector_classify_solar()`, `trend_detector_score_pressure()`, `trend_detector_score_solar()`.
-  - `firmware/middleware/inc/dew_point.h` & `firmware/middleware/src/dew_point.c`: `dew_point_calc()`, Magnus-Tetens formula.
-  - `firmware/drivers/inc/rain_gauge_driver.h`: `rain_gauge_classify_intensity()`, `rain_rate_metrics_t`.
-- **Simulation Parameters & Constraints**:
-  - Continuous timeline: 30 days = 720 hours = 2,880 steps at 15-minute intervals ($\Delta t = 0.25\text{ h}$).
-  - Elevation baseline: $1,500\text{ m}$ AMSL (barometric reduction via hypsometric formula).
-  - Ground-truth rain event threshold: $\ge 0.4\text{ mm}$ ($2\text{ tips}$) within sliding $30\text{ min}$, terminated by $60\text{ min}$ continuous zero rain.
-  - Advance warning requirement: $\ge 60\text{ minutes}$ lead time for convective storms ($CPI \ge 80\%$).
-  - False alarm rejection: $0$ siren pulses and $CPI < 40\%$ during Phase 3 radiation fog and cloud shadows.
-  - Execution constraint: Full 2,880-step simulation runs in $< 3.0\text{ s}$ on host with zero dynamic heap allocation in C integration harness.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
-
 
 - 2026-09-09: Implemented Phase 1 documentation deliverables (System & Hardware Architecture).
 - 2026-09-09: Implemented Phase 2 documentation deliverables (Sensors & Prediction Math).
@@ -72,4 +47,4 @@ In Progress
 - 2026-09-20: S6-T3.3 — Implemented Watchdog Kick Points at State Execution Checkpoints & Boot Reset Diagnostics (Integrated 8 dedicated safe watchdog refresh checkpoints into top-level state machine sequence STATE_WAKE through STATE_SLEEP; enforced strict anti-masking invariants verifying state bounds, single-state execution duration < 200 ms, and zero ISR refreshes; integrated boot reset cause diagnostics via watchdog_was_reset_by_watchdog() and mapped unexpected reboot flag to Byte 11 bit 6 in periodic LoRaWAN telemetry; maintained runtime diagnostic counters; verified DBGMCU Stop 2 deep sleep counter freeze; created comprehensive Unity test suite test_app_state_machine.c validating all 10 verification criteria UT_WDG_01 through CP_WDG_10).
 - 2026-09-20: S6-T4.1 — Implemented Full System State Machine End-to-End Integration Tests (Created test_state_machine.c under Unity framework verifying the complete 4-layer embedded firmware stack operating cohesively across all 8 states; constructed comprehensive mock harness for switched PA4 rails, BME280, OPT3001, rain gauge EXTI pulses, battery ADC, Flash NVM circular storage, LoRaWAN Class A service, and IWDG watchdog checkpoints; implemented and verified all 16 integration tests IT-SM-01 through IT-SM-16 covering nominal cycles, 20ms RC rail stabilization, 12-byte LoRaWAN serialization, Flash ring buffer logging, active-time compensated Stop 2 sleep, convective storm detection with Red 10 Hz strobe and 10s siren blast, 30-min siren anti-chatter cooldown suppression, 2-min active rain cadence acceleration, 30-min calm hold-down recovery, remote downlink schedule overrides, EXTI wake handling, 24-hour continuous mission stability, and CPU processing budget compliance < 1.2s; added test_state_machine target to tests/CMakeLists.txt).
 - 2026-09-20: S6-T4.2 — Implemented System Fault Injection & Resilience Integration Tests (Created test_fault_injection.c under Unity framework verifying system resilience across 16 catastrophic, intermittent, and compound hardware failure scenarios FI-SM-01 through FI-SM-16; validated BME280 disconnect with 3-cycle stale pressure holding before neutral baseline fallback, autonomous 2-tier I2C lockup recovery via 9 SCL pulses and switched sensor rail toggle, OPT3001 dead sensor RTC daytime solar heuristic substitution, 3-consecutive clean read self-healing logic, battery Tier 2 Conservation entry at 3.05V with acoustic muting, battery Tier 3 Critical entry at 2.85V with optical LED shutdown, battery hysteresis recovery requiring 2 clean readings above 3.20V to restore Tier 1 Normal, siren relay suppression during convective storms under low battery to protect RF uplink capacity, 150ms LoRa radio TX timeout non-blocking Flash fallback buffering, 72-hour gateway blackout logging 288 records safely to Flash, gateway reconnect backlog drain across 18 confirmed batches on FPort 3, live storm alert preemption over background playback, Flash write error bypass, rain gauge contact chatter clamping to 40 tips/cycle, watchdog timeout reboot detection asserting Byte 11 bit 6 0x40 flag, and total compound multi-fault survival in < 1.2s into Stop 2 deep sleep < 3.0 uA; registered test_fault_injection target in tests/CMakeLists.txt; completed Sprint 6).
-
+- 2026-09-20: S7-T1.1 — Implemented 30-Day Multi-Scenario Synthetic Climate Simulation & Firmware Algorithm Validation (Added multi-scenario 30-day continuous synthetic climate generation across 2,880 15-min cycles covering 4 microclimate regimes in `tools/simulation/simulate_plantation_weather.py`; implemented WMO/IMD-compliant ground-truth rain event extractor and automated Python validation harness `tools/simulation/validate_nowcaster.py` verifying all 12 simulation invariants TC-SIM-01 through TC-SIM-12; implemented Unity C99 integration test harness `tests/integration/test_simulation_validation.c` asserting all 12 invariants against C99 firmware algorithms with zero heap allocation; verified >= 60-min convective storm advance warning, zero false positives during radiation fog and cloud shadows, and zero false clears during sustained monsoon waves; registered `test_simulation_validation` in `tests/CMakeLists.txt`).
