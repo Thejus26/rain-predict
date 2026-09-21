@@ -1,16 +1,42 @@
-# Current Feature
+# Current Feature: S7-T3.1 - On-Site Barometric Altitude Offset Calibration Procedure & Operational Tuning
 
 ## Status
 
-Not Started
+Complete
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- **Mathematical Hypsometric Verification**: Implement and verify the ICAO / WMO hypsometric sea-level pressure reduction formula and closed-form elevation inversion algorithm across mountain elevations from $120\text{ m}$ to $2,200\text{ m}$ AMSL within $\pm 0.05\text{ hPa}$ of NOAA standards.
+- **6-Phase Standard Operating Procedure (SOP)**: Document the complete field technician calibration manual in `docs/algorithms/algorithm-validation-and-tuning.md` covering pre-installation bench check, RTK GPS survey ($\pm 0.5\text{ m}$), 05:30–06:30 calm dawn zero-gradient calibration window ($|\Delta P/\Delta t| < 0.2\text{ hPa/hr}$), LoRaWAN/UART programming, QA sign-off ($|P_{0,\text{node}} - P_{0,\text{ref}}| \le 0.5\text{ hPa}$), and annual drift maintenance ($< 1.0\text{ hPa/yr}$).
+- **Elevation-Dependent Multi-Regime Weight Tuning Matrix**: Define and document specialized Composite Precipitation Index ($CPI$) weights ($w_1..w_5$) for High Ridge (>1200m), Mid-Slope (600–1200m), and Valley Basin (<600m) regimes reflecting unique thermodynamic storm physics.
+- **NVM Flash Configuration Layout & CRC-16**: Formulate and verify the 32-byte double-word aligned non-volatile calibration block (Sector 7 at `0x0803F800`) protected with CRC-16-CCITT and physical boundary clamping ($h \in [0, 3500]\text{m}$, $\text{offset} \in [-5.0, +5.0]\text{hPa}$).
+- **LoRaWAN FPort 10 & Field CLI Tooling**: Deliver Python CLI `tools/calibration/calibrate_station_elevation.py` generating 6-byte LoRaWAN Downlink Command `0x02` frames (`[0x02, Alt_MSB, Alt_LSB, Offset_MSB, Offset_LSB, Regime]`), calculating residual offsets, and exporting `data/calibration_verification_report.json`.
+- **C99 Unit Test Suite & Build Integration**: Implement `tests/unit/test_barometric_calibration.c` validating the 10-point test matrix TC-CAL-01 through TC-CAL-10 under ThrowTheSwitch Unity with zero heap allocation, and register `test_barometric_calibration` in `tests/CMakeLists.txt`.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Atmospheric Physics & Constants**:
+  - Standard Tropospheric Lapse Rate: $\Gamma = 0.0065\text{ K/m}$ ($6.5\text{ K/km}$).
+  - Hypsometric Exponent: $\kappa = 5.257$ (derived from $(g \cdot M) / (R_u \cdot \Gamma)$).
+  - Sea-Level Sensitivity: $\approx 0.120\text{ hPa / meter elevation error}$ ($\Delta h = \pm 8.5\text{ m} \rightarrow \pm 1.0\text{ hPa}$ error).
+  - WMO-No. 8 Accuracy Criterion: $|P_{0,\text{node}} - P_{0,\text{ref}}| \le 0.50\text{ hPa}$.
+  - Target Elevation Range: $120\text{ m}$ (Assam plains) to $2,200\text{ m}$ (Nilgiris ridge).
+- **Flash NVM Configuration Architecture**:
+  - Flash Target: STM32WLE5 Sector 7 (`0x0803F800`, 2 KB page size).
+  - Struct Size: Exactly 32 bytes (64-bit double-word aligned).
+  - Header: Magic word `0x5241494E` ("RAIN"), Version `0x0001`.
+  - Integrity: CRC-16-CCITT across bytes 0x08..0x1F.
+- **LoRaWAN Downlink Protocol (FPort 10)**:
+  - Command ID: `0x02` (Set Elevation & Barometric Calibration).
+  - Frame Payload (6 Bytes): `[0x02, Alt_MSB, Alt_LSB, Offset_MSB, Offset_LSB, Regime_ID]`.
+- **Discovered Dependencies (Knowledge Graph)**:
+  - [`context/specs/s7-t3.1-barometric-altitude-calibration.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s7-t3.1-barometric-altitude-calibration.md)
+  - [`docs/algorithms/algorithm-validation-and-tuning.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/algorithms/algorithm-validation-and-tuning.md)
+  - [`firmware/middleware/inc/dew_point.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/dew_point.h) / [`dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c)
+  - [`firmware/app/inc/zambretti.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/zambretti.h) / [`zambretti.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/zambretti.c)
+  - [`firmware/middleware/inc/flash_storage.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_storage.h)
+  - Upstream Tasks: `S2-T2.3`, `S5-T1.1`, `S5-T3.1`, `S7-T1.1`.
+  - Downstream Tasks: `S7-T3.2` (Tipping-Bucket Field Water Calibration SOP), `S7-T3.3` (Estate Agronomic Operational Response Guidelines).
 
 ## History
 
