@@ -1,43 +1,16 @@
-# Current Feature: S7-T2.1 - Stop 2 Deep Sleep & Active Cycle Power Profiling
+# Current Feature
 
 ## Status
 
-Complete
+Not Started
 
 ## Goals
 
-- **8-State Electrical Profile Modeling**: Deterministically model timing ($t_k$), typical current ($I_k$), peak current ($I_{\text{peak}}$), charge ($Q_k$), and energy ($E_k$) across all 8 firmware states (`STATE_WAKE`, `STATE_POWER_ON`, `STATE_SAMPLE`, `STATE_FILTER`, `STATE_PREDICT`, `STATE_TRANSMIT`, `STATE_ALERT`, `STATE_SLEEP`).
-- **Python Power & Energy Profiler Engine**: Implement `tools/simulation/profile_energy_budget.py` to simulate current integration across configurable measurement intervals, verifying Stop 2 standby current, active cycle timing, and energy budget.
-- **Stop 2 Deep Sleep Current Verification**: Confirm Stop 2 standby current satisfies $I_{\text{sleep}} < 5.0\,\mu\text{A}$ at room temperature ($25^\circ\text{C}$, target $2.8\text{–}3.0\,\mu\text{A}$) and $< 8.0\,\mu\text{A}$ at elevated temperature ($50^\circ\text{C}$).
-- **Active Cycle Duration Verification**: Confirm total CPU active execution time satisfies $t_{\text{active}} \le 1.20\text{ seconds}$ ($1200\text{ ms}$) per cycle, with nominal cycle duration floor $\le 250\text{ ms}$ (nominal target $\approx 166.5\text{ ms}$).
-- **Active Average Operating Current Verification**: Confirm active cycle average current satisfies $I_{\text{active, avg}} < 25.0\text{ mA}$ across all sensor sampling, algorithmic filtering, NVM logging, and LoRaWAN TX phases (nominal target $\approx 15.13\text{ mA}$).
-- **Parasitic Leakage Elimination**: Verify pre-sleep `GPIO_MODE_ANALOG` pin conditioning suppresses unpowered sensor rail parasitic clamping diode leakage to $< 50\text{ nA}$, and gated battery divider leakage to $< 10\text{ nA}$.
-- **Comprehensive 12-Point Power Matrix**: Enforce quantitative compliance with all 12 power verification invariants (TC-PWR-01 through TC-PWR-12), including RF transmission energy ($\le 7.5\text{ mJ}$ @ +14 dBm) and 15-minute single-cycle charge ($\le 1.60\,\mu\text{Ah}$).
-- **Validation Deliverable Reports**: Auto-generate machine-readable JSON (`data/energy_profile_validation_report.json`) and formatted markdown summary (`data/power_budget_summary.md`).
-- **Firmware C99 Integration Test Harness**: Implement `tests/integration/test_power_profiling.c` under Unity asserting all 12 invariants with zero dynamic heap allocation, and register `test_power_profiling` target in `tests/CMakeLists.txt`.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Hardware Constraints & Specifications**:
-  - Microcontroller: STM32WLE5 SoC (ARM Cortex-M4 @ 48 MHz MSI clock, 64 KB SRAM with full retention, 256 KB Flash).
-  - Nominal System Rail: $3.3\text{ V}$.
-  - Stop 2 Current Budget: $< 5.0\,\mu\text{A}$ at $25^\circ\text{C}$ (typical $2.8\text{–}3.0\,\mu\text{A}$ with full SRAM retention and LPTIM/RTC running); $< 8.0\,\mu\text{A}$ at $50^\circ\text{C}$.
-  - Active Execution Window Ceiling: $\le 1.20\text{ s}$ ($1200\text{ ms}$); Active current ceiling: $< 25.0\text{ mA}$.
-  - Switched Sensor Rail (`VSENS_SW`): Controlled via active-low P-MOSFET gate on `PA4`. Requires mandatory $20.0\text{ ms} \pm 1.0\text{ ms}$ RC capacitor stabilization delay before bus activity.
-  - Pre-Sleep GPIO Analog Isolation: Peripheral pins (`PB6`/`PB7` I2C1, `PA1`..`PA3` UART, `PC0`..`PC2` SDI-12) unconditionally switched to `GPIO_MODE_ANALOG` prior to Stop 2 entry, suppressing clamping diode back-powering leakage to $< 50\text{ nA}$.
-  - Gated Battery ADC Divider: Controlled via P-MOSFET on `PB1` (analog input on `PB0`); standby leakage $< 10\text{ nA}$.
-  - RF Transmission Budget: Class A uplink @ $+14\text{ dBm}$ (DR3, SF7/125kHz, 60ms) draws $32.0\text{ mA}$ typical ($36.0\text{ mA}$ peak), energy $E_{\text{tx}} \le 7.5\text{ mJ}$; High-power $+22\text{ dBm}$ fallback draws $\le 90.0\text{ mA}$ peak, $E_{\text{tx}} \le 25.0\text{ mJ}$.
-  - Flash NVM Write Budget: 64-bit double-word write & circular pointer update (5ms, $E_{\text{nvm}} \le 0.10\text{ mJ}$).
-  - Single 15-Minute Cycle Total Charge: $\le 1.60\times 10^{-3}\text{ mAh}$ ($1.60\,\mu\text{Ah}$, nominal $\approx 1.450\,\mu\text{Ah}$).
-- **Discovered Architecture & Module Dependencies (via Knowledge Graph)**:
-  - [`firmware/middleware/src/power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/power_mgr.c): `power_mgr_enter_stop2()`, `power_mgr_gpio_sleep_prepare()`, `power_mgr_isolate_sensor_buses()`, `power_mgr_wake_restore()`, `power_mgr_verify_leakage_state()`.
-  - [`firmware/app/src/app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_state_machine.c): 8-state sequence (`STATE_WAKE` through `STATE_SLEEP`), timing accounting, active duration sleep compensation.
-  - [`firmware/drivers/src/bsp_power_rails.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_power_rails.c): `bsp_power_rails_all_off()`, `PA4` load switch control.
-  - [`firmware/drivers/src/bsp_indicators.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_indicators.c): `bsp_indicators_all_off()`.
-  - [`firmware/core/src/board_config.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/board_config.c): `board_rf_switch_set()`, GPIO mode verification.
-  - [`firmware/core/src/system_clock.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/system_clock.c): `system_clock_sleep_prepare()`, 48 MHz MSI re-initialization.
-  - Upstream Tasks: `S3-T3.1`, `S3-T4.1`, `S3-T4.2`, `S6-T3.1`, `S6-T4.1`.
-  - Downstream Tasks: `S7-T2.2` (24-Hour Total Daily Energy Draw Verification $< 25\text{ mAh/day}$), `S7-T2.3` (14-Day Zero-Sunlight Battery Survivability Simulation), `S7-T3.1` (Field Deployment SOPs).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -76,4 +49,6 @@ Complete
 - 2026-09-20: S6-T4.2 — Implemented System Fault Injection & Resilience Integration Tests (Created test_fault_injection.c under Unity framework verifying system resilience across 16 catastrophic, intermittent, and compound hardware failure scenarios FI-SM-01 through FI-SM-16; validated BME280 disconnect with 3-cycle stale pressure holding before neutral baseline fallback, autonomous 2-tier I2C lockup recovery via 9 SCL pulses and switched sensor rail toggle, OPT3001 dead sensor RTC daytime solar heuristic substitution, 3-consecutive clean read self-healing logic, battery Tier 2 Conservation entry at 3.05V with acoustic muting, battery Tier 3 Critical entry at 2.85V with optical LED shutdown, battery hysteresis recovery requiring 2 clean readings above 3.20V to restore Tier 1 Normal, siren relay suppression during convective storms under low battery to protect RF uplink capacity, 150ms LoRa radio TX timeout non-blocking Flash fallback buffering, 72-hour gateway blackout logging 288 records safely to Flash, gateway reconnect backlog drain across 18 confirmed batches on FPort 3, live storm alert preemption over background playback, Flash write error bypass, rain gauge contact chatter clamping to 40 tips/cycle, watchdog timeout reboot detection asserting Byte 11 bit 6 0x40 flag, and total compound multi-fault survival in < 1.2s into Stop 2 deep sleep < 3.0 uA; registered test_fault_injection target in tests/CMakeLists.txt; completed Sprint 6).
 - 2026-09-20: S7-T1.1 — Implemented 30-Day Multi-Scenario Synthetic Climate Simulation & Firmware Algorithm Validation (Added multi-scenario 30-day continuous synthetic climate generation across 2,880 15-min cycles covering 4 microclimate regimes in `tools/simulation/simulate_plantation_weather.py`; implemented WMO/IMD-compliant ground-truth rain event extractor and automated Python validation harness `tools/simulation/validate_nowcaster.py` verifying all 12 simulation invariants TC-SIM-01 through TC-SIM-12; implemented Unity C99 integration test harness `tests/integration/test_simulation_validation.c` asserting all 12 invariants against C99 firmware algorithms with zero heap allocation; verified >= 60-min convective storm advance warning, zero false positives during radiation fog and cloud shadows, and zero false clears during sustained monsoon waves; registered `test_simulation_validation` in `tests/CMakeLists.txt`).
 - 2026-09-21: S7-T1.2 — Implemented Meteorological Contingency Metrics & Nowcasting Skill Verification (Constructed 2x2 dichotomous contingency matrix builder and meteorological skill evaluator in tools/simulation/evaluate_contingency_metrics.py calculating POD, FAR, CSI, HSS, FBI, TSS, and mean warning lead time across 120-min sliding window; generated JSON and Markdown validation reports confirming 100% POD, 0% FAR, 84.2 min mean lead time; created Unity C99 integration test harness tests/integration/test_meteorological_metrics.c asserting all 12 invariants TC-MET-01 through TC-MET-12 with zero dynamic heap allocation; registered test_meteorological_metrics target in tests/CMakeLists.txt).
+- 2026-09-21: S7-T2.1 — Implemented Stop 2 Deep Sleep & Active Cycle Power Profiling (Constructed deterministic 8-state electrical current and timing model across STATE_WAKE through STATE_SLEEP in tools/simulation/profile_energy_budget.py confirming Stop 2 standby current of 3.00 uA at 25°C (< 5.0 uA ceiling) and 6.50 uA at 50°C (< 8.0 uA), active execution window of 166.5 ms (<= 1.20s CPU budget), active average current of 15.14 mA (< 25.0 mA), pre-sleep analog GPIO isolation leakage of 35.0 nA (< 50 nA), and single 15-minute cycle charge of 1.450 uAh (<= 1.60 uAh); generated JSON validation report data/energy_profile_validation_report.json and Markdown summary data/power_budget_summary.md; created C99 Unity integration test harness tests/integration/test_power_profiling.c asserting all 12 invariants TC-PWR-01 through TC-PWR-12 with zero heap allocation; registered test_power_profiling target in tests/CMakeLists.txt).
+
 
