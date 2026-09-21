@@ -622,6 +622,35 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_battery_survivability.c"
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 18. On-Site Barometric Altitude Offset Calibration (S7-T3.1)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_barometric_calibration.c")
+    add_executable(test_barometric_calibration
+        unit/test_barometric_calibration.c
+        ${UNITY_DIR}/unity.c
+    )
 
+    target_include_directories(test_barometric_calibration PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
 
+    target_compile_definitions(test_barometric_calibration PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
 
+    target_link_libraries(test_barometric_calibration PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME BarometricCalibrationTest COMMAND test_barometric_calibration)
+    set_tests_properties(BarometricCalibrationTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()
