@@ -145,8 +145,6 @@ static cal_status_t parse_lorawan_downlink_calibration(const uint8_t *payload, s
 /* Forward Declarations for Static Test Functions                             */
 /* ========================================================================== */
 
-void setUp(void);
-void tearDown(void);
 static void test_tc_cal_01_munnar_reduction(void);
 static void test_tc_cal_02_nilgiris_reduction(void);
 static void test_tc_cal_03_assam_reduction(void);
@@ -271,7 +269,7 @@ static void test_tc_cal_08_nvm_struct_crc_integrity(void)
     uint16_t crc = calculate_crc16((const uint8_t *)&cfg + 8, sizeof(cfg) - 8U);
     cfg.crc16_checksum = crc;
 
-    TEST_ASSERT_NOT_EQUAL(0x0000U, cfg.crc16_checksum);
+    TEST_ASSERT_TRUE(cfg.crc16_checksum != 0x0000U);
     TEST_ASSERT_EQUAL_HEX16(crc, calculate_crc16((const uint8_t *)&cfg + 8, sizeof(cfg) - 8U));
 }
 

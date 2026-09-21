@@ -66,6 +66,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-055`** | 2026-09-20 21:29:00 | [`acc7fed`](https://github.com/Thejus26/rain-predict/commit/acc7fed) | Algorithm Numerical Precision & Physical Vectors | **15-Minute Sample Stride Mismatch – Phase-Transition Zambretti Artifact and Incorrect Z-Index Assert**: Phase2→3 history buffer contamination drove false +21 hPa delta_p_3h spike in fog window; z_index <= 4U assertion physically unreachable with month=6 offset. | [ERR-055 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-055-2026-09-20-simulation-15min-stride-zambretti-artifact-and-wrong-z-assert.md) |
 | **`ERR-056`** | 2026-09-21 07:05:00 | [`96ed602`](https://github.com/Thejus26/rain-predict/commit/96ed60279b55f7256ecf7e59b33b95749c2eb084) | Algorithm Numerical Precision & Physical Vectors | **Morning Fog Hour 4.50 CPI and Ridge Quiescent Daytime CPI Threshold Exceeded**: Transient pre-dawn RH surge causes CPI=40.94% at hour 4.50 in fog window, and 90-min dusk RH gradient drives fair-weather ridge CPI to 28.55% exceeding restrictive 15% bound. | [ERR-056 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-056-2026-09-21-simulation-validation-fog-and-ridge-cpi-assertion-failures.md) |
 | **`ERR-057`** | 2026-09-21 08:05:09 | [`c77044d`](https://github.com/Thejus26/rain-predict/commit/c77044da742343fe4c3a3c273f8405e46cb1925e) | Testing Macros & Mock Architectural Collisions | **Non-Existent Unity Message Assertion Macros in test_power_profiling.c**: Undeclared `TEST_ASSERT_TRUE_MESSAGE` and `TEST_ASSERT_FLOAT_WITHIN_MESSAGE` triggered `-Werror=implicit-function-declaration` during host CI build. | [ERR-057 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-057-2026-09-21-non-existent-unity-message-assertion-macros-in-test-power-profiling.md) |
+| **`ERR-058`** | 2026-09-21 09:14:32 | [`38e5d0a`](https://github.com/Thejus26/rain-predict/commit/38e5d0a9c86d60521ae6952e41f1fad340a0c6d4) | Strict C99 & Unity Framework Diagnostics | **Redundant setUp/tearDown Redeclarations & Undeclared TEST_ASSERT_NOT_EQUAL**: Forward declaring lifecycle hooks violated `-Wredundant-decls`, and calling non-existent `TEST_ASSERT_NOT_EQUAL` triggered `-Wimplicit-function-declaration`. | [ERR-058 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-058-2026-09-21-barometric-calibration-test-compiler-warnings.md) |
 
 ---
 
@@ -74,7 +75,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 ```mermaid
 pie title Error Distribution by Subsystem
     "Testing Macros & Mock Architectural Collisions" : 22
-    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 21
+    "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 22
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3
     "Algorithm Numerical Precision & Physical Vectors" : 6
