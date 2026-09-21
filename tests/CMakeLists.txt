@@ -654,3 +654,36 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_barometric_calibration.c")
         FAIL_REGULAR_EXPRESSION "FAIL"
     )
 endif()
+
+# -----------------------------------------------------------------------------
+# 19. Tipping-Bucket Rain Gauge Field Water Calibration (S7-T3.2)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/unit/test_rain_gauge_calibration.c")
+    add_executable(test_rain_gauge_calibration
+        unit/test_rain_gauge_calibration.c
+        ${UNITY_DIR}/unity.c
+    )
+
+    target_include_directories(test_rain_gauge_calibration PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
+
+    target_compile_definitions(test_rain_gauge_calibration PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
+
+    target_link_libraries(test_rain_gauge_calibration PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME RainGaugeCalibrationTest COMMAND test_rain_gauge_calibration)
+    set_tests_properties(RainGaugeCalibrationTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()

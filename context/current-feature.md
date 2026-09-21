@@ -1,16 +1,48 @@
-# Current Feature
+# Current Feature: S7-T3.2 - Tipping-Bucket Rain Gauge Field Water Calibration & Maintenance SOP
 
 ## Status
 
-Not Started
+Complete
 
 ## Goals
 
-<!-- Describe the primary goals and deliverables for this feature -->
+- **Volumetric Physics & Geometric Baseline**: Verify analytical collector funnel aperture area ($A_{\text{funnel}} = 314.1593\text{ cm}^2$ for $200.0\text{ mm}$ funnel) and theoretical water volume per tip ($V_{\text{tip}} = 6.2832\text{ mL}$ for $0.20\text{ mm}$ nominal depth).
+- **Two-Rate Field Standard Operating Procedure (SOP)**: Document the complete 6-phase field technician calibration and maintenance SOP in [`docs/calibration/tipping_bucket_calibration_sop.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/calibration/tipping_bucket_calibration_sop.md) covering mechanical cleaning, spirit bubble leveling ($\le 0.5^\circ$), low-rate static drip test ($25\text{ mm/hr}$, $500\text{ mL}$), chamber symmetry balancing ($|N_{\text{left}} - N_{\text{right}}| \le 1$), dynamic high-flow siphon test ($100\text{ mm/hr}$), and stop screw calibration.
+- **Mechanical Stop Screw Tuning Guidelines**: Establish exact kinematic thread equations ($\text{M3} \times 0.5\text{ mm pitch}$, $1/8\text{ turn } [45^\circ] \approx 0.0075\text{ mm/tip}$ or $\approx 3.75\%$) with bidirectional field adjustment rules (CW = decrease tip volume / tip earlier, CCW = increase tip volume / tip later).
+- **LoRaWAN FPort 10 & Field CLI Tooling**: Deliver Python CLI [`tools/calibration/calibrate_rain_gauge.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/calibration/calibrate_rain_gauge.py) formatting 3-byte LoRaWAN Downlink Command `0x05` frames (`[0x05, K_MSB, K_LSB]`), evaluating chamber symmetry, computing dynamic flow intensity compensation, and exporting `data/rain_gauge_calibration_report.json`.
+- **C99 Unit Test Suite & Build Integration**: Implement [`tests/unit/test_rain_gauge_calibration.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge_calibration.c) validating the 10-point test matrix TC-RG-01 through TC-RG-10 with zero dynamic heap allocation and strict `static void` function prototypes; register `test_rain_gauge_calibration` in [`tests/CMakeLists.txt`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/CMakeLists.txt).
+- **Sensor Documentation & Firmware Driver Alignment**: Update [`docs/sensors/rain-gauge-pulse.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/rain-gauge-pulse.md) with calibration procedures, stop screw adjustment kinematics, and Flash NVM `calib_factor_um` integration.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Volumetric Physics & Geometry Constraints**:
+  - Collector Funnel Diameter: $D = 200.0\text{ mm}$ ($20.0\text{ cm}$).
+  - Funnel Catch Area: $A_{\text{funnel}} = \frac{\pi D^2}{4} = 31,415.93\text{ mm}^2 = 314.1593\text{ cm}^2$.
+  - Nominal Tip Depth: $d_{\text{tip}} = 0.20\text{ mm} = 0.020\text{ cm}$.
+  - Nominal Tip Volume: $V_{\text{tip}} = A_{\text{funnel}} \times d_{\text{tip}} \times 10^{-3} = 6.2832\text{ mL}$ ($6.2832\text{ g}$ pure water at $20^\circ\text{C}$).
+  - Tips per Liter ($1,000\text{ mL}$): $159.15\text{ tips/L}$.
+  - Expected Tips for $500.0\text{ mL}$: $N_{\text{expected}} = 79.577 \approx 79.6\text{ tips}$.
+- **Volumetric Calibration Acceptance Criteria**:
+  - Volumetric Error: $|E_{\text{cal}}| \le \pm 2.0\%$ ($N_{\text{actual}} \in [78, 81]\text{ tips}$ for $500.0\text{ mL}$).
+  - Chamber Symmetry Balance: $|N_{\text{left}} - N_{\text{right}}| \le 1\text{ tip}$ ($\le 2\text{ tips}$ maximum field tolerance).
+  - Spirit Bubble Level: $\le 0.5^\circ$ inclination centered within baseplate inner ring.
+- **Mechanical Stop Screw Tuning**:
+  - Thread: $\text{M3} \times 0.5\text{ mm pitch}$ ($0.50\text{ mm/turn}$).
+  - Full turn ($360^\circ$): $\approx 0.060\text{ mm/tip}$ shift ($\approx 30\%$).
+  - Fine adjustment ($1/8\text{ turn} / 45^\circ$): $\approx 0.0075\text{ mm/tip}$ ($\approx 3.75\%$).
+  - Direction: Clockwise raises stop $\implies$ tips earlier $\implies$ decreases volume/tip; Counter-Clockwise lowers stop $\implies$ tips later $\implies$ increases volume/tip.
+- **Flash NVM Configuration Block (Sector 7 at `0x0803F800`)**:
+  - Struct `nvm_rain_cal_t` (6 bytes packed): `calib_factor_um` (uint16_t, $150..250\,\mu\text{m}$), `dynamic_coeff_ppm` (uint16_t, PPM/mm/h), `funnel_diameter_mm` (uint8_t, e.g. 200), `debounce_lockout_ms` (uint8_t, default 50ms).
+- **LoRaWAN Downlink Frame (FPort 10, Cmd `0x05`)**:
+  - 3 Bytes: `[0x05, K_MSB, K_LSB]` where $K$ is in micrometers/tip ($150\text{ to }250\,\mu\text{m}$, e.g. $201\,\mu\text{m} = \text{0x00C9}$).
+- **Discovered Dependencies (Knowledge Graph)**:
+  - [`context/specs/s7-t3.2-tipping-bucket-water-calibration.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s7-t3.2-tipping-bucket-water-calibration.md)
+  - [`firmware/drivers/inc/rain_gauge_driver.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/rain_gauge_driver.h) / [`rain_gauge_driver.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/rain_gauge_driver.c)
+  - [`tests/unit/test_rain_gauge.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tests/unit/test_rain_gauge.c)
+  - [`docs/sensors/rain-gauge-pulse.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/sensors/rain-gauge-pulse.md)
+  - [`firmware/middleware/inc/flash_storage.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_storage.h)
+  - Upstream Tasks: `S4-T3.1`, `S4-T3.2`, `S7-T1.1`, `S7-T1.2`, `S7-T3.1`.
+  - Downstream Tasks: `S7-T3.3` (Estate Agronomic Operational Response Guidelines).
 
 ## History
 

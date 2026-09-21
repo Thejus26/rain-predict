@@ -127,3 +127,29 @@ Forecast     No Rain  [False Negative (FN)] [True Negative (TN)]
    $$\text{FAR} = \frac{\text{FP}}{\text{TP} + \text{FP}} \le 20\% \quad (\text{Target: Less than } 20\% \text{ false alarms})$$
 3. **Critical Success Index ($\text{CSI}$)**:
    $$\text{CSI} = \frac{\text{TP}}{\text{TP} + \text{FP} + \text{FN}}$$
+
+---
+
+## 6. Field Water Calibration & Maintenance Protocol
+
+For full field operational procedures, see the comprehensive standard operating procedure:
+[`docs/calibration/tipping_bucket_calibration_sop.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/calibration/tipping_bucket_calibration_sop.md).
+
+### 6.1 Volumetric Calibration Mathematics
+For the standard $D = 200.0\text{ mm}$ collector funnel:
+- Catch area: $A_{\text{funnel}} = \frac{\pi D^2}{4} = 314.1593\text{ cm}^2$.
+- Theoretical water volume per tip ($0.20\text{ mm}$ nominal depth):
+  $$V_{\text{tip}} = A_{\text{funnel}} \times 0.020\text{ cm} = \mathbf{6.2832\text{ mL}}\text{ (or grams @ }20^\circ\text{C)}$$
+- Expected tips for $500.0\text{ mL}$ water test: $N_{\text{expected}} = \frac{500.0}{6.2832} = \mathbf{79.58\text{ tips}}$.
+- Target field tolerance: Volumetric error $|E_{\text{cal}}| \le \pm 2.0\%$ ($78\text{ to }81\text{ tips}$), chamber balance $\le 1\text{ tip}$.
+
+### 6.2 Mechanical Stop Screw Fine Adjustment
+- Thread specification: $\text{M3} \times 0.5\text{ mm pitch}$ ($0.50\text{ mm/turn}$).
+- $1/8\text{ turn } (45^\circ) \approx \mathbf{0.0075\text{ mm/tip}}$ ($\approx 3.75\%$ adjustment).
+- **Clockwise (CW)** raises stop screw $\implies$ tips earlier $\implies$ **decreases volume per tip**.
+- **Counter-Clockwise (CCW)** lowers stop screw $\implies$ tips later $\implies$ **increases volume per tip**.
+
+### 6.3 Flash NVM & LoRaWAN Downlink (FPort 10, Cmd `0x05`)
+- Persisted in Flash Sector 7 (`0x0803F800`) as `uint16_t calib_factor_um` (e.g. $199\,\mu\text{m} = 0.199\text{ mm/tip}$).
+- Re-configurable remotely via 3-byte LoRaWAN Downlink Command `0x05`:
+  `[0x05, K_MSB, K_LSB]` (clamped to $[150, 250]\,\mu\text{m/tip}$).
