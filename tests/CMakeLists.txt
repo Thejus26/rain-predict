@@ -589,6 +589,39 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_daily_energy_budget.c")
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 17. 14-Day Zero-Sunlight Battery Survivability Simulation (S7-T2.3)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_battery_survivability.c")
+    add_executable(test_battery_survivability
+        integration/test_battery_survivability.c
+        ${UNITY_DIR}/unity.c
+    )
+
+    target_include_directories(test_battery_survivability PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
+
+    target_compile_definitions(test_battery_survivability PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
+
+    target_link_libraries(test_battery_survivability PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME BatterySurvivabilityTest COMMAND test_battery_survivability)
+    set_tests_properties(BatterySurvivabilityTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()
+
 
 
 
