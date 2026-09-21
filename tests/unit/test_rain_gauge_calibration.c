@@ -104,8 +104,6 @@ static rg_cal_status_t parse_lorawan_k_factor_downlink(const uint8_t *payload, s
 /* Forward Declarations for Static Test Functions                             */
 /* ========================================================================== */
 
-void setUp(void);
-void tearDown(void);
 static void test_tc_rg_01_funnel_area(void);
 static void test_tc_rg_02_tip_volume(void);
 static void test_tc_rg_03_expected_tips_500ml(void);
