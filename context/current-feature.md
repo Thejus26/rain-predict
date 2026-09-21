@@ -1,16 +1,49 @@
-# Current Feature
+# Current Feature: S7-T1.2 - Meteorological Contingency Metrics & Nowcasting Skill Verification
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- Implement Python meteorological contingency evaluation engine in `tools/simulation/evaluate_contingency_metrics.py`:
+  - Ingest 30-day simulation timeseries (`data/synthetic_30day_estate_climate.csv`, 2,880 cycles) and ground-truth events (`data/ground_truth_rain_events.json`).
+  - Implement sliding 120-minute (8-step) event matching rule to construct standard 2x2 dichotomous contingency table (Hits, False Alarms, Misses, Correct Negatives).
+  - Calculate 7 standard meteorological skill metrics: Probability of Detection ($\text{POD}$), False Alarm Ratio ($\text{FAR}$), Critical Success Index ($\text{CSI}$), Heidke Skill Score ($\text{HSS}$), Frequency Bias Index ($\text{FBI}$), True Skill Statistic ($\text{TSS}$), and Mean Warning Lead Time ($\text{LT}_{\text{mean}}$).
+  - Compute lead time distribution across 4 operational histograms (0–30m critical emergency, 30–60m tactical operational, 60–90m strategic spraying management target, 90–120m extended outlook).
+  - Export machine-readable validation report `data/meteorological_validation_report.json` and executive markdown summary `data/contingency_matrix_summary.md`.
+- Implement C99/Unity integration test suite in `tests/integration/test_meteorological_metrics.c`:
+  - Validate mathematical formulation and parity of all 7 contingency metrics on host.
+  - Verify zero-division numerical guards when $H+M=0$ or $H+FA=0$ or denominators equal zero.
+  - Verify all 12 acceptance criteria assertions TC-MET-01 through TC-MET-12:
+    - **TC-MET-01**: Probability of Detection $\text{POD} \ge 0.80$ ($80.0\%$)
+    - **TC-MET-02**: False Alarm Ratio $\text{FAR} \le 0.25$ ($25.0\%$)
+    - **TC-MET-03**: Critical Success Index $\text{CSI} \ge 0.65$ ($65.0\%$)
+    - **TC-MET-04**: Heidke Skill Score $\text{HSS} \ge 0.60$
+    - **TC-MET-05**: Mean Warning Lead Time $\text{LT}_{\text{mean}} \ge 60.0\text{ min}$
+    - **TC-MET-06**: Minimum Lead Time Floor $\text{LT}_{\text{min}} \ge 45.0\text{ min}$
+    - **TC-MET-07**: Frequency Bias Index $0.85 \le \text{FBI} \le 1.15$
+    - **TC-MET-08**: True Skill Statistic $\text{TSS} \ge 0.65$
+    - **TC-MET-09**: Phase 1 Convective Squall Skill $\text{POD}_{\text{convective}} = 1.00$ ($100\%$, 0 misses)
+    - **TC-MET-10**: Phase 3 False-Alarm Suppression $\text{FA}_{\text{phase3}} = 0$ (0 false alarms)
+    - **TC-MET-11**: Zero-Division Numerical Safety
+    - **TC-MET-12**: JSON & Markdown Report Integrity
+- Register target `test_meteorological_metrics` in `tests/CMakeLists.txt` linked to C99 nowcasting sources, firmware algorithms, and Unity test runner.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Hardware & Architectural Constraints**:
+  - Host execution: Zero dynamic heap allocations (`malloc`/`free`) in C99 verification logic; deterministic static evaluation structures.
+  - 30-Day simulation input: 2,880 discrete 15-minute cycles generated in S7-T1.1 (`data/synthetic_30day_estate_climate.csv`) with 14 ground-truth rain events across 4 microclimate regimes (`data/ground_truth_rain_events.json`).
+  - Prediction horizon: Sliding 120-minute window (8 steps at 15-minute sampling interval); alert assertion defined by $CPI \ge 70\%$ (`RAIN_ALERT_LIKELY` or `RAIN_ALERT_IMMINENT`).
+  - Event matching rules: Alerts occurring within $[t_{\text{onset}} - 120\text{m}, t_{\text{onset}}]$ count as a single Hit for that event; alerts without rain within $[t_{\text{alert}}, t_{\text{alert}} + 120\text{m}]$ count as False Alarm; Quiescent non-rain 120m blocks correctly rejected count as Correct Negatives ($\text{TN}$).
+- **Dependent Modules & Discovered Graphify Links**:
+  - [`firmware/app/src/rain_algo.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/rain_algo.c) & [`firmware/app/inc/rain_algo.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/rain_algo.h): `rain_algo_evaluate`, `rain_algo_score_dew_point`, `rain_algo_score_zambretti`, `rain_prediction_t`.
+  - [`firmware/app/src/zambretti.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/zambretti.c) & [`firmware/app/inc/zambretti.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/zambretti.h): `zambretti_calculate_weighted`, `zambretti_classify_trend`.
+  - [`firmware/app/src/trend_detector.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/trend_detector.c) & [`firmware/app/inc/trend_detector.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/trend_detector.h): Barometric & temperature pressure gradient evaluation.
+  - [`firmware/middleware/src/dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c) & [`firmware/middleware/inc/dew_point.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/dew_point.h): Magnus-Tetens dew point depression & hypsometric barometric reduction.
+  - [`tools/simulation/simulate_plantation_weather.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/simulate_plantation_weather.py) & [`tools/simulation/validate_nowcaster.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/validate_nowcaster.py): Upstream simulation artifacts and mirror nowcasting pipeline.
+  - Build & CI Policy: Remote CMake execution in GitHub Actions CI (`.github/workflows/ci.yml`), no local CMake runs.
 
 ## History
 
