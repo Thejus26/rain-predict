@@ -486,4 +486,42 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_simulation_validation.c"
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 14. Meteorological Contingency Metrics & Skill Verification (S7-T1.2)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_meteorological_metrics.c")
+    add_executable(test_meteorological_metrics
+        integration/test_meteorological_metrics.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/rain_algo.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/zambretti.c
+        ${CMAKE_SOURCE_DIR}/firmware/app/src/trend_detector.c
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/src/dew_point.c
+        ${UNITY_DIR}/unity.c
+    )
+
+    target_include_directories(test_meteorological_metrics PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
+
+    target_compile_definitions(test_meteorological_metrics PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
+
+    target_link_libraries(test_meteorological_metrics PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME MeteorologicalMetricsTest COMMAND test_meteorological_metrics)
+    set_tests_properties(MeteorologicalMetricsTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()
+
+
 
