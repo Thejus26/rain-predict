@@ -1,42 +1,16 @@
-# Current Feature: S7-T3.1 - On-Site Barometric Altitude Offset Calibration Procedure & Operational Tuning
+# Current Feature
 
 ## Status
 
-Complete
+Not Started
 
 ## Goals
 
-- **Mathematical Hypsometric Verification**: Implement and verify the ICAO / WMO hypsometric sea-level pressure reduction formula and closed-form elevation inversion algorithm across mountain elevations from $120\text{ m}$ to $2,200\text{ m}$ AMSL within $\pm 0.05\text{ hPa}$ of NOAA standards.
-- **6-Phase Standard Operating Procedure (SOP)**: Document the complete field technician calibration manual in `docs/algorithms/algorithm-validation-and-tuning.md` covering pre-installation bench check, RTK GPS survey ($\pm 0.5\text{ m}$), 05:30–06:30 calm dawn zero-gradient calibration window ($|\Delta P/\Delta t| < 0.2\text{ hPa/hr}$), LoRaWAN/UART programming, QA sign-off ($|P_{0,\text{node}} - P_{0,\text{ref}}| \le 0.5\text{ hPa}$), and annual drift maintenance ($< 1.0\text{ hPa/yr}$).
-- **Elevation-Dependent Multi-Regime Weight Tuning Matrix**: Define and document specialized Composite Precipitation Index ($CPI$) weights ($w_1..w_5$) for High Ridge (>1200m), Mid-Slope (600–1200m), and Valley Basin (<600m) regimes reflecting unique thermodynamic storm physics.
-- **NVM Flash Configuration Layout & CRC-16**: Formulate and verify the 32-byte double-word aligned non-volatile calibration block (Sector 7 at `0x0803F800`) protected with CRC-16-CCITT and physical boundary clamping ($h \in [0, 3500]\text{m}$, $\text{offset} \in [-5.0, +5.0]\text{hPa}$).
-- **LoRaWAN FPort 10 & Field CLI Tooling**: Deliver Python CLI `tools/calibration/calibrate_station_elevation.py` generating 6-byte LoRaWAN Downlink Command `0x02` frames (`[0x02, Alt_MSB, Alt_LSB, Offset_MSB, Offset_LSB, Regime]`), calculating residual offsets, and exporting `data/calibration_verification_report.json`.
-- **C99 Unit Test Suite & Build Integration**: Implement `tests/unit/test_barometric_calibration.c` validating the 10-point test matrix TC-CAL-01 through TC-CAL-10 under ThrowTheSwitch Unity with zero heap allocation, and register `test_barometric_calibration` in `tests/CMakeLists.txt`.
+<!-- Describe the primary goals and deliverables for this feature -->
 
 ## Notes
 
-- **Atmospheric Physics & Constants**:
-  - Standard Tropospheric Lapse Rate: $\Gamma = 0.0065\text{ K/m}$ ($6.5\text{ K/km}$).
-  - Hypsometric Exponent: $\kappa = 5.257$ (derived from $(g \cdot M) / (R_u \cdot \Gamma)$).
-  - Sea-Level Sensitivity: $\approx 0.120\text{ hPa / meter elevation error}$ ($\Delta h = \pm 8.5\text{ m} \rightarrow \pm 1.0\text{ hPa}$ error).
-  - WMO-No. 8 Accuracy Criterion: $|P_{0,\text{node}} - P_{0,\text{ref}}| \le 0.50\text{ hPa}$.
-  - Target Elevation Range: $120\text{ m}$ (Assam plains) to $2,200\text{ m}$ (Nilgiris ridge).
-- **Flash NVM Configuration Architecture**:
-  - Flash Target: STM32WLE5 Sector 7 (`0x0803F800`, 2 KB page size).
-  - Struct Size: Exactly 32 bytes (64-bit double-word aligned).
-  - Header: Magic word `0x5241494E` ("RAIN"), Version `0x0001`.
-  - Integrity: CRC-16-CCITT across bytes 0x08..0x1F.
-- **LoRaWAN Downlink Protocol (FPort 10)**:
-  - Command ID: `0x02` (Set Elevation & Barometric Calibration).
-  - Frame Payload (6 Bytes): `[0x02, Alt_MSB, Alt_LSB, Offset_MSB, Offset_LSB, Regime_ID]`.
-- **Discovered Dependencies (Knowledge Graph)**:
-  - [`context/specs/s7-t3.1-barometric-altitude-calibration.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s7-t3.1-barometric-altitude-calibration.md)
-  - [`docs/algorithms/algorithm-validation-and-tuning.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/docs/algorithms/algorithm-validation-and-tuning.md)
-  - [`firmware/middleware/inc/dew_point.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/dew_point.h) / [`dew_point.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/dew_point.c)
-  - [`firmware/app/inc/zambretti.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/zambretti.h) / [`zambretti.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/zambretti.c)
-  - [`firmware/middleware/inc/flash_storage.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/flash_storage.h)
-  - Upstream Tasks: `S2-T2.3`, `S5-T1.1`, `S5-T3.1`, `S7-T1.1`.
-  - Downstream Tasks: `S7-T3.2` (Tipping-Bucket Field Water Calibration SOP), `S7-T3.3` (Estate Agronomic Operational Response Guidelines).
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -78,5 +52,7 @@ Complete
 - 2026-09-21: S7-T2.1 — Implemented Stop 2 Deep Sleep & Active Cycle Power Profiling (Constructed deterministic 8-state electrical current and timing model across STATE_WAKE through STATE_SLEEP in tools/simulation/profile_energy_budget.py confirming Stop 2 standby current of 3.00 uA at 25°C (< 5.0 uA ceiling) and 6.50 uA at 50°C (< 8.0 uA), active execution window of 166.5 ms (<= 1.20s CPU budget), active average current of 15.14 mA (< 25.0 mA), pre-sleep analog GPIO isolation leakage of 35.0 nA (< 50 nA), and single 15-minute cycle charge of 1.450 uAh (<= 1.60 uAh); generated JSON validation report data/energy_profile_validation_report.json and Markdown summary data/power_budget_summary.md; created C99 Unity integration test harness tests/integration/test_power_profiling.c asserting all 12 invariants TC-PWR-01 through TC-PWR-12 with zero heap allocation; registered test_power_profiling target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T2.2 — Implemented 24-Hour Total Daily Energy Budget Verification (Modeled and verified gross 24-hour daily energy consumption across 6 operational regimes: Nominal 15-min fair weather at 1.462 mAh/day, Storm Watch 5-min at 1.596 mAh/day, Active Monsoon 2-min at 1.899 mAh/day, Mixed Severe Storm worst-case with 2x 10s 150mA siren pulses at 2.330 mAh/day, Battery Conservation 30-min at 1.405 mAh/day, and Critical Preservation 60-min at 1.368 mAh/day; integrated non-firmware standby baselines including TPS7A02 LDO quiescent ground current of 25 nA, DW01A protection IC of 3.0 uA, and LiFePO4 self-discharge of 1.250 mAh/day for total overhead of 1.323 mAh/day; verified worst-case gross daily consumption is <= 2.330 mAh/day or 7.689 mWh/day, maintaining a 10.7x safety margin below the < 25.0 mAh/day system ceiling; created Python CLI tools/simulation/verify_daily_energy.py generating data/daily_energy_budget_report.json and data/24hour_energy_verification_summary.md; implemented C99 Unity integration test tests/integration/test_daily_energy_budget.c asserting the 12-point matrix TC-ENG-01 through TC-ENG-12 with zero heap allocation; registered test_daily_energy_budget target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T2.3 — Implemented 14-Day Zero-Sunlight Battery Survivability Simulation (Constructed 8-segment piecewise linear LiFePO4 electrochemical OCV and internal impedance model for 3.2V 2500mAh cell; simulated continuous 14-day 336-hour solar blackout across nominal, monsoon, storm, and preservation profiles; confirmed Day-14 remaining State of Charge is >= 98.69% across all regimes with total 14-day energy drain <= 32.63 mAh or < 1.31% total capacity; verified usable 2000 mAh capacity delivers 858.0 to 1,368.0 days or 2.35 to 3.75 years of continuous darkness autonomy before reaching 3.00V cutoff, providing a 61.3x to 97.7x headroom over the 14-day requirement; proved +14 dBm and +22 dBm RF bursts drop <= 1.56 mV and <= 4.39 mV at 0°C with zero brownout trip risk; generated simulation deliverables data/battery_survivability_simulation_report.json and data/14day_zero_sunlight_survivability_summary.md via tools/simulation/simulate_battery_survivability.py; implemented C99 Unity integration test tests/integration/test_battery_survivability.c validating 12-point matrix TC-BAT-01 through TC-BAT-12 with zero heap allocation; registered test_battery_survivability target in tests/CMakeLists.txt).
+- 2026-09-21: S7-T3.1 — Implemented On-Site Barometric Altitude Offset Calibration Procedure & Operational Tuning (Verified ICAO/WMO standard hypsometric sea-level reduction formula and elevation inversion algorithm across mountain elevations from 120m to 2,200m AMSL; documented complete 6-phase Field Technician SOP, sequence diagram, and error budget table in docs/algorithms/algorithm-validation-and-tuning.md; established multi-regime CPI weight matrix for High Ridge, Mid-Slope, and Valley Basin regimes; specified 32-byte double-word aligned NVM Flash configuration structure in Sector 7 at 0x0803F800 with CRC-16 integrity and range clamps; delivered Python CLI tools/calibration/calibrate_station_elevation.py generating 6-byte LoRaWAN Downlink Command 0x02 frames on FPort 10 and data/calibration_verification_report.json; implemented C99 Unity unit test suite tests/unit/test_barometric_calibration.c validating 10-point matrix TC-CAL-01 through TC-CAL-10 with zero heap allocation; registered test_barometric_calibration target in tests/CMakeLists.txt).
+
 
 
