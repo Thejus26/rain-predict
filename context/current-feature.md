@@ -1,16 +1,41 @@
-# Current Feature
+# Current Feature: S7-T3.3 - Estate Agronomic Operational Response Guidelines & Field Safety Protocols
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Describe the primary goals and deliverables for this feature -->
+- [x] Complete estate operational guidelines document `docs/agronomy/estate_operational_guidelines.md` detailing:
+  - Four-tier operational agronomic advisory matrix (Tier 0 GREEN, Tier 1 AMBER, Tier 2 ORANGE, Tier 3 RED).
+  - SOP-AGRO-01: Agrochemical spray wash-off prevention protocols, rainfast curing physics ($T_{\text{cure}} = 3.5\,\text{h}$), and chemical loss modeling ($>\$45/\text{ha}$ savings).
+  - SOP-AGRO-02: Plucking squad triage, accelerated weigh-ins, waterproof tarpaulin staging, and leaf degradation / souring prevention ($T_{\text{core}} > 35^\circ\text{C}$).
+  - SOP-AGRO-03: Hillside worker safety, lightning mitigation (30-30 rule + edge nowcasting), and safe muster shed sheltering ($R_g < 5\,\Omega$).
+  - SOP-AGRO-04: Estate drainage sluice gate management and emergency irrigation pump motor shutdown.
+  - SOP-AGRO-05: Factory withering trough moisture regimes (Regimes A, B, and C).
+- [x] Implement automated Python agronomic simulation and audit CLI `tools/agronomy/evaluate_agronomic_advisory.py` validating 30-day climate streams, verifying mean evacuation lead time $\ge 60\,\text{min}$, and outputting `data/agronomic_response_simulation_report.json`.
+- [x] Implement C99 Unity unit test suite `tests/unit/test_agronomic_rules.c` covering all 10 verification assertions TC-AGRO-01 through TC-AGRO-10 with zero dynamic heap allocation.
+- [x] Register `test_agronomic_rules` test target in `tests/CMakeLists.txt`.
+- [x] Update Master Algorithm Validation document `docs/algorithms/algorithm-validation-and-tuning.md` with agronomic advisory decision matrix, economic wash-off formulas, and field response SOP links.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Specification**: `context/specs/s7-t3.3-estate-agronomic-response-guidelines.md`
+- **Dependencies & Related Modules**:
+  - `firmware/app/inc/alert_manager.h` & `firmware/app/src/alert_manager.c` (Local Alert Manager: PB8/PB9 LEDs, PB2 buzzer, PB4 siren relay)
+  - `firmware/app/inc/rain_algo.h` & `firmware/app/src/rain_algo.c` (Composite Precipitation Index $CPI$ & rain state classifier)
+  - `firmware/app/inc/app_state_machine.h` & `firmware/app/src/app_state_machine.c` (`app_exec_alert()` step dispatch)
+  - `firmware/drivers/inc/bsp_indicators.h` & `firmware/drivers/src/bsp_indicators.c` (Hardware indicator actuators)
+  - `firmware/middleware/inc/telemetry_codec.h` (LoRaWAN FPort 2 urgent alert bit-packing)
+- **Hardware & Actuator Constraints**:
+  - Division siren relay (PB4) limited to 10.0s auto-cutoff pulse with 30-minute anti-chatter cooldown timer.
+  - Acoustic alerts (piezo buzzer PB2 and siren relay PB4) muted during nighttime quiet hours (20:00 to 06:00) and battery preservation tiers (Tier 2 Conservation and Tier 3 Critical).
+  - Optical LEDs (PB8/PB9) throttled down to 8 uA average in Tier 2 and completely extinguished in Tier 3 / deep sleep.
+- **Economic & Agronomic Targets**:
+  - Agrochemical spray cost: ~$65/ha; 15 ha typical block = $975 per avoided wash-out.
+  - Rainfast curing threshold: $T_{\text{cure}} = 3.5\,\text{hours}$.
+  - Worker evacuation speed: 0.8 m/s on hillside terrain; minimum lead time >= 60.0 min.
+  - Leaf outturn: 22.5% green to made tea; souring discount: 25% auction loss averted.
 
 ## History
 
