@@ -1,41 +1,16 @@
-# Current Feature: S7-T3.3 - Estate Agronomic Operational Response Guidelines & Field Safety Protocols
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- [x] Complete estate operational guidelines document `docs/agronomy/estate_operational_guidelines.md` detailing:
-  - Four-tier operational agronomic advisory matrix (Tier 0 GREEN, Tier 1 AMBER, Tier 2 ORANGE, Tier 3 RED).
-  - SOP-AGRO-01: Agrochemical spray wash-off prevention protocols, rainfast curing physics ($T_{\text{cure}} = 3.5\,\text{h}$), and chemical loss modeling ($>\$45/\text{ha}$ savings).
-  - SOP-AGRO-02: Plucking squad triage, accelerated weigh-ins, waterproof tarpaulin staging, and leaf degradation / souring prevention ($T_{\text{core}} > 35^\circ\text{C}$).
-  - SOP-AGRO-03: Hillside worker safety, lightning mitigation (30-30 rule + edge nowcasting), and safe muster shed sheltering ($R_g < 5\,\Omega$).
-  - SOP-AGRO-04: Estate drainage sluice gate management and emergency irrigation pump motor shutdown.
-  - SOP-AGRO-05: Factory withering trough moisture regimes (Regimes A, B, and C).
-- [x] Implement automated Python agronomic simulation and audit CLI `tools/agronomy/evaluate_agronomic_advisory.py` validating 30-day climate streams, verifying mean evacuation lead time $\ge 60\,\text{min}$, and outputting `data/agronomic_response_simulation_report.json`.
-- [x] Implement C99 Unity unit test suite `tests/unit/test_agronomic_rules.c` covering all 10 verification assertions TC-AGRO-01 through TC-AGRO-10 with zero dynamic heap allocation.
-- [x] Register `test_agronomic_rules` test target in `tests/CMakeLists.txt`.
-- [x] Update Master Algorithm Validation document `docs/algorithms/algorithm-validation-and-tuning.md` with agronomic advisory decision matrix, economic wash-off formulas, and field response SOP links.
+<!-- Describe the primary goals and deliverables for this feature -->
 
 ## Notes
 
-- **Specification**: `context/specs/s7-t3.3-estate-agronomic-response-guidelines.md`
-- **Dependencies & Related Modules**:
-  - `firmware/app/inc/alert_manager.h` & `firmware/app/src/alert_manager.c` (Local Alert Manager: PB8/PB9 LEDs, PB2 buzzer, PB4 siren relay)
-  - `firmware/app/inc/rain_algo.h` & `firmware/app/src/rain_algo.c` (Composite Precipitation Index $CPI$ & rain state classifier)
-  - `firmware/app/inc/app_state_machine.h` & `firmware/app/src/app_state_machine.c` (`app_exec_alert()` step dispatch)
-  - `firmware/drivers/inc/bsp_indicators.h` & `firmware/drivers/src/bsp_indicators.c` (Hardware indicator actuators)
-  - `firmware/middleware/inc/telemetry_codec.h` (LoRaWAN FPort 2 urgent alert bit-packing)
-- **Hardware & Actuator Constraints**:
-  - Division siren relay (PB4) limited to 10.0s auto-cutoff pulse with 30-minute anti-chatter cooldown timer.
-  - Acoustic alerts (piezo buzzer PB2 and siren relay PB4) muted during nighttime quiet hours (20:00 to 06:00) and battery preservation tiers (Tier 2 Conservation and Tier 3 Critical).
-  - Optical LEDs (PB8/PB9) throttled down to 8 uA average in Tier 2 and completely extinguished in Tier 3 / deep sleep.
-- **Economic & Agronomic Targets**:
-  - Agrochemical spray cost: ~$65/ha; 15 ha typical block = $975 per avoided wash-out.
-  - Rainfast curing threshold: $T_{\text{cure}} = 3.5\,\text{hours}$.
-  - Worker evacuation speed: 0.8 m/s on hillside terrain; minimum lead time >= 60.0 min.
-  - Leaf outturn: 22.5% green to made tea; souring discount: 25% auction loss averted.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -79,3 +54,4 @@ In Progress
 - 2026-09-21: S7-T2.3 — Implemented 14-Day Zero-Sunlight Battery Survivability Simulation (Constructed 8-segment piecewise linear LiFePO4 electrochemical OCV and internal impedance model for 3.2V 2500mAh cell; simulated continuous 14-day 336-hour solar blackout across nominal, monsoon, storm, and preservation profiles; confirmed Day-14 remaining State of Charge is >= 98.69% across all regimes with total 14-day energy drain <= 32.63 mAh or < 1.31% total capacity; verified usable 2000 mAh capacity delivers 858.0 to 1,368.0 days or 2.35 to 3.75 years of continuous darkness autonomy before reaching 3.00V cutoff, providing a 61.3x to 97.7x headroom over the 14-day requirement; proved +14 dBm and +22 dBm RF bursts drop <= 1.56 mV and <= 4.39 mV at 0°C with zero brownout trip risk; generated simulation deliverables data/battery_survivability_simulation_report.json and data/14day_zero_sunlight_survivability_summary.md via tools/simulation/simulate_battery_survivability.py; implemented C99 Unity integration test tests/integration/test_battery_survivability.c validating 12-point matrix TC-BAT-01 through TC-BAT-12 with zero heap allocation; registered test_battery_survivability target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T3.1 — Implemented On-Site Barometric Altitude Offset Calibration Procedure & Operational Tuning (Verified ICAO/WMO standard hypsometric sea-level reduction formula and elevation inversion algorithm across mountain elevations from 120m to 2,200m AMSL; documented complete 6-phase Field Technician SOP, sequence diagram, and error budget table in docs/algorithms/algorithm-validation-and-tuning.md; established multi-regime CPI weight matrix for High Ridge, Mid-Slope, and Valley Basin regimes; specified 32-byte double-word aligned NVM Flash configuration structure in Sector 7 at 0x0803F800 with CRC-16 integrity and range clamps; delivered Python CLI tools/calibration/calibrate_station_elevation.py generating 6-byte LoRaWAN Downlink Command 0x02 frames on FPort 10 and data/calibration_verification_report.json; implemented C99 Unity unit test suite tests/unit/test_barometric_calibration.c validating 10-point matrix TC-CAL-01 through TC-CAL-10 with zero heap allocation; registered test_barometric_calibration target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T3.2 — Implemented Tipping-Bucket Rain Gauge Field Water Calibration & Maintenance SOP (Verified analytical funnel catch area A=314.16 cm^2 and tip volume V=6.2832 mL for 200mm aperture; formulated complete 6-phase Field Technician SOP covering cleaning, spirit leveling <=0.5 deg, low-rate static drip test 25 mm/hr, chamber symmetry balancing |NL-NR|<=1, dynamic high-rate siphon test 100 mm/hr, and Flash NVM programming in docs/calibration/tipping_bucket_calibration_sop.md; established M3x0.5mm stop screw fine-tuning kinematics 1/8 turn = ~0.0075 mm/tip; delivered Python CLI tools/calibration/calibrate_rain_gauge.py formatting LoRaWAN Downlink Command 0x05 frames on FPort 10 and data/rain_gauge_calibration_report.json; updated docs/sensors/rain-gauge-pulse.md with calibration protocol; implemented C99 Unity unit test suite tests/unit/test_rain_gauge_calibration.c validating 10-point matrix TC-RG-01 through TC-RG-10 with zero heap allocation; registered test_rain_gauge_calibration target in tests/CMakeLists.txt).
+- 2026-09-21: S7-T3.3 — Implemented Estate Agronomic Operational Response Guidelines & Field Safety Protocols (Documented 4-tier agronomic decision matrix and standard operating procedures SOP-AGRO-01 through SOP-AGRO-05 in docs/agronomy/estate_operational_guidelines.md; formulated agrochemical rainfast curing physics T_cure=3.5h saving >$45/ha per prevented washout; established green leaf triage and respiration heat runaway models k_resp=0.035 min^-1 preventing T_core > 35°C auction souring; defined hillside worker lightning mitigation with >30 min safety buffer and 10s 110dB siren relay actuation; delivered Python audit CLI tools/agronomy/evaluate_agronomic_advisory.py confirming 68.5 min mean lead time and $17,550 chemical savings across 30-day climate stream; implemented C99 Unity unit test suite tests/unit/test_agronomic_rules.c asserting 10-point matrix TC-AGRO-01 through TC-AGRO-10 with zero heap allocation; updated Section 6 in docs/algorithms/algorithm-validation-and-tuning.md; registered test_agronomic_rules target in tests/CMakeLists.txt; completed Sprint 7 and master engineering roadmap).
