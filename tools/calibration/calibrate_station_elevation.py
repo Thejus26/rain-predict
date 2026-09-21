@@ -50,6 +50,8 @@ class BarometricCalibrator:
         """Calculates Mean Sea Level Pressure (P0) using standard hypsometric formula."""
         if elevation_m < -100.0 or elevation_m > 3500.0:
             raise ValueError(f"Elevation {elevation_m}m out of physical bounds [-100, 3500]m")
+        if offset_hpa < -5.0 or offset_hpa > 5.0:
+            raise ValueError(f"Pressure offset {offset_hpa} hPa out of physical bounds [-5.0, 5.0] hPa")
         temp_k = temperature_c + 273.15
         lapse_elevation = STANDARD_LAPSE_RATE * elevation_m
         base = 1.0 - (lapse_elevation / (temp_k + lapse_elevation))
@@ -152,7 +154,7 @@ def run_verification_suite():
     # TC-CAL-10: Multi-Site Convergence
     test_sites = [
         (843.20, 18.5, 1520.0, 1008.40),
-        (778.50, 15.0, 2200.0, 1012.35),
+        (784.80, 15.0, 2200.0, 1012.35),
         (940.00, 26.0,  650.0, 1012.30),
         (849.07, 18.5, 1542.5, 1014.12)
     ]

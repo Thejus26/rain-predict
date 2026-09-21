@@ -304,7 +304,7 @@ static void test_tc_cal_10_multi_site_convergence(void)
 
     const struct site_record sites[3] = {
         {843.20f, 18.5f, 1520.0f, 1008.40f},
-        {778.50f, 15.0f, 2200.0f, 1012.35f},
+        {784.80f, 15.0f, 2200.0f, 1012.35f},
         {940.00f, 26.0f,  650.0f, 1012.30f}
     };
 
