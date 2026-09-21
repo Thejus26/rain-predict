@@ -556,6 +556,39 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_power_profiling.c")
     )
 endif()
 
+# -----------------------------------------------------------------------------
+# 16. 24-Hour Total Daily Energy Budget Verification (S7-T2.2)
+# -----------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/integration/test_daily_energy_budget.c")
+    add_executable(test_daily_energy_budget
+        integration/test_daily_energy_budget.c
+        ${UNITY_DIR}/unity.c
+    )
+
+    target_include_directories(test_daily_energy_budget PRIVATE
+        ${UNITY_DIR}
+        ${CMAKE_SOURCE_DIR}/firmware/core/inc
+        ${CMAKE_SOURCE_DIR}/firmware/drivers/inc
+        ${CMAKE_SOURCE_DIR}/firmware/middleware/inc
+        ${CMAKE_SOURCE_DIR}/firmware/app/inc
+    )
+
+    target_compile_definitions(test_daily_energy_budget PRIVATE
+        HOST_TEST=1
+        UNITY_INCLUDE_CONFIG_H=1
+    )
+
+    target_link_libraries(test_daily_energy_budget PRIVATE
+        $<$<NOT:$<C_COMPILER_ID:MSVC>>:m>
+    )
+
+    add_test(NAME DailyEnergyBudgetTest COMMAND test_daily_energy_budget)
+    set_tests_properties(DailyEnergyBudgetTest PROPERTIES
+        TIMEOUT 10
+        FAIL_REGULAR_EXPRESSION "FAIL"
+    )
+endif()
+
 
 
 
