@@ -1,16 +1,43 @@
-# Current Feature
+# Current Feature: S7-T2.3 - 14-Day Zero-Sunlight Battery Survivability Simulation
 
 ## Status
 
-Not Started
+Complete
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- **8-Segment Piecewise $\text{LiFePO}_4$ Model**: Implement realistic $3.2\text{V } 2500\text{ mAh}$ $\text{LiFePO}_4$ electrochemical cell model with 8 piecewise linear OCV segments ($2.50\text{V}$ to $3.65\text{V}$ across $0\%$ to $100\%$ SoC) and temperature-dependent internal resistance ($R_i = 30\text{ m}\Omega$ @ $25^\circ\text{C}$, $48.75\text{ m}\Omega$ @ $0^\circ\text{C}$).
+- **14-Day Zero-Sunlight Multi-Regime Simulation**: Execute continuous 14-day ($336\text{ continuous hours}$) solar blackout ($P_{\text{solar}} = 0.0\text{ W}$) simulation across Nominal Fair Weather ($15\text{-min}$, 1,344 cycles), Active Monsoon Downpour ($2\text{-min}$, 10,080 cycles), Mixed Severe Storm with 28 siren pulses, and Preservation Throttle modes.
+- **14-Day State of Charge Retention Gate**: Verify that cumulative 14-day energy consumption remains $< 35.0\text{ mAh}$ ($< 1.31\%$ capacity) and Day-14 remaining $\text{SoC} \ge 98.0\%$ across all operational profiles (achieving $\ge 98.69\%$ even in worst-case storm).
+- **Multi-Year Darkness Autonomy Horizon**: Prove that the usable $2000\text{ mAh}$ capacity ($80\%$ DoD / $3.00\text{V}$ floor) delivers $> 800\text{ days}$ ($> 2.19\text{ years}$, nominal $1,368\text{ days} \approx 3.75\text{ years}$) of autonomous darkness operation, exceeding the 14-day requirement by $> 60\times$ headroom.
+- **Transmit Burst Voltage Stability & Brownout Immunity**: Prove $+14\text{ dBm}$ ($32\text{ mA}$) and high-power $+22\text{ dBm}$ ($90\text{ mA}$) RF bursts induce $\le 1.56\text{ mV}$ and $\le 4.39\text{ mV}$ drop at $0^\circ\text{C}$, guaranteeing zero brownout trip risk.
+- **Comprehensive 12-Point Verification Matrix (TC-BAT-01 to TC-BAT-12)**: Enforce full compliance with 14-day retention, multi-year autonomy, monotonicity, temperature scaling ($40^\circ\text{C}$), preservation tier transitions, and report integrity.
+- **Python Simulation CLI Deliverables**: Implement `tools/simulation/simulate_battery_survivability.py` generating machine-readable `data/battery_survivability_simulation_report.json` and executive `data/14day_zero_sunlight_survivability_summary.md`.
+- **Firmware C99 Integration Test Harness**: Implement `tests/integration/test_battery_survivability.c` asserting the 12-point matrix with zero dynamic heap allocation, and register `test_battery_survivability` in `tests/CMakeLists.txt`.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Hardware Constraints & Specifications**:
+  - Battery Cell: $3.2\text{V } 2500\text{ mAh}$ $\text{LiFePO}_4$ cylindrical pack (usable capacity: $2000\text{ mAh}$ @ $80\%$ Depth of Discharge down to $3.00\text{V}$ critical cutoff).
+  - Internal Impedance: $R_{i, 25^\circ\text{C}} = 30.0\text{ m}\Omega$, scaling at $+2.5\%/^\circ\text{C}$ below $25^\circ\text{C}$ ($R_{i, 0^\circ\text{C}} = 48.75\text{ m}\Omega$).
+  - Standby non-firmware parasitics: $1.3226\text{ mAh/day}$ ($0.0006\text{ mAh/day}$ LDO + $0.0720\text{ mAh/day}$ DW01A + $1.2500\text{ mAh/day}$ self-discharge @ $1.5\%/\text{month}$).
+  - Solar Irradiance Condition: Complete solar blackout ($P_{\text{solar}} = 0.0\text{ W}$, 336 consecutive hours).
+  - Daily Gross Draws from S7-T2.2:
+    - Nominal Fair Weather ($15\text{-min}$): $1.462\text{ mAh/day}$ ($Q_{\text{14day}} = 20.47\text{ mAh}$, $\text{SoC}_{14\text{d}} = 99.18\%$, Autonomy: $1,368.0\text{ days}$).
+    - Continuous Monsoon Downpour ($2\text{-min}$): $1.899\text{ mAh/day}$ ($Q_{\text{14day}} = 26.59\text{ mAh}$, $\text{SoC}_{14\text{d}} = 98.94\%$, Autonomy: $1,053.2\text{ days}$).
+    - Mixed Severe Storm + 28 Sirens: $2.331\text{ mAh/day}$ ($Q_{\text{14day}} = 32.63\text{ mAh}$, $\text{SoC}_{14\text{d}} = 98.69\%$, Autonomy: $858.0\text{ days}$).
+    - Battery Conservation Throttle ($30\text{-min}$): $1.405\text{ mAh/day}$ ($Q_{\text{14day}} = 19.67\text{ mAh}$, Autonomy: $1,423.5\text{ days}$).
+    - Critical Preservation Throttle ($60\text{-min}$): $1.368\text{ mAh/day}$ ($Q_{\text{14day}} = 19.15\text{ mAh}$, Autonomy: $1,462.0\text{ days}$).
+- **Discovered Architecture & Module Dependencies (Knowledge Graph)**:
+  - [`context/specs/s7-t2.3-battery-survivability-simulation.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s7-t2.3-battery-survivability-simulation.md)
+  - [`context/specs/s7-t2.2-daily-energy-budget-verification.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s7-t2.2-daily-energy-budget-verification.md)
+  - [`context/specs/s6-t1.2-battery-preservation-throttling.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s6-t1.2-battery-preservation-throttling.md)
+  - [`context/specs/s3-t4.4-battery-adc-telemetry.md`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/specs/s3-t4.4-battery-adc-telemetry.md)
+  - [`firmware/drivers/inc/bsp_adc.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/inc/bsp_adc.h) / [`firmware/drivers/src/bsp_adc.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_adc.c)
+  - [`firmware/app/inc/measurement_scheduler.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/measurement_scheduler.h) / [`firmware/app/src/measurement_scheduler.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/measurement_scheduler.c)
+  - [`tools/simulation/verify_daily_energy.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/verify_daily_energy.py)
+  - Upstream Tasks: `S7-T2.1`, `S7-T2.2`, `S6-T1.2`, `S3-T4.4`.
+  - Downstream Tasks: `S7-T3.1` (Field Calibration SOPs & Agronomic Operational Manuals), `S7-T3.3` (Estate Deployment Guidelines).
 
 ## History
 
