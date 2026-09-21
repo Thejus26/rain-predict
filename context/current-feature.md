@@ -1,16 +1,43 @@
-# Current Feature
+# Current Feature: S7-T2.1 - Stop 2 Deep Sleep & Active Cycle Power Profiling
 
 ## Status
 
-Not Started
+Complete
 
 ## Goals
 
-<!-- Measurable criteria and deliverables for the feature -->
+- **8-State Electrical Profile Modeling**: Deterministically model timing ($t_k$), typical current ($I_k$), peak current ($I_{\text{peak}}$), charge ($Q_k$), and energy ($E_k$) across all 8 firmware states (`STATE_WAKE`, `STATE_POWER_ON`, `STATE_SAMPLE`, `STATE_FILTER`, `STATE_PREDICT`, `STATE_TRANSMIT`, `STATE_ALERT`, `STATE_SLEEP`).
+- **Python Power & Energy Profiler Engine**: Implement `tools/simulation/profile_energy_budget.py` to simulate current integration across configurable measurement intervals, verifying Stop 2 standby current, active cycle timing, and energy budget.
+- **Stop 2 Deep Sleep Current Verification**: Confirm Stop 2 standby current satisfies $I_{\text{sleep}} < 5.0\,\mu\text{A}$ at room temperature ($25^\circ\text{C}$, target $2.8\text{–}3.0\,\mu\text{A}$) and $< 8.0\,\mu\text{A}$ at elevated temperature ($50^\circ\text{C}$).
+- **Active Cycle Duration Verification**: Confirm total CPU active execution time satisfies $t_{\text{active}} \le 1.20\text{ seconds}$ ($1200\text{ ms}$) per cycle, with nominal cycle duration floor $\le 250\text{ ms}$ (nominal target $\approx 166.5\text{ ms}$).
+- **Active Average Operating Current Verification**: Confirm active cycle average current satisfies $I_{\text{active, avg}} < 25.0\text{ mA}$ across all sensor sampling, algorithmic filtering, NVM logging, and LoRaWAN TX phases (nominal target $\approx 15.13\text{ mA}$).
+- **Parasitic Leakage Elimination**: Verify pre-sleep `GPIO_MODE_ANALOG` pin conditioning suppresses unpowered sensor rail parasitic clamping diode leakage to $< 50\text{ nA}$, and gated battery divider leakage to $< 10\text{ nA}$.
+- **Comprehensive 12-Point Power Matrix**: Enforce quantitative compliance with all 12 power verification invariants (TC-PWR-01 through TC-PWR-12), including RF transmission energy ($\le 7.5\text{ mJ}$ @ +14 dBm) and 15-minute single-cycle charge ($\le 1.60\,\mu\text{Ah}$).
+- **Validation Deliverable Reports**: Auto-generate machine-readable JSON (`data/energy_profile_validation_report.json`) and formatted markdown summary (`data/power_budget_summary.md`).
+- **Firmware C99 Integration Test Harness**: Implement `tests/integration/test_power_profiling.c` under Unity asserting all 12 invariants with zero dynamic heap allocation, and register `test_power_profiling` target in `tests/CMakeLists.txt`.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Hardware Constraints & Specifications**:
+  - Microcontroller: STM32WLE5 SoC (ARM Cortex-M4 @ 48 MHz MSI clock, 64 KB SRAM with full retention, 256 KB Flash).
+  - Nominal System Rail: $3.3\text{ V}$.
+  - Stop 2 Current Budget: $< 5.0\,\mu\text{A}$ at $25^\circ\text{C}$ (typical $2.8\text{–}3.0\,\mu\text{A}$ with full SRAM retention and LPTIM/RTC running); $< 8.0\,\mu\text{A}$ at $50^\circ\text{C}$.
+  - Active Execution Window Ceiling: $\le 1.20\text{ s}$ ($1200\text{ ms}$); Active current ceiling: $< 25.0\text{ mA}$.
+  - Switched Sensor Rail (`VSENS_SW`): Controlled via active-low P-MOSFET gate on `PA4`. Requires mandatory $20.0\text{ ms} \pm 1.0\text{ ms}$ RC capacitor stabilization delay before bus activity.
+  - Pre-Sleep GPIO Analog Isolation: Peripheral pins (`PB6`/`PB7` I2C1, `PA1`..`PA3` UART, `PC0`..`PC2` SDI-12) unconditionally switched to `GPIO_MODE_ANALOG` prior to Stop 2 entry, suppressing clamping diode back-powering leakage to $< 50\text{ nA}$.
+  - Gated Battery ADC Divider: Controlled via P-MOSFET on `PB1` (analog input on `PB0`); standby leakage $< 10\text{ nA}$.
+  - RF Transmission Budget: Class A uplink @ $+14\text{ dBm}$ (DR3, SF7/125kHz, 60ms) draws $32.0\text{ mA}$ typical ($36.0\text{ mA}$ peak), energy $E_{\text{tx}} \le 7.5\text{ mJ}$; High-power $+22\text{ dBm}$ fallback draws $\le 90.0\text{ mA}$ peak, $E_{\text{tx}} \le 25.0\text{ mJ}$.
+  - Flash NVM Write Budget: 64-bit double-word write & circular pointer update (5ms, $E_{\text{nvm}} \le 0.10\text{ mJ}$).
+  - Single 15-Minute Cycle Total Charge: $\le 1.60\times 10^{-3}\text{ mAh}$ ($1.60\,\mu\text{Ah}$, nominal $\approx 1.450\,\mu\text{Ah}$).
+- **Discovered Architecture & Module Dependencies (via Knowledge Graph)**:
+  - [`firmware/middleware/src/power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/power_mgr.c): `power_mgr_enter_stop2()`, `power_mgr_gpio_sleep_prepare()`, `power_mgr_isolate_sensor_buses()`, `power_mgr_wake_restore()`, `power_mgr_verify_leakage_state()`.
+  - [`firmware/app/src/app_state_machine.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/app_state_machine.c): 8-state sequence (`STATE_WAKE` through `STATE_SLEEP`), timing accounting, active duration sleep compensation.
+  - [`firmware/drivers/src/bsp_power_rails.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_power_rails.c): `bsp_power_rails_all_off()`, `PA4` load switch control.
+  - [`firmware/drivers/src/bsp_indicators.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/drivers/src/bsp_indicators.c): `bsp_indicators_all_off()`.
+  - [`firmware/core/src/board_config.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/board_config.c): `board_rf_switch_set()`, GPIO mode verification.
+  - [`firmware/core/src/system_clock.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/core/src/system_clock.c): `system_clock_sleep_prepare()`, 48 MHz MSI re-initialization.
+  - Upstream Tasks: `S3-T3.1`, `S3-T4.1`, `S3-T4.2`, `S6-T3.1`, `S6-T4.1`.
+  - Downstream Tasks: `S7-T2.2` (24-Hour Total Daily Energy Draw Verification $< 25\text{ mAh/day}$), `S7-T2.3` (14-Day Zero-Sunlight Battery Survivability Simulation), `S7-T3.1` (Field Deployment SOPs).
 
 ## History
 
