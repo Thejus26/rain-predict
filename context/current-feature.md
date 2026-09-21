@@ -1,44 +1,16 @@
-# Current Feature: S7-T2.2 - 24-Hour Total Daily Energy Budget Verification
+# Current Feature
 
 ## Status
 
-Complete
+Not Started
 
 ## Goals
 
-- **24-Hour Multi-Regime Energy Formulations**: Rigorously model daily firmware charge ($Q_{\text{fw}}$) and gross charge ($Q_{\text{gross}}$) across Nominal (15m, 96 cycles/day), Storm Watch (5m, 288 cycles/day), Active Downpour (2m, 720 cycles/day), Mixed Severe Storm (realistic worst-case with 2x 10s siren pulses), and Battery Preservation Throttling (30m Conservation / 60m Critical).
-- **Standby & Self-Discharge Overhead Integration**: Model non-firmware parasitic baselines including TPS7A02 LDO quiescent current ($25\text{ nA}$), DW01A protection IC ($3.0\,\mu\text{A}$), and $\text{LiFePO}_4$ battery electrochemical self-discharge ($1.5\%/\text{month} \approx 1.250\text{ mAh/day}$).
-- **Python Daily Energy Verification Tool**: Implement `tools/simulation/verify_daily_energy.py` computing gross 24-hour energy and verifying compliance with the non-negotiable $< 25.0\text{ mAh/day}$ ceiling across all regimes.
-- **Worst-Case Daily Budget Compliance**: Prove worst-case gross daily energy draw is $\le 2.331\text{ mAh/day}$ ($7.692\text{ mWh/day}$), providing $> 10.7\times$ safety margin headroom below the $25.0\text{ mAh/day}$ ceiling.
-- **Comprehensive 12-Point 24-Hour Energy Verification Matrix**: Enforce quantitative compliance with all 12 test assertions (TC-ENG-01 through TC-ENG-12), including continuous 2-min storm day ($\le 0.800\text{ mAh/day}$), battery throttling ($\le 0.100\text{ mAh/day}$), and 30-day cumulative consumption ($\le 60.0\text{ mAh}$).
-- **Standby Duty-Cycle Verification**: Confirm nominal 15-minute standby sleep duty-cycle satisfies $\ge 99.80\%$ ($166.5\text{ ms}$ active window per $900\text{ s}$).
-- **Validation Deliverables Generation**: Auto-generate machine-readable JSON (`data/daily_energy_budget_report.json`) and formatted Markdown executive summary (`data/24hour_energy_verification_summary.md`).
-- **Firmware C99 Integration Test Harness**: Implement `tests/integration/test_daily_energy_budget.c` under ThrowTheSwitch Unity asserting all 12 verification criteria with zero dynamic heap allocation, and register `test_daily_energy_budget` target in `tests/CMakeLists.txt`.
+<!-- Measurable criteria and deliverables for the feature -->
 
 ## Notes
 
-- **Hardware Constraints & Standby Baseline**:
-  - Microcontroller: STM32WLE5 SoC (MSI 48 MHz, Stop 2 deep sleep $3.0\,\mu\text{A}$).
-  - TPS7A0233 Nanopower LDO: $I_Q = 25.0\text{ nA}$ ($0.0006\text{ mAh/day}$).
-  - DW01A Battery Protection IC: $I_{\text{prot}} = 3.0\,\mu\text{A}$ ($0.072\text{ mAh/day}$).
-  - $\text{LiFePO}_4$ Cell: 26650 $2500\text{ mAh}$, nominal $3.2\text{--}3.3\text{V}$, self-discharge $1.5\%/\text{month}$ ($1.250\text{ mAh/day}$ @ $25^\circ\text{C}$, $2.500\text{ mAh/day}$ @ $40^\circ\text{C}$).
-  - Non-firmware parasitic baseline: $1.3226\text{ mAh/day}$.
-  - Estate Siren Relay Actuation: $150\text{ mA}$ coil, $10\text{ s}$ pulse duration ($Q_{\text{siren}} = 0.4167\text{ mAh}$ per pulse).
-  - Hard Engineering Ceiling: $< 25.0\text{ mAh/day}$ ($82.5\text{ mWh/day}$ @ 3.3V).
-- **Regime Consumption Models**:
-  - Regime 1 (Nominal Fair): 96 cycles/day (15-min), $Q_{\text{fw}} = 0.1392\text{ mAh/day}$, $Q_{\text{gross}} = 1.462\text{ mAh/day}$ ($17.1\times$ margin).
-  - Regime 2 (Storm Watch): 288 cycles/day (5-min), $Q_{\text{fw}} = 0.2736\text{ mAh/day}$, $Q_{\text{gross}} = 1.596\text{ mAh/day}$ ($15.7\times$ margin).
-  - Regime 3 (Active Monsoon): 720 cycles/day (2-min), $Q_{\text{fw}} = 0.5760\text{ mAh/day}$, $Q_{\text{gross}} = 1.899\text{ mAh/day}$ ($13.2\times$ margin).
-  - Regime 4 (Mixed Severe Storm): 80x 15m + 36x 5m + 30x 2m + 2 siren pulses, $Q_{\text{fw}} = 1.0075\text{ mAh/day}$, $Q_{\text{gross}} = 2.331\text{ mAh/day}$ ($10.7\times$ margin).
-  - Regime 5 (Battery Conservation 30-min): 48 cycles/day, $Q_{\text{fw}} = 0.0821\text{ mAh/day}$, $Q_{\text{gross}} = 1.405\text{ mAh/day}$ ($17.8\times$ margin).
-  - Regime 6 (Critical Preservation 60-min): 24 cycles/day, $Q_{\text{fw}} = 0.0450\text{ mAh/day}$, $Q_{\text{gross}} = 1.368\text{ mAh/day}$ ($18.3\times$ margin).
-- **Discovered Dependencies (Knowledge Graph)**:
-  - [`firmware/app/inc/measurement_scheduler.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/measurement_scheduler.h) / [`measurement_scheduler.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/src/measurement_scheduler.c)
-  - [`firmware/middleware/inc/power_mgr.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/inc/power_mgr.h) / [`power_mgr.c`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/middleware/src/power_mgr.c)
-  - [`firmware/app/inc/alert_manager.h`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/firmware/app/inc/alert_manager.h)
-  - [`tools/simulation/profile_energy_budget.py`](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/tools/simulation/profile_energy_budget.py)
-  - Upstream: `S7-T2.1`, `S6-T1.1`, `S6-T1.2`
-  - Downstream: `S7-T2.3` (14-Day Zero-Sunlight Battery Survivability Simulation), `S7-T3.1` (Field SOPs)
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -78,5 +50,6 @@ Complete
 - 2026-09-20: S7-T1.1 — Implemented 30-Day Multi-Scenario Synthetic Climate Simulation & Firmware Algorithm Validation (Added multi-scenario 30-day continuous synthetic climate generation across 2,880 15-min cycles covering 4 microclimate regimes in `tools/simulation/simulate_plantation_weather.py`; implemented WMO/IMD-compliant ground-truth rain event extractor and automated Python validation harness `tools/simulation/validate_nowcaster.py` verifying all 12 simulation invariants TC-SIM-01 through TC-SIM-12; implemented Unity C99 integration test harness `tests/integration/test_simulation_validation.c` asserting all 12 invariants against C99 firmware algorithms with zero heap allocation; verified >= 60-min convective storm advance warning, zero false positives during radiation fog and cloud shadows, and zero false clears during sustained monsoon waves; registered `test_simulation_validation` in `tests/CMakeLists.txt`).
 - 2026-09-21: S7-T1.2 — Implemented Meteorological Contingency Metrics & Nowcasting Skill Verification (Constructed 2x2 dichotomous contingency matrix builder and meteorological skill evaluator in tools/simulation/evaluate_contingency_metrics.py calculating POD, FAR, CSI, HSS, FBI, TSS, and mean warning lead time across 120-min sliding window; generated JSON and Markdown validation reports confirming 100% POD, 0% FAR, 84.2 min mean lead time; created Unity C99 integration test harness tests/integration/test_meteorological_metrics.c asserting all 12 invariants TC-MET-01 through TC-MET-12 with zero dynamic heap allocation; registered test_meteorological_metrics target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T2.1 — Implemented Stop 2 Deep Sleep & Active Cycle Power Profiling (Constructed deterministic 8-state electrical current and timing model across STATE_WAKE through STATE_SLEEP in tools/simulation/profile_energy_budget.py confirming Stop 2 standby current of 3.00 uA at 25°C (< 5.0 uA ceiling) and 6.50 uA at 50°C (< 8.0 uA), active execution window of 166.5 ms (<= 1.20s CPU budget), active average current of 15.14 mA (< 25.0 mA), pre-sleep analog GPIO isolation leakage of 35.0 nA (< 50 nA), and single 15-minute cycle charge of 1.450 uAh (<= 1.60 uAh); generated JSON validation report data/energy_profile_validation_report.json and Markdown summary data/power_budget_summary.md; created C99 Unity integration test harness tests/integration/test_power_profiling.c asserting all 12 invariants TC-PWR-01 through TC-PWR-12 with zero heap allocation; registered test_power_profiling target in tests/CMakeLists.txt).
+- 2026-09-21: S7-T2.2 — Implemented 24-Hour Total Daily Energy Budget Verification (Modeled and verified gross 24-hour daily energy consumption across 6 operational regimes: Nominal 15-min fair weather at 1.462 mAh/day, Storm Watch 5-min at 1.596 mAh/day, Active Monsoon 2-min at 1.899 mAh/day, Mixed Severe Storm worst-case with 2x 10s 150mA siren pulses at 2.330 mAh/day, Battery Conservation 30-min at 1.405 mAh/day, and Critical Preservation 60-min at 1.368 mAh/day; integrated non-firmware standby baselines including TPS7A02 LDO quiescent ground current of 25 nA, DW01A protection IC of 3.0 uA, and LiFePO4 self-discharge of 1.250 mAh/day for total overhead of 1.323 mAh/day; verified worst-case gross daily consumption is <= 2.330 mAh/day or 7.689 mWh/day, maintaining a 10.7x safety margin below the < 25.0 mAh/day system ceiling; created Python CLI tools/simulation/verify_daily_energy.py generating data/daily_energy_budget_report.json and data/24hour_energy_verification_summary.md; implemented C99 Unity integration test tests/integration/test_daily_energy_budget.c asserting the 12-point matrix TC-ENG-01 through TC-ENG-12 with zero heap allocation; registered test_daily_energy_budget target in tests/CMakeLists.txt).
 
 
