@@ -68,6 +68,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 | **`ERR-057`** | 2026-09-21 08:05:09 | [`c77044d`](https://github.com/Thejus26/rain-predict/commit/c77044da742343fe4c3a3c273f8405e46cb1925e) | Testing Macros & Mock Architectural Collisions | **Non-Existent Unity Message Assertion Macros in test_power_profiling.c**: Undeclared `TEST_ASSERT_TRUE_MESSAGE` and `TEST_ASSERT_FLOAT_WITHIN_MESSAGE` triggered `-Werror=implicit-function-declaration` during host CI build. | [ERR-057 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-057-2026-09-21-non-existent-unity-message-assertion-macros-in-test-power-profiling.md) |
 | **`ERR-058`** | 2026-09-21 09:14:32 | [`38e5d0a`](https://github.com/Thejus26/rain-predict/commit/38e5d0a9c86d60521ae6952e41f1fad340a0c6d4) | Strict C99 & Unity Framework Diagnostics | **Redundant setUp/tearDown Redeclarations & Undeclared TEST_ASSERT_NOT_EQUAL**: Forward declaring lifecycle hooks violated `-Wredundant-decls`, and calling non-existent `TEST_ASSERT_NOT_EQUAL` triggered `-Wimplicit-function-declaration`. | [ERR-058 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-058-2026-09-21-barometric-calibration-test-compiler-warnings.md) |
 | **`ERR-059`** | 2026-09-21 09:27:17 | [`bfcacd1`](https://github.com/Thejus26/rain-predict/commit/bfcacd1d34a79a3e1d1752bf67bdf404dbbfb829) | Algorithm Numerical Precision & Physical Vectors | **Excessive Residual Offset in test_tc_cal_10_multi_site_convergence**: Inconsistent Nilgiris site vector generated +8.16 hPa residual, exceeding ±5.00 hPa sensor trim bounds and triggering `CAL_STATUS_ERR_OUT_OF_RANGE`. | [ERR-059 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-059-2026-09-21-barometric-calibration-convergence-offset-out-of-range.md) |
+| **`ERR-060`** | 2026-09-24 18:44:05 | [`7eb9a50`](https://github.com/Thejus26/rain-predict/commit/7eb9a502fb80f941c86da5a1d13dfb812fcd9a22) | Testing & Storage (Flash NVM) | **Metadata Page Rollover Resets Generation Counter**: Sector erase during wear rollover cleared `s_metadata_generation`, causing `test_metadata_page_rollover_slot_64` assertion failure. | [ERR-060 Report](file:///C:/Users/ENERGY%20SAVER/Documents/Learning/Job%20Projects/rain-predict/context/errors/ERR-060-2026-09-24-flash-storage-wear-rollover-generation-reset.md) |
 
 ---
 
@@ -75,7 +76,7 @@ This directory maintains an immutable, chronological record of all bugs, compile
 
 ```mermaid
 pie title Error Distribution by Subsystem
-    "Testing Macros & Mock Architectural Collisions" : 22
+    "Testing Macros & Mock Architectural Collisions" : 23
     "Strict C99 Compiler Diagnostics (-Werror, static, const)" : 22
     "Build System & Linker Configuration (CMake, libm)" : 4
     "Documentation & Math Formatting (LaTeX / KaTeX)" : 3

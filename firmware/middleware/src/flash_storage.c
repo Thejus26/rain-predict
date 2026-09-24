@@ -51,6 +51,7 @@ status_t flash_storage_init(void) {
     s_mock_flash_unlocked = false;
     s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
     s_metadata_generation = 0U;
+    s_metadata_epoch = 0U;
     s_cached_metadata_valid = false;
     return STATUS_OK;
 }
@@ -78,6 +79,7 @@ status_t flash_storage_erase_page(uint32_t page_num) {
     if (page_num == FLASH_RING_METADATA_PAGE) {
         s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
         s_metadata_generation = 0U;
+        s_metadata_epoch = 0U;
         s_cached_metadata_valid = false;
     }
 
@@ -229,6 +231,7 @@ status_t flash_storage_init(void) {
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
     s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
     s_metadata_generation = 0U;
+    s_metadata_epoch = 0U;
     s_cached_metadata_valid = false;
     return STATUS_OK;
 }
@@ -281,6 +284,7 @@ status_t flash_storage_erase_page(uint32_t page_num) {
     if (page_num == FLASH_RING_METADATA_PAGE) {
         s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
         s_metadata_generation = 0U;
+        s_metadata_epoch = 0U;
         s_cached_metadata_valid = false;
     }
 
@@ -981,12 +985,16 @@ status_t flash_metadata_commit(flash_ring_metadata_t *p_meta) {
 
     /* Rollover if all 64 slots consumed */
     if (target_slot >= FLASH_METADATA_ENTRIES_PER_PAGE) {
+        uint32_t saved_gen = s_metadata_generation;
+        uint32_t saved_epoch = s_metadata_epoch;
         status_t erase_st = flash_storage_erase_page(FLASH_RING_METADATA_PAGE);
         if (erase_st != STATUS_OK) {
             return erase_st;
         }
         target_slot = 0U;
-        s_metadata_epoch++;
+        s_metadata_generation = saved_gen;
+        s_metadata_epoch = saved_epoch + 1U;
+        s_metadata_active_slot = 0U;
     }
 
     /* Prepare entry */

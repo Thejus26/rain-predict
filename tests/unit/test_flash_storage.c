@@ -761,6 +761,35 @@ static void test_metadata_page_rollover_slot_64(void) {
     TEST_ASSERT_EQUAL_UINT32(1U, latest.epoch);
     TEST_ASSERT_EQUAL_UINT16(64U, latest.head_index);
     TEST_ASSERT_TRUE(flash_metadata_is_consistent(&latest));
+
+    /* Verify reboot recovery from Flash after rollover */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_init());
+    memset(&latest, 0, sizeof(latest));
+    active_slot = 999U;
+    st = flash_metadata_find_latest(&latest, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(0U, active_slot);
+    TEST_ASSERT_EQUAL_UINT32(65U, latest.generation);
+    TEST_ASSERT_EQUAL_UINT32(1U, latest.epoch);
+    TEST_ASSERT_EQUAL_UINT16(64U, latest.head_index);
+
+    /* Verify subsequent commit at slot 1 in new epoch */
+    flash_ring_metadata_t next_meta;
+    memset(&next_meta, 0, sizeof(next_meta));
+    next_meta.head_index = 65U;
+    next_meta.tail_index = 0U;
+    next_meta.valid_count = 65U;
+    next_meta.next_seq_id = 65U;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_metadata_commit(&next_meta));
+    TEST_ASSERT_EQUAL_UINT32(66U, next_meta.generation);
+    TEST_ASSERT_EQUAL_UINT32(1U, next_meta.epoch);
+
+    st = flash_metadata_find_latest(&latest, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(1U, active_slot);
+    TEST_ASSERT_EQUAL_UINT32(66U, latest.generation);
+    TEST_ASSERT_EQUAL_UINT32(1U, latest.epoch);
+    TEST_ASSERT_EQUAL_UINT16(65U, latest.head_index);
 }
 
 /**
