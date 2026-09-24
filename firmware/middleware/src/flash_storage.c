@@ -24,6 +24,13 @@ static uint8_t s_mock_flash_nvm[FLASH_STORAGE_TOTAL_CAPACITY_BYTES];
 static bool s_mock_flash_unlocked = false;
 static bool s_mock_initialized = false;
 
+/* Persistent Page 127 journal tracking */
+static uint32_t s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+static uint32_t s_metadata_generation = 0U;
+static uint32_t s_metadata_epoch = 0U;
+static flash_ring_metadata_t s_cached_metadata;
+static bool s_cached_metadata_valid = false;
+
 static void ensure_mock_initialized(void) {
     if (!s_mock_initialized) {
         memset(s_mock_flash_nvm, FLASH_STORAGE_ERASED_BYTE, sizeof(s_mock_flash_nvm));
@@ -42,6 +49,9 @@ static inline bool is_valid_nvm_address(uint32_t addr, size_t len) {
 status_t flash_storage_init(void) {
     ensure_mock_initialized();
     s_mock_flash_unlocked = false;
+    s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+    s_metadata_generation = 0U;
+    s_cached_metadata_valid = false;
     return STATUS_OK;
 }
 
@@ -64,6 +74,13 @@ status_t flash_storage_erase_page(uint32_t page_num) {
     ensure_mock_initialized();
     uint32_t offset = (page_num - FLASH_STORAGE_START_PAGE) * FLASH_STORAGE_PAGE_SIZE;
     memset(&s_mock_flash_nvm[offset], FLASH_STORAGE_ERASED_BYTE, FLASH_STORAGE_PAGE_SIZE);
+
+    if (page_num == FLASH_RING_METADATA_PAGE) {
+        s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+        s_metadata_generation = 0U;
+        s_cached_metadata_valid = false;
+    }
+
     return STATUS_OK;
 }
 
@@ -210,6 +227,9 @@ static inline bool is_valid_nvm_address(uint32_t addr, size_t len) {
 
 status_t flash_storage_init(void) {
     __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+    s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+    s_metadata_generation = 0U;
+    s_cached_metadata_valid = false;
     return STATUS_OK;
 }
 
@@ -256,6 +276,12 @@ status_t flash_storage_erase_page(uint32_t page_num) {
 
     if (hal_status != HAL_OK) {
         return STATUS_ERROR_HARDWARE;
+    }
+
+    if (page_num == FLASH_RING_METADATA_PAGE) {
+        s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+        s_metadata_generation = 0U;
+        s_cached_metadata_valid = false;
     }
 
     return STATUS_OK;
@@ -809,6 +835,203 @@ status_t flash_ring_clear(void) {
     s_ring_state.is_full     = false;
     s_ring_state.is_empty    = true;
     s_ring_initialized       = true;
+
+    return STATUS_OK;
+}
+
+/* ========================================================================== */
+/* Persistent Metadata Header & Journal Implementation (S8-T1.1)              */
+/* ========================================================================== */
+
+uint16_t flash_metadata_calc_crc16(const uint8_t *p_data, size_t length) {
+    if (p_data == NULL || length == 0U) {
+        return 0xFFFFU;
+    }
+    uint16_t crc = 0xFFFFU;
+    for (size_t i = 0U; i < length; i++) {
+        crc ^= ((uint16_t)p_data[i] << 8);
+        for (uint8_t bit = 0U; bit < 8U; bit++) {
+            if ((crc & 0x8000U) != 0U) {
+                crc = (uint16_t)((crc << 1) ^ 0x1021U);
+            } else {
+                crc = (uint16_t)(crc << 1);
+            }
+        }
+    }
+    return crc;
+}
+
+static bool is_slot_erased(const flash_ring_metadata_t *entry) {
+    const uint64_t *dwords = (const uint64_t *)(const void *)entry;
+    for (size_t i = 0U; i < (FLASH_METADATA_ENTRY_SIZE / sizeof(uint64_t)); i++) {
+        if (dwords[i] != FLASH_STORAGE_ERASED_DWORD) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool flash_metadata_is_consistent(const flash_ring_metadata_t *p_meta) {
+    if (p_meta == NULL) {
+        return false;
+    }
+    if (p_meta->magic != FLASH_METADATA_MAGIC) {
+        return false;
+    }
+    if (p_meta->head_index >= FLASH_RING_TOTAL_CAPACITY ||
+        p_meta->tail_index >= FLASH_RING_TOTAL_CAPACITY ||
+        p_meta->valid_count > FLASH_RING_TOTAL_CAPACITY) {
+        return false;
+    }
+    uint16_t expected_crc = flash_metadata_calc_crc16((const uint8_t *)p_meta, 30U);
+    if (expected_crc != p_meta->crc16) {
+        return false;
+    }
+    return true;
+}
+
+status_t flash_metadata_find_latest(flash_ring_metadata_t *p_meta, uint32_t *p_active_slot) {
+    if (p_meta == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    uint32_t latest_generation = 0U;
+    bool found_valid = false;
+    bool all_erased = true;
+    uint32_t active_slot_idx = 0U;
+    flash_ring_metadata_t latest_entry;
+    memset(&latest_entry, 0, sizeof(latest_entry));
+
+    for (uint32_t slot = 0U; slot < FLASH_METADATA_ENTRIES_PER_PAGE; slot++) {
+        uint32_t addr = FLASH_METADATA_PAGE_BASE_ADDR + (slot * FLASH_METADATA_ENTRY_SIZE);
+        flash_ring_metadata_t entry;
+        status_t st = flash_storage_read_bytes(addr, (uint8_t *)&entry, FLASH_METADATA_ENTRY_SIZE);
+        if (st != STATUS_OK) {
+            continue;
+        }
+
+        if (is_slot_erased(&entry)) {
+            continue;
+        }
+
+        /* Non-erased slot encountered */
+        all_erased = false;
+
+        if (flash_metadata_is_consistent(&entry)) {
+            if (!found_valid || entry.generation > latest_generation) {
+                latest_generation = entry.generation;
+                latest_entry = entry;
+                active_slot_idx = slot;
+                found_valid = true;
+            }
+        }
+    }
+
+    if (found_valid) {
+        memcpy(p_meta, &latest_entry, sizeof(flash_ring_metadata_t));
+        if (p_active_slot != NULL) {
+            *p_active_slot = active_slot_idx;
+        }
+        return STATUS_OK;
+    }
+
+    if (all_erased) {
+        return STATUS_ERR_NOT_FOUND;
+    }
+
+    return STATUS_ERR_INTEGRITY;
+}
+
+status_t flash_metadata_commit(flash_ring_metadata_t *p_meta) {
+    if (p_meta == NULL) {
+        return STATUS_ERR_NULL_PTR;
+    }
+
+    /* Synchronize active_slot and generation if not initialized in RAM */
+    if (s_metadata_active_slot >= FLASH_METADATA_ENTRIES_PER_PAGE) {
+        flash_ring_metadata_t latest;
+        uint32_t slot = 0U;
+        status_t st = flash_metadata_find_latest(&latest, &slot);
+        if (st == STATUS_OK) {
+            s_metadata_active_slot = slot;
+            s_metadata_generation = latest.generation;
+            s_metadata_epoch = latest.epoch;
+        } else if (st == STATUS_ERR_NOT_FOUND) {
+            s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+            s_metadata_generation = 0U;
+            s_metadata_epoch = p_meta->epoch;
+        } else {
+            /* Corrupted Page 127: erase and reset */
+            status_t erase_st = flash_storage_erase_page(FLASH_RING_METADATA_PAGE);
+            if (erase_st != STATUS_OK) {
+                return erase_st;
+            }
+            s_metadata_active_slot = FLASH_METADATA_ENTRIES_PER_PAGE;
+            s_metadata_generation = 0U;
+            s_metadata_epoch = p_meta->epoch + 1U;
+        }
+    }
+
+    uint32_t target_slot;
+    if (s_metadata_active_slot >= FLASH_METADATA_ENTRIES_PER_PAGE) {
+        target_slot = 0U;
+    } else {
+        target_slot = s_metadata_active_slot + 1U;
+    }
+
+    /* Rollover if all 64 slots consumed */
+    if (target_slot >= FLASH_METADATA_ENTRIES_PER_PAGE) {
+        status_t erase_st = flash_storage_erase_page(FLASH_RING_METADATA_PAGE);
+        if (erase_st != STATUS_OK) {
+            return erase_st;
+        }
+        target_slot = 0U;
+        s_metadata_epoch++;
+    }
+
+    /* Prepare entry */
+    p_meta->magic = FLASH_METADATA_MAGIC;
+    s_metadata_generation++;
+    p_meta->generation = s_metadata_generation;
+    p_meta->epoch = s_metadata_epoch;
+    p_meta->reserved1 = 0U;
+    p_meta->reserved2 = 0U;
+    p_meta->crc16 = flash_metadata_calc_crc16((const uint8_t *)p_meta, 30U);
+
+    uint32_t slot_addr = FLASH_METADATA_PAGE_BASE_ADDR + (target_slot * FLASH_METADATA_ENTRY_SIZE);
+
+    /* Program 32 bytes (4 double-words) within unlock/lock window */
+    status_t st = flash_storage_unlock();
+    if (st != STATUS_OK) {
+        return st;
+    }
+
+    const uint64_t *p_dwords = (const uint64_t *)(const void *)p_meta;
+    for (uint32_t i = 0U; i < (FLASH_METADATA_ENTRY_SIZE / FLASH_STORAGE_PROG_UNIT_BYTES); i++) {
+        uint32_t dword_addr = slot_addr + (i * FLASH_STORAGE_PROG_UNIT_BYTES);
+        st = flash_storage_write_dword(dword_addr, p_dwords[i]);
+        if (st != STATUS_OK) {
+            (void)flash_storage_lock();
+            return st;
+        }
+    }
+
+    (void)flash_storage_lock();
+
+    /* Verify written entry via readback */
+    flash_ring_metadata_t readback;
+    st = flash_storage_read_bytes(slot_addr, (uint8_t *)&readback, FLASH_METADATA_ENTRY_SIZE);
+    if (st != STATUS_OK) {
+        return st;
+    }
+    if (memcmp(&readback, p_meta, FLASH_METADATA_ENTRY_SIZE) != 0) {
+        return STATUS_ERR_DATA_CORRUPT;
+    }
+
+    /* Update static RAM cache */
+    s_metadata_active_slot = target_slot;
+    memcpy(&s_cached_metadata, p_meta, sizeof(flash_ring_metadata_t));
+    s_cached_metadata_valid = true;
 
     return STATUS_OK;
 }

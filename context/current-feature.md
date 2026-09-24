@@ -1,16 +1,34 @@
-# Current Feature
+# Current Feature: S8-T1.1 - STM32WLE5 Persistent Flash Ring Metadata Header & Journaling
 
 ## Status
 
-Not Started
+In Progress
 
 ## Goals
 
-<!-- Describe the primary goals and deliverables for this feature -->
+- [x] Define `flash_ring_metadata_t` 32-byte 64-bit aligned structure in `firmware/middleware/inc/flash_storage.h` with magic `0x4D455441`, generation counter, head/tail cursors, valid count, sequence ID, erased page bitmask, epoch, RTC timestamp, and CRC-16-CCITT.
+- [x] Implement `flash_metadata_calc_crc16()` in `firmware/middleware/src/flash_storage.c` using CCITT polynomial (`0x1021`, initial value `0xFFFF`).
+- [x] Implement `flash_metadata_find_latest()` in `firmware/middleware/src/flash_storage.c` to scan Page 127 (max 64 slots) for the active journal entry with valid CRC and boundary checks.
+- [x] Implement `flash_metadata_commit()` in `firmware/middleware/src/flash_storage.c` to append entries sequentially into Page 127 and handle page erase and epoch rollover after 64 writes.
+- [x] Implement `flash_metadata_is_consistent()` sanity validation helper in `firmware/middleware/src/flash_storage.c`.
+- [x] Implement and verify unit test cases `TEST_META_01` through `TEST_META_07` in `tests/unit/test_flash_storage.c` covering CRC calculation, erased page detection, sequential progression, 64-slot wear rollover, corrupted CRC recovery, and simulated power-cut tear.
 
 ## Notes
 
-<!-- Hardware constraints, register maps, memory limits, or power requirements -->
+- **Specification**: `context/specs/s8-t1.1-persistent-ring-metadata.md`
+- **Dependencies & Related Modules**:
+  - `firmware/middleware/inc/flash_storage.h` & `firmware/middleware/src/flash_storage.c`
+  - `firmware/app/src/app_state_machine.c` (State machine ring logging caller)
+  - `firmware/middleware/src/lorawan_service.c` (Backlog playback consumer)
+  - `tests/unit/test_flash_storage.c`
+  - `context/audit/code-issues-github-copilot.md` (Issue 1: Flash ring initialization full scan)
+- **Hardware & Memory Architecture Constraints**:
+  - Dedicated Metadata Sector: Flash Page 127 (`0x0803F800` - `0x0803FFFF`, 2048 bytes).
+  - 32-byte struct aligned to 64-bit double-words ($4 \times 64$-bit dwords matching STM32WLE5 flash programming unit).
+  - 64 journal slots per page: wear endurance $10,000 \times 64 = 640,000$ updates (> 18 years at 15-minute intervals).
+  - Power-cut resilience: partial/corrupted writes safely detected via magic byte and CRC-16 check without crashing.
+  - Zero dynamic heap allocation (`malloc`/`free` strictly prohibited).
+  - Note: Never attempt local CMake compilation or test runs per user rule.
 
 ## History
 

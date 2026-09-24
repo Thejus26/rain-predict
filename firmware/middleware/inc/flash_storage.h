@@ -87,8 +87,46 @@ extern "C" {
 #define FLASH_RING_TELEMETRY_PAYLOAD_SIZE   12U
 
 /* ========================================================================== */
+/* Persistent Metadata Header & Journal Constants (S8-T1.1)                   */
+/* ========================================================================== */
+
+/** @brief Magic identifier for persistent ring metadata entry ('META') */
+#define FLASH_METADATA_MAGIC                0x4D455441U
+
+/** @brief Size of one persistent metadata entry in bytes (32 bytes = 4 dwords) */
+#define FLASH_METADATA_ENTRY_SIZE           32U
+
+/** @brief Total metadata journal entries per 2 KB page (2048 / 32 = 64) */
+#define FLASH_METADATA_ENTRIES_PER_PAGE     64U
+
+/** @brief Maximum valid record slot index */
+#define FLASH_METADATA_MAX_SLOT_INDEX       (FLASH_RING_TOTAL_CAPACITY - 1U)
+
+/** @brief Base address of Page 127 metadata journal sector */
+#define FLASH_METADATA_PAGE_BASE_ADDR       (FLASH_STORAGE_BASE_ADDR + ((FLASH_RING_METADATA_PAGE - FLASH_STORAGE_START_PAGE) * FLASH_STORAGE_PAGE_SIZE))
+
+/* ========================================================================== */
 /* Type Definitions & Structures                                              */
 /* ========================================================================== */
+
+/**
+ * @brief Persistent flash ring metadata journal entry (32 bytes, 64-bit aligned).
+ */
+typedef struct __attribute__((aligned(8))) {
+    uint32_t magic;              /**< Magic constant 0x4D455441 ('META') */
+    uint32_t generation;         /**< Monotonic journal update generation */
+    uint16_t head_index;         /**< Next write cursor (0..895) */
+    uint16_t tail_index;         /**< Oldest pending cursor (0..895) */
+    uint16_t valid_count;        /**< Un-transmitted records count (0..896) */
+    uint16_t reserved1;          /**< Alignment padding */
+    uint16_t next_seq_id;        /**< Next telemetry sequence ID */
+    uint8_t  erased_page_mask;   /**< Bitmask of verified erased pages */
+    uint8_t  flags;              /**< Status flags */
+    uint32_t epoch;              /**< Erase cycle generation of Page 127 */
+    uint32_t timestamp_s;        /**< RTC timestamp of commit */
+    uint16_t reserved2;          /**< Alignment padding */
+    uint16_t crc16;              /**< CRC-16-CCITT over bytes 0..29 */
+} flash_ring_metadata_t;
 
 /**
  * @brief  Structure representing a single 16-byte offline telemetry record.
@@ -282,6 +320,44 @@ uint32_t flash_ring_get_tail_index(void);
  * @return STATUS_OK on success, or error status code.
  */
 status_t flash_ring_clear(void);
+
+/* ========================================================================== */
+/* Persistent Metadata Header & Journal Prototypes (S8-T1.1)                  */
+/* ========================================================================== */
+
+/**
+ * @brief  Computes CRC-16-CCITT checksum over a buffer.
+ * @param[in] p_data Pointer to input byte array.
+ * @param[in] length Number of bytes to process.
+ * @return uint16_t  Calculated CRC-16 checksum.
+ */
+uint16_t flash_metadata_calc_crc16(const uint8_t *p_data, size_t length);
+
+/**
+ * @brief  Scans Page 127 to find the active (latest valid) metadata journal entry.
+ * @param[out] p_meta Pointer to structure populated with recovered metadata.
+ * @param[out] p_active_slot Pointer to receive the index of the active slot (0..63), or NULL.
+ * @return STATUS_OK if a valid entry was found,
+ *         STATUS_ERR_NOT_FOUND if Page 127 is completely erased,
+ *         STATUS_ERR_INTEGRITY if entries exist but all have invalid CRC/magic.
+ */
+status_t flash_metadata_find_latest(flash_ring_metadata_t *p_meta, uint32_t *p_active_slot);
+
+/**
+ * @brief  Appends an updated metadata entry to the Page 127 journal.
+ * @details Finds next free 32-byte slot in Page 127. If all 64 slots are occupied,
+ *          erases Page 127, increments epoch, and writes entry to slot 0.
+ * @param[in,out] p_meta Pointer to metadata entry to commit (CRC and generation updated).
+ * @return STATUS_OK on success, or hardware write error.
+ */
+status_t flash_metadata_commit(flash_ring_metadata_t *p_meta);
+
+/**
+ * @brief  Validates consistency between metadata pointers and physical flash limits.
+ * @param[in] p_meta Pointer to metadata entry.
+ * @return true if fields are internally consistent and within bounds, false otherwise.
+ */
+bool flash_metadata_is_consistent(const flash_ring_metadata_t *p_meta);
 
 #ifdef __cplusplus
 }
