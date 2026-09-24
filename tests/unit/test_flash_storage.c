@@ -643,6 +643,231 @@ static void test_playback_parameter_guards(void) {
 }
 
 /* ========================================================================== */
+/* Category D: Persistent Ring Metadata & Fast Journal Tests (S8-T1.1)        */
+/* ========================================================================== */
+
+/**
+ * @brief TEST_META_01: CRC-16-CCITT Checksum Calculation.
+ */
+static void test_metadata_crc16_calculation(void) {
+    /* Standard CCITT test vector "123456789" -> 0x29B1 */
+    const uint8_t test_vector[] = "123456789";
+    uint16_t crc = flash_metadata_calc_crc16(test_vector, 9U);
+    TEST_ASSERT_EQUAL_HEX16(0x29B1U, crc);
+
+    /* NULL / zero length handling */
+    TEST_ASSERT_EQUAL_HEX16(0xFFFFU, flash_metadata_calc_crc16(NULL, 10U));
+    TEST_ASSERT_EQUAL_HEX16(0xFFFFU, flash_metadata_calc_crc16(test_vector, 0U));
+}
+
+/**
+ * @brief TEST_META_02: Clean Initialization on Erased Page 127.
+ */
+static void test_metadata_clean_initialization_erased(void) {
+    flash_ring_metadata_t meta;
+    uint32_t active_slot = 999U;
+
+    /* Page 127 is completely erased by setUp() */
+    status_t st = flash_metadata_find_latest(&meta, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_ERR_NOT_FOUND, st);
+}
+
+/**
+ * @brief TEST_META_03: Single Entry Append into Page 127 Slot 0.
+ */
+static void test_metadata_single_entry_append(void) {
+    flash_ring_metadata_t meta;
+    memset(&meta, 0, sizeof(meta));
+    meta.head_index = 10U;
+    meta.tail_index = 2U;
+    meta.valid_count = 8U;
+    meta.next_seq_id = 42U;
+    meta.erased_page_mask = 0x7FU;
+    meta.flags = 0x01U;
+    meta.epoch = 0U;
+    meta.timestamp_s = 1727180000U;
+
+    status_t st = flash_metadata_commit(&meta);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_HEX32(FLASH_METADATA_MAGIC, meta.magic);
+    TEST_ASSERT_EQUAL_UINT32(1U, meta.generation);
+
+    flash_ring_metadata_t recovered;
+    uint32_t active_slot = 999U;
+    st = flash_metadata_find_latest(&recovered, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(0U, active_slot);
+    TEST_ASSERT_EQUAL_UINT16(10U, recovered.head_index);
+    TEST_ASSERT_EQUAL_UINT16(2U, recovered.tail_index);
+    TEST_ASSERT_EQUAL_UINT16(8U, recovered.valid_count);
+    TEST_ASSERT_EQUAL_UINT16(42U, recovered.next_seq_id);
+    TEST_ASSERT_EQUAL_HEX8(0x7FU, recovered.erased_page_mask);
+    TEST_ASSERT_EQUAL_UINT32(1U, recovered.generation);
+    TEST_ASSERT_EQUAL_UINT32(0U, recovered.epoch);
+    TEST_ASSERT_EQUAL_HEX16(meta.crc16, recovered.crc16);
+    TEST_ASSERT_TRUE(flash_metadata_is_consistent(&recovered));
+}
+
+/**
+ * @brief TEST_META_04: Sequential Journal Progression across Multiple Slots.
+ */
+static void test_metadata_sequential_journal_progression(void) {
+    for (uint32_t i = 0U; i < 5U; i++) {
+        flash_ring_metadata_t meta;
+        memset(&meta, 0, sizeof(meta));
+        meta.head_index = (uint16_t)(i * 20U);
+        meta.tail_index = (uint16_t)(i * 5U);
+        meta.valid_count = (uint16_t)(i + 1U);
+        meta.next_seq_id = (uint16_t)(100U + i);
+
+        status_t st = flash_metadata_commit(&meta);
+        TEST_ASSERT_EQUAL(STATUS_OK, st);
+    }
+
+    flash_ring_metadata_t latest;
+    uint32_t active_slot = 999U;
+    status_t st = flash_metadata_find_latest(&latest, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(4U, active_slot);
+    TEST_ASSERT_EQUAL_UINT32(5U, latest.generation);
+    TEST_ASSERT_EQUAL_UINT16(5U, latest.valid_count);
+    TEST_ASSERT_EQUAL_UINT16(80U, latest.head_index);
+    TEST_ASSERT_EQUAL_UINT16(20U, latest.tail_index);
+    TEST_ASSERT_TRUE(flash_metadata_is_consistent(&latest));
+}
+
+/**
+ * @brief TEST_META_05: Page Rollover at Slot 64 & Sector Erase.
+ */
+static void test_metadata_page_rollover_slot_64(void) {
+    for (uint32_t i = 0U; i < 65U; i++) {
+        flash_ring_metadata_t meta;
+        memset(&meta, 0, sizeof(meta));
+        meta.head_index = (uint16_t)i;
+        meta.tail_index = 0U;
+        meta.valid_count = (uint16_t)i;
+        meta.next_seq_id = (uint16_t)i;
+
+        status_t st = flash_metadata_commit(&meta);
+        TEST_ASSERT_EQUAL(STATUS_OK, st);
+    }
+
+    flash_ring_metadata_t latest;
+    uint32_t active_slot = 999U;
+    status_t st = flash_metadata_find_latest(&latest, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(0U, active_slot);
+    TEST_ASSERT_EQUAL_UINT32(65U, latest.generation);
+    TEST_ASSERT_EQUAL_UINT32(1U, latest.epoch);
+    TEST_ASSERT_EQUAL_UINT16(64U, latest.head_index);
+    TEST_ASSERT_TRUE(flash_metadata_is_consistent(&latest));
+}
+
+/**
+ * @brief TEST_META_06: Corrupted CRC Recovery to Preceding Valid Entry.
+ */
+static void test_metadata_corrupted_crc_recovery(void) {
+    for (uint32_t i = 0U; i < 4U; i++) {
+        flash_ring_metadata_t meta;
+        memset(&meta, 0, sizeof(meta));
+        meta.head_index = (uint16_t)(i + 1U);
+        meta.tail_index = 0U;
+        meta.valid_count = (uint16_t)(i + 1U);
+        meta.next_seq_id = (uint16_t)i;
+
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_metadata_commit(&meta));
+    }
+
+    /* Corrupt CRC in slot 3 by writing zeroes over CRC field (bytes 30..31) */
+    uint32_t slot3_addr = FLASH_METADATA_PAGE_BASE_ADDR + (3U * FLASH_METADATA_ENTRY_SIZE);
+    uint16_t bad_crc = 0x0000U;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_bytes(slot3_addr + 30U, (const uint8_t *)&bad_crc, sizeof(uint16_t)));
+
+    /* Reinitialize driver to clear RAM state and simulate cold reboot */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_init());
+
+    flash_ring_metadata_t recovered;
+    uint32_t active_slot = 999U;
+    status_t st = flash_metadata_find_latest(&recovered, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(2U, active_slot);
+    TEST_ASSERT_EQUAL_UINT32(3U, recovered.generation);
+    TEST_ASSERT_EQUAL_UINT16(3U, recovered.head_index);
+    TEST_ASSERT_TRUE(flash_metadata_is_consistent(&recovered));
+}
+
+/**
+ * @brief TEST_META_07: Power-Cut Simulated Tear (Partial Write / Invalid Magic).
+ */
+static void test_metadata_power_cut_simulated_tear(void) {
+    for (uint32_t i = 0U; i < 5U; i++) {
+        flash_ring_metadata_t meta;
+        memset(&meta, 0, sizeof(meta));
+        meta.head_index = (uint16_t)(i + 10U);
+        meta.tail_index = 0U;
+        meta.valid_count = (uint16_t)(i + 1U);
+        meta.next_seq_id = (uint16_t)i;
+
+        TEST_ASSERT_EQUAL(STATUS_OK, flash_metadata_commit(&meta));
+    }
+
+    /* Simulate partial write in slot 5: zero out magic bytes */
+    uint32_t slot5_addr = FLASH_METADATA_PAGE_BASE_ADDR + (5U * FLASH_METADATA_ENTRY_SIZE);
+    uint32_t bad_magic = 0x00000000U;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_bytes(slot5_addr, (const uint8_t *)&bad_magic, sizeof(uint32_t)));
+
+    /* Reinitialize driver to clear RAM state and simulate reboot */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_init());
+
+    flash_ring_metadata_t recovered;
+    uint32_t active_slot = 999U;
+    status_t st = flash_metadata_find_latest(&recovered, &active_slot);
+    TEST_ASSERT_EQUAL(STATUS_OK, st);
+    TEST_ASSERT_EQUAL_UINT32(4U, active_slot);
+    TEST_ASSERT_EQUAL_UINT32(5U, recovered.generation);
+    TEST_ASSERT_EQUAL_UINT16(14U, recovered.head_index);
+    TEST_ASSERT_TRUE(flash_metadata_is_consistent(&recovered));
+}
+
+/**
+ * @brief Defensive Parameter & Corruption Integrity Guards.
+ */
+static void test_metadata_defensive_parameter_guards(void) {
+    /* NULL pointer handling */
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, flash_metadata_find_latest(NULL, NULL));
+    TEST_ASSERT_EQUAL(STATUS_ERR_NULL_PTR, flash_metadata_commit(NULL));
+    TEST_ASSERT_FALSE(flash_metadata_is_consistent(NULL));
+
+    /* Inconsistent struct tests */
+    flash_ring_metadata_t bad_meta;
+    memset(&bad_meta, 0, sizeof(bad_meta));
+    bad_meta.magic = 0x12345678U; /* Invalid magic */
+    TEST_ASSERT_FALSE(flash_metadata_is_consistent(&bad_meta));
+
+    bad_meta.magic = FLASH_METADATA_MAGIC;
+    bad_meta.head_index = FLASH_RING_TOTAL_CAPACITY; /* Out of bounds head */
+    TEST_ASSERT_FALSE(flash_metadata_is_consistent(&bad_meta));
+
+    bad_meta.head_index = 0U;
+    bad_meta.tail_index = FLASH_RING_TOTAL_CAPACITY; /* Out of bounds tail */
+    TEST_ASSERT_FALSE(flash_metadata_is_consistent(&bad_meta));
+
+    bad_meta.tail_index = 0U;
+    bad_meta.valid_count = FLASH_RING_TOTAL_CAPACITY + 1U; /* Out of bounds count */
+    TEST_ASSERT_FALSE(flash_metadata_is_consistent(&bad_meta));
+
+    /* Integrity error when Page 127 contains corrupted data and zero valid entries */
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_erase_page(FLASH_RING_METADATA_PAGE));
+    uint32_t corrupt_word = 0x11223344U;
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_write_bytes(FLASH_METADATA_PAGE_BASE_ADDR, (const uint8_t *)&corrupt_word, sizeof(uint32_t)));
+    TEST_ASSERT_EQUAL(STATUS_OK, flash_storage_init());
+
+    flash_ring_metadata_t meta;
+    uint32_t active_slot = 999U;
+    TEST_ASSERT_EQUAL(STATUS_ERR_INTEGRITY, flash_metadata_find_latest(&meta, &active_slot));
+}
+
+/* ========================================================================== */
 /* Main Unity Test Runner                                                     */
 /* ========================================================================== */
 
@@ -681,6 +906,16 @@ int main(void) {
     RUN_TEST(test_playback_72hour_backlog_drain);
     RUN_TEST(test_playback_last_batch_tail_clamping);
     RUN_TEST(test_playback_parameter_guards);
+
+    /* Category D: Persistent Ring Metadata & Fast Journal Tests (S8-T1.1) */
+    RUN_TEST(test_metadata_crc16_calculation);
+    RUN_TEST(test_metadata_clean_initialization_erased);
+    RUN_TEST(test_metadata_single_entry_append);
+    RUN_TEST(test_metadata_sequential_journal_progression);
+    RUN_TEST(test_metadata_page_rollover_slot_64);
+    RUN_TEST(test_metadata_corrupted_crc_recovery);
+    RUN_TEST(test_metadata_power_cut_simulated_tear);
+    RUN_TEST(test_metadata_defensive_parameter_guards);
 
     return UNITY_END();
 }
