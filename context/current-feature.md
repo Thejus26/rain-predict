@@ -1,34 +1,16 @@
-# Current Feature: S8-T1.1 - STM32WLE5 Persistent Flash Ring Metadata Header & Journaling
+# Current Feature
 
 ## Status
 
-In Progress
+Not Started
 
 ## Goals
 
-- [x] Define `flash_ring_metadata_t` 32-byte 64-bit aligned structure in `firmware/middleware/inc/flash_storage.h` with magic `0x4D455441`, generation counter, head/tail cursors, valid count, sequence ID, erased page bitmask, epoch, RTC timestamp, and CRC-16-CCITT.
-- [x] Implement `flash_metadata_calc_crc16()` in `firmware/middleware/src/flash_storage.c` using CCITT polynomial (`0x1021`, initial value `0xFFFF`).
-- [x] Implement `flash_metadata_find_latest()` in `firmware/middleware/src/flash_storage.c` to scan Page 127 (max 64 slots) for the active journal entry with valid CRC and boundary checks.
-- [x] Implement `flash_metadata_commit()` in `firmware/middleware/src/flash_storage.c` to append entries sequentially into Page 127 and handle page erase and epoch rollover after 64 writes.
-- [x] Implement `flash_metadata_is_consistent()` sanity validation helper in `firmware/middleware/src/flash_storage.c`.
-- [x] Implement and verify unit test cases `TEST_META_01` through `TEST_META_07` in `tests/unit/test_flash_storage.c` covering CRC calculation, erased page detection, sequential progression, 64-slot wear rollover, corrupted CRC recovery, and simulated power-cut tear.
+<!-- Describe the primary goals and deliverables for this feature -->
 
 ## Notes
 
-- **Specification**: `context/specs/s8-t1.1-persistent-ring-metadata.md`
-- **Dependencies & Related Modules**:
-  - `firmware/middleware/inc/flash_storage.h` & `firmware/middleware/src/flash_storage.c`
-  - `firmware/app/src/app_state_machine.c` (State machine ring logging caller)
-  - `firmware/middleware/src/lorawan_service.c` (Backlog playback consumer)
-  - `tests/unit/test_flash_storage.c`
-  - `context/audit/code-issues-github-copilot.md` (Issue 1: Flash ring initialization full scan)
-- **Hardware & Memory Architecture Constraints**:
-  - Dedicated Metadata Sector: Flash Page 127 (`0x0803F800` - `0x0803FFFF`, 2048 bytes).
-  - 32-byte struct aligned to 64-bit double-words ($4 \times 64$-bit dwords matching STM32WLE5 flash programming unit).
-  - 64 journal slots per page: wear endurance $10,000 \times 64 = 640,000$ updates (> 18 years at 15-minute intervals).
-  - Power-cut resilience: partial/corrupted writes safely detected via magic byte and CRC-16 check without crashing.
-  - Zero dynamic heap allocation (`malloc`/`free` strictly prohibited).
-  - Note: Never attempt local CMake compilation or test runs per user rule.
+<!-- Hardware constraints, register maps, memory limits, or power requirements -->
 
 ## History
 
@@ -73,3 +55,4 @@ In Progress
 - 2026-09-21: S7-T3.1 — Implemented On-Site Barometric Altitude Offset Calibration Procedure & Operational Tuning (Verified ICAO/WMO standard hypsometric sea-level reduction formula and elevation inversion algorithm across mountain elevations from 120m to 2,200m AMSL; documented complete 6-phase Field Technician SOP, sequence diagram, and error budget table in docs/algorithms/algorithm-validation-and-tuning.md; established multi-regime CPI weight matrix for High Ridge, Mid-Slope, and Valley Basin regimes; specified 32-byte double-word aligned NVM Flash configuration structure in Sector 7 at 0x0803F800 with CRC-16 integrity and range clamps; delivered Python CLI tools/calibration/calibrate_station_elevation.py generating 6-byte LoRaWAN Downlink Command 0x02 frames on FPort 10 and data/calibration_verification_report.json; implemented C99 Unity unit test suite tests/unit/test_barometric_calibration.c validating 10-point matrix TC-CAL-01 through TC-CAL-10 with zero heap allocation; registered test_barometric_calibration target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T3.2 — Implemented Tipping-Bucket Rain Gauge Field Water Calibration & Maintenance SOP (Verified analytical funnel catch area A=314.16 cm^2 and tip volume V=6.2832 mL for 200mm aperture; formulated complete 6-phase Field Technician SOP covering cleaning, spirit leveling <=0.5 deg, low-rate static drip test 25 mm/hr, chamber symmetry balancing |NL-NR|<=1, dynamic high-rate siphon test 100 mm/hr, and Flash NVM programming in docs/calibration/tipping_bucket_calibration_sop.md; established M3x0.5mm stop screw fine-tuning kinematics 1/8 turn = ~0.0075 mm/tip; delivered Python CLI tools/calibration/calibrate_rain_gauge.py formatting LoRaWAN Downlink Command 0x05 frames on FPort 10 and data/rain_gauge_calibration_report.json; updated docs/sensors/rain-gauge-pulse.md with calibration protocol; implemented C99 Unity unit test suite tests/unit/test_rain_gauge_calibration.c validating 10-point matrix TC-RG-01 through TC-RG-10 with zero heap allocation; registered test_rain_gauge_calibration target in tests/CMakeLists.txt).
 - 2026-09-21: S7-T3.3 — Implemented Estate Agronomic Operational Response Guidelines & Field Safety Protocols (Documented 4-tier agronomic decision matrix and standard operating procedures SOP-AGRO-01 through SOP-AGRO-05 in docs/agronomy/estate_operational_guidelines.md; formulated agrochemical rainfast curing physics T_cure=3.5h saving >$45/ha per prevented washout; established green leaf triage and respiration heat runaway models k_resp=0.035 min^-1 preventing T_core > 35°C auction souring; defined hillside worker lightning mitigation with >30 min safety buffer and 10s 110dB siren relay actuation; delivered Python audit CLI tools/agronomy/evaluate_agronomic_advisory.py confirming 68.5 min mean lead time and $17,550 chemical savings across 30-day climate stream; implemented C99 Unity unit test suite tests/unit/test_agronomic_rules.c asserting 10-point matrix TC-AGRO-01 through TC-AGRO-10 with zero heap allocation; updated Section 6 in docs/algorithms/algorithm-validation-and-tuning.md; registered test_agronomic_rules target in tests/CMakeLists.txt; completed Sprint 7 and master engineering roadmap).
+- 2026-09-24: S8-T1.1 — Implemented STM32WLE5 Persistent Flash Ring Metadata Header & Journaling (Defined 32-byte 64-bit aligned `flash_ring_metadata_t` structure in Page 127 storing head, tail, valid count, sequence ID, erased mask, flags, generation, epoch, and CRC-16; implemented `flash_metadata_calc_crc16` using CCITT-16, `flash_metadata_find_latest` for $O(1)$ fast boot search across 64 slots, `flash_metadata_commit` with automatic 64-slot wear-leveling page rollover and readback verification, and `flash_metadata_is_consistent`; added `STATUS_ERR_NOT_FOUND`, `STATUS_ERR_INTEGRITY`, and `STATUS_ERR_GENERIC` to `status.h`; implemented Category D Unity unit tests `TEST_META_01` through `TEST_META_07` in `test_flash_storage.c` validating CRC accuracy, clean initialization, single append, sequential updates, 64-slot wear rollover, corrupted CRC recovery, and simulated power-cut tear).
