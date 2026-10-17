@@ -1,0 +1,6 @@
+[submodule "docs"]
+	path = docs
+	url = git@github.com:Thejus26/rain-predict-docs.git
+[submodule "context"]
+	path = context
+	url = git@github.com:Thejus26/rain-predict-context.git
